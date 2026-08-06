@@ -1,40 +1,14 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { fetchBooks, type Book } from './lib/books'
+import { useBookCover } from './lib/bookCovers'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type Page = 'home' | 'catalog' | 'about'
 
-type CheckoutRecord = {
-  patron: string
-  patronId: string
-  checkedOut: string
-  dueDate: string
-  renewed: boolean
-}
-
-type Book = {
-  id: number
-  title: string
-  author: string
-  year: number
-  genre: string
-  category: string
-  keywords: string[]
-  dewey: string
-  img: string
-  isbn: string
-  summary: string
-  pages: number
-  publisher: string
-  available: boolean
-  copiesTotal: number
-  checkedOut: CheckoutRecord[]
-}
-
 type Filters = {
   query: string
   category: string
-  genre: string
   yearFrom: string
   yearTo: string
   availability: 'all' | 'available' | 'checkedout'
@@ -44,7 +18,6 @@ type Filters = {
 const EMPTY_FILTERS: Filters = {
   query: '',
   category: 'All Categories',
-  genre: 'All Genres',
   yearFrom: '',
   yearTo: '',
   availability: 'all',
@@ -53,283 +26,7 @@ const EMPTY_FILTERS: Filters = {
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
-const BOOKS: Book[] = [
-  {
-    id: 1,
-    title: 'Sathyam Shivam Sundaram',
-    author: 'Prof. N. Kasturi',
-    year: 1961,
-    genre: 'Spiritual Biography',
-    category: 'Non-Fiction',
-    keywords: ['sai baba', 'biography', 'spirituality', 'divine', 'truth', 'devotion'],
-    dewey: '294.5',
-    img: 'photo-1589829085413-56de8ae18c73',
-    isbn: '978-81-7208-001-0',
-    summary: 'The authorised biography of Bhagawan Sri Sathya Sai Baba, written by His close devotee and scholar Prof. N. Kasturi. Spanning four volumes, it chronicles the life, miracles, teachings, and divine mission of Sathya Sai Baba from His birth to His work of spiritual transformation across the world.',
-    pages: 320,
-    publisher: 'Sri Sathya Sai Books & Publications Trust',
-    available: true,
-    copiesTotal: 2,
-    checkedOut: [],
-  },
-  {
-    id: 2,
-    title: 'Loving God',
-    author: 'Prof. N. Kasturi',
-    year: 1982,
-    genre: 'Spiritual',
-    category: 'Non-Fiction',
-    keywords: ['devotion', 'sai baba', 'love', 'god', 'faith', 'surrender'],
-    dewey: '294.5',
-    img: 'photo-1481627834876-b7833e8f5570',
-    isbn: '978-81-7208-015-7',
-    summary: "A devotional classic by Prof. Kasturi exploring the profound relationship between the devotee and the Divine. Drawing on Sai Baba's teachings, discourses, and personal interactions, the book illuminates the path of love, selfless service, and surrender as the highest spiritual practice.",
-    pages: 248,
-    publisher: 'Sri Sathya Sai Books & Publications Trust',
-    available: true,
-    copiesTotal: 1,
-    checkedOut: [],
-  },
-  {
-    id: 3,
-    title: 'Geeta Vahini',
-    author: 'Bhagawan Sri Sathya Sai Baba',
-    year: 1963,
-    genre: 'Spiritual Scripture',
-    category: 'Non-Fiction',
-    keywords: ['bhagavad gita', 'dharma', 'krishna', 'yoga', 'vedanta', 'spirituality'],
-    dewey: '294.5',
-    img: 'photo-1544716278-ca5e3f4abd8c',
-    isbn: '978-81-7208-008-9',
-    summary: "Sathya Sai Baba's commentary and exposition on the Bhagavad Gita, rendered in clear and accessible language. Geeta Vahini illuminates the eternal wisdom of Krishna's discourse to Arjuna, making the Gita's teachings on duty, devotion, knowledge, and liberation relevant for the modern seeker.",
-    pages: 276,
-    publisher: 'Sri Sathya Sai Books & Publications Trust',
-    available: false,
-    copiesTotal: 2,
-    checkedOut: [
-      { patron: 'Janani Krishnan', patronId: 'P-00287', checkedOut: '2026-07-05', dueDate: '2026-07-26', renewed: true },
-      { patron: 'Lassi Mäkinen', patronId: 'P-00412', checkedOut: '2026-07-10', dueDate: '2026-07-31', renewed: false },
-    ],
-  },
-  {
-    id: 4,
-    title: 'Invisible Cities',
-    author: 'Italo Calvino',
-    year: 1972,
-    genre: 'Postmodern Fiction',
-    category: 'Fiction',
-    keywords: ['travel', 'imagination', 'memory', 'architecture', 'marco polo', 'kublai khan'],
-    dewey: '853.914',
-    img: 'photo-1507003211169-0a1dd7228f2d',
-    isbn: '978-0-15-645380-4',
-    summary: 'Marco Polo describes 55 fantastical cities to Kublai Khan, each one a meditation on desire, memory, death, and utopia. A lyrical prose poem in novel form, one of the most formally inventive works of the twentieth century.',
-    pages: 165,
-    publisher: 'Harcourt Brace Jovanovich',
-    available: true,
-    copiesTotal: 1,
-    checkedOut: [],
-  },
-  {
-    id: 5,
-    title: 'Anna Karenina',
-    author: 'Leo Tolstoy',
-    year: 1877,
-    genre: 'Classic Fiction',
-    category: 'Fiction',
-    keywords: ['love', 'adultery', 'society', 'russia', 'tragedy', 'marriage'],
-    dewey: '891.73',
-    img: 'photo-1541963463532-d68292c34b19',
-    isbn: '978-0-14-044913-4',
-    summary: "Tolstoy's epic of Russian aristocratic society follows Anna Karenina's passionate affair with Count Vronsky, set against Levin's contrasting domestic happiness. A profound study of love, guilt, and the social machinery that grinds individuals down.",
-    pages: 864,
-    publisher: 'Penguin Classics',
-    available: false,
-    copiesTotal: 2,
-    checkedOut: [
-      { patron: 'Janani Krishnan', patronId: 'P-00287', checkedOut: '2026-06-28', dueDate: '2026-07-19', renewed: true },
-      { patron: 'Marcus Webb', patronId: 'P-00109', checkedOut: '2026-07-08', dueDate: '2026-07-29', renewed: false },
-    ],
-  },
-  {
-    id: 6,
-    title: 'Beloved',
-    author: 'Toni Morrison',
-    year: 1987,
-    genre: 'Literary Fiction',
-    category: 'Fiction',
-    keywords: ['slavery', 'trauma', 'memory', 'haunting', 'motherhood', 'america'],
-    dewey: '813.54',
-    img: 'photo-1495640388908-05fa85288e61',
-    isbn: '978-1-4000-3341-6',
-    summary: "Set after the American Civil War, Morrison's Pulitzer Prize-winning novel follows Sethe, a formerly enslaved woman haunted by the ghost of the infant daughter she killed to spare her from slavery. A devastating meditation on trauma, memory, and the legacy of bondage.",
-    pages: 321,
-    publisher: 'Knopf',
-    available: true,
-    copiesTotal: 2,
-    checkedOut: [
-      { patron: 'Lassi Mäkinen', patronId: 'P-00412', checkedOut: '2026-07-12', dueDate: '2026-08-02', renewed: false },
-    ],
-  },
-  {
-    id: 7,
-    title: 'The Magic Mountain',
-    author: 'Thomas Mann',
-    year: 1924,
-    genre: 'Philosophical Fiction',
-    category: 'Fiction',
-    keywords: ['tuberculosis', 'time', 'europe', 'philosophy', 'sanatorium'],
-    dewey: '833.912',
-    img: 'photo-1519682337058-a94d519337bc',
-    isbn: '978-0-679-72600-0',
-    summary: "Hans Castorp visits his cousin at a Swiss tuberculosis sanatorium and stays for seven years, drawn into the hothouse intellectual atmosphere of pre-war Europe. Mann's vast novel is an allegory of European culture on the brink of catastrophe.",
-    pages: 716,
-    publisher: 'Vintage',
-    available: true,
-    copiesTotal: 1,
-    checkedOut: [],
-  },
-  {
-    id: 8,
-    title: 'In Search of Lost Time',
-    author: 'Marcel Proust',
-    year: 1913,
-    genre: 'Modernist Fiction',
-    category: 'Fiction',
-    keywords: ['memory', 'time', 'aristocracy', 'france', 'art', 'jealousy'],
-    dewey: '843.912',
-    img: 'photo-1476275466078-4007374efbbe',
-    isbn: '978-0-300-18776-6',
-    summary: "The longest novel in the world follows the narrator's reflections on a life lived in Parisian high society, exploring memory, art, jealousy, and the passage of time through Proust's extraordinary sentences.",
-    pages: 4215,
-    publisher: 'Yale University Press',
-    available: false,
-    copiesTotal: 1,
-    checkedOut: [
-      { patron: 'Priya Nair', patronId: 'P-00334', checkedOut: '2026-07-03', dueDate: '2026-07-24', renewed: false },
-    ],
-  },
-  {
-    id: 9,
-    title: 'The Brothers Karamazov',
-    author: 'Fyodor Dostoevsky',
-    year: 1880,
-    genre: 'Classic Fiction',
-    category: 'Fiction',
-    keywords: ['faith', 'doubt', 'murder', 'russia', 'morality', 'family', 'parricide'],
-    dewey: '891.733',
-    img: 'photo-1568667256549-094cd0ff57a7',
-    isbn: '978-0-374-52837-9',
-    summary: "Dostoevsky's final novel pits rationalism against religious faith through three brothers and their dissolute father, building toward parricide and a dramatic courtroom trial. Widely regarded as the greatest novel ever written.",
-    pages: 796,
-    publisher: 'Farrar, Straus and Giroux',
-    available: true,
-    copiesTotal: 2,
-    checkedOut: [
-      { patron: 'Janani Krishnan', patronId: 'P-00287', checkedOut: '2026-07-14', dueDate: '2026-08-04', renewed: false },
-    ],
-  },
-  {
-    id: 10,
-    title: 'Their Eyes Were Watching God',
-    author: 'Zora Neale Hurston',
-    year: 1937,
-    genre: 'Literary Fiction',
-    category: 'Fiction',
-    keywords: ['identity', 'race', 'love', 'south', 'self-discovery', 'folklore'],
-    dewey: '813.52',
-    img: 'photo-1604866830893-c13cafa515d5',
-    isbn: '978-0-06-093141-3',
-    summary: "Janie Crawford's journey through three marriages becomes an exploration of Black life, identity, and selfhood in the American South. Hurston's lyrical prose and authentic vernacular dialogue make this a landmark of the Harlem Renaissance.",
-    pages: 193,
-    publisher: 'Harper Perennial',
-    available: true,
-    copiesTotal: 2,
-    checkedOut: [],
-  },
-  {
-    id: 11,
-    title: 'Sapiens: A Brief History of Humankind',
-    author: 'Yuval Noah Harari',
-    year: 2011,
-    genre: 'History',
-    category: 'Non-Fiction',
-    keywords: ['evolution', 'civilization', 'agriculture', 'capitalism', 'empire', 'science'],
-    dewey: '909',
-    img: 'photo-1589829085413-56de8ae18c73',
-    isbn: '978-0-06-231610-0',
-    summary: "Harari surveys the whole of human history from the emergence of Homo sapiens to the present, arguing that what distinguishes us is our ability to cooperate through shared fictions — money, nations, religion, corporations.",
-    pages: 464,
-    publisher: 'Harper',
-    available: false,
-    copiesTotal: 3,
-    checkedOut: [
-      { patron: 'Lassi Mäkinen', patronId: 'P-00412', checkedOut: '2026-07-07', dueDate: '2026-07-28', renewed: true },
-      { patron: 'Tom Eriksen', patronId: 'P-00521', checkedOut: '2026-07-09', dueDate: '2026-07-30', renewed: false },
-      { patron: 'Janani Krishnan', patronId: 'P-00287', checkedOut: '2026-07-13', dueDate: '2026-08-03', renewed: false },
-    ],
-  },
-  {
-    id: 12,
-    title: 'The Periodic Table',
-    author: 'Primo Levi',
-    year: 1975,
-    genre: 'Memoir',
-    category: 'Non-Fiction',
-    keywords: ['chemistry', 'holocaust', 'memory', 'science', 'italy', 'resistance'],
-    dewey: '853.914',
-    img: 'photo-1532012197267-da84d127e765',
-    isbn: '978-0-8052-1041-0',
-    summary: "Each chapter takes its name from a chemical element to frame a vignette of Levi's life as a chemist and Holocaust survivor. A unique hybrid of memoir, science writing, and fable.",
-    pages: 233,
-    publisher: 'Schocken',
-    available: true,
-    copiesTotal: 1,
-    checkedOut: [],
-  },
-  {
-    id: 13,
-    title: 'Thinking, Fast and Slow',
-    author: 'Daniel Kahneman',
-    year: 2011,
-    genre: 'Psychology',
-    category: 'Non-Fiction',
-    keywords: ['cognition', 'bias', 'decision making', 'economics', 'heuristics', 'behavioral'],
-    dewey: '153.4',
-    img: 'photo-1507003211169-0a1dd7228f2d',
-    isbn: '978-0-374-27563-1',
-    summary: 'Nobel laureate Kahneman distills decades of research in cognitive psychology and behavioral economics into a compelling portrait of the two systems that drive how we think: fast, intuitive System 1, and slow, deliberate System 2.',
-    pages: 499,
-    publisher: 'Farrar, Straus and Giroux',
-    available: true,
-    copiesTotal: 2,
-    checkedOut: [
-      { patron: 'Priya Nair', patronId: 'P-00334', checkedOut: '2026-07-11', dueDate: '2026-08-01', renewed: false },
-    ],
-  },
-  {
-    id: 14,
-    title: 'Cosmos',
-    author: 'Carl Sagan',
-    year: 1980,
-    genre: 'Science',
-    category: 'Non-Fiction',
-    keywords: ['astronomy', 'universe', 'evolution', 'science', 'philosophy', 'stars'],
-    dewey: '520',
-    img: 'photo-1419242902214-272b3f66ee7a',
-    isbn: '978-0-345-53943-4',
-    summary: "Sagan's companion to his landmark television series takes readers on a journey across the cosmos, from the Big Bang to the emergence of intelligence on Earth and our search for other civilisations.",
-    pages: 365,
-    publisher: 'Random House',
-    available: false,
-    copiesTotal: 1,
-    checkedOut: [
-      { patron: 'Marcus Webb', patronId: 'P-00109', checkedOut: '2026-07-06', dueDate: '2026-07-27', renewed: false },
-    ],
-  },
-]
-
 const CATEGORIES = ['All Categories', 'Fiction', 'Non-Fiction']
-const GENRES = ['All Genres', 'Spiritual Biography', 'Spiritual', 'Spiritual Scripture', 'Historical Fiction', 'Victorian Fiction', 'Magical Realism', 'Postmodern Fiction', 'Classic Fiction', 'Literary Fiction', 'Philosophical Fiction', 'Modernist Fiction', 'History', 'Memoir', 'Psychology', 'Science']
 
 const EVENTS = [
   { date: 'Jul 22', title: 'Summer Reading Circle', time: '6:00 PM', room: 'Reading Room B' },
@@ -344,6 +41,27 @@ const STAFF = [
   { name: 'Saoirse Callahan', role: "Children's Librarian", since: '2019', img: 'photo-1580489944761-15a19d654956' },
   { name: 'Dev Anand Pillai', role: 'Digital Collections', since: '2021', img: 'photo-1507003211169-0a1dd7228f2d' },
 ]
+
+// ── Book cover ────────────────────────────────────────────────────────────────
+// Cover art isn't stored in Supabase yet, so it's resolved client-side via the
+// Google Books API (see lib/bookCovers.ts) and cached. Falls back to a plain
+// placeholder box when no cover is found.
+
+function BookCover({ book, style, fallback }: { book: Book; style?: React.CSSProperties; fallback?: React.ReactNode }) {
+  const cover = useBookCover(book.title, book.author)
+  if (cover) {
+    return <img src={cover} alt={book.title} style={{ objectFit: 'cover', display: 'block', width: '100%', height: '100%', ...style }} />
+  }
+  return (
+    <>
+      {fallback ?? (
+        <div style={{ width: '100%', height: '100%', background: '#D4B896', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, opacity: 0.35, ...style }}>
+          📖
+        </div>
+      )}
+    </>
+  )
+}
 
 // ── Top nav ───────────────────────────────────────────────────────────────────
 
@@ -484,17 +202,19 @@ function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (name:
 // ── Cart overlay ──────────────────────────────────────────────────────────────
 
 function CartOverlay({
+  books,
   cartIds,
   onClose,
   onRemove,
   onViewBook,
 }: {
-  cartIds: number[]
+  books: Book[]
+  cartIds: string[]
   onClose: () => void
-  onRemove: (id: number) => void
+  onRemove: (id: string) => void
   onViewBook: (book: Book) => void
 }) {
-  const cartBooks = cartIds.map(id => BOOKS.find(b => b.id === id)).filter(Boolean) as Book[]
+  const cartBooks = cartIds.map(id => books.find(b => b.id === id)).filter(Boolean) as Book[]
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex' }} onClick={onClose}>
@@ -522,11 +242,11 @@ function CartOverlay({
           <>
             <div style={{ flex: 1, padding: '16px 0' }}>
               {cartBooks.map(book => {
-                const avail = book.copiesTotal - book.checkedOut.length
+                const avail = book.copiesAvailable
                 return (
                   <div key={book.id} style={{ display: 'flex', gap: 14, padding: '16px 28px', borderBottom: '1px solid #D4B896' }}>
                     <div style={{ width: 48, height: 62, overflow: 'hidden', flexShrink: 0, background: '#D4B896' }}>
-                      <img src={`https://images.unsplash.com/${book.img}?w=48&h=62&fit=crop&auto=format`} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      <BookCover book={book} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <button onClick={() => { onClose(); onViewBook(book) }} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}>
@@ -565,6 +285,7 @@ function CartOverlay({
 
 function BookDetailPage({
   book,
+  allBooks,
   onBack,
   cartIds,
   onAddToCart,
@@ -572,22 +293,22 @@ function BookDetailPage({
   onViewBook,
 }: {
   book: Book
+  allBooks: Book[]
   onBack: () => void
-  cartIds: number[]
-  onAddToCart: (id: number) => void
-  onRemoveFromCart: (id: number) => void
+  cartIds: string[]
+  onAddToCart: (id: string) => void
+  onRemoveFromCart: (id: string) => void
   onViewBook: (book: Book) => void
 }) {
-  const avail = book.copiesTotal - book.checkedOut.length
+  const avail = book.copiesAvailable
   const inCart = cartIds.includes(book.id)
 
   const similar = useMemo(() => {
-    return BOOKS
+    return allBooks
       .filter(b => b.id !== book.id)
       .map(b => ({
         book: b,
         score:
-          (b.genre === book.genre ? 3 : 0) +
           (b.category === book.category ? 1 : 0) +
           b.keywords.filter(k => book.keywords.includes(k)).length * 2,
       }))
@@ -595,17 +316,13 @@ function BookDetailPage({
       .sort((a, b) => b.score - a.score)
       .slice(0, 4)
       .map(({ book }) => book)
-  }, [book])
+  }, [book, allBooks])
 
   return (
     <div style={{ minHeight: '100vh', background: '#F4E9D0' }}>
       {/* Hero banner */}
       <div style={{ position: 'relative', height: 340, overflow: 'hidden' }}>
-        <img
-          src={`https://images.unsplash.com/${book.img}?w=1400&h=340&fit=crop&auto=format`}
-          alt={book.title}
-          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-        />
+        <BookCover book={book} fallback={<div style={{ position: 'absolute', inset: 0, background: '#2C1810' }} />} />
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, rgba(44,24,16,0.92) 45%, rgba(44,24,16,0.4) 100%)' }} />
 
         {/* Back button */}
@@ -621,7 +338,7 @@ function BookDetailPage({
         {/* Title block */}
         <div style={{ position: 'absolute', bottom: 40, left: 40, right: 40 }}>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#C8521A', letterSpacing: '0.2em', textTransform: 'uppercase', display: 'block', marginBottom: 10 }}>
-            {book.genre} · Dewey {book.dewey}
+            {book.category}
           </span>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(28px,4vw,48px)', fontWeight: 700, color: '#FAF3E4', lineHeight: 1.15, marginBottom: 8, maxWidth: 700 }}>
             {book.title}
@@ -648,12 +365,9 @@ function BookDetailPage({
             <h2 style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#C8521A', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 16 }}>Publication Details</h2>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 32px' }}>
               {[
-                { label: 'ISBN', val: book.isbn },
                 { label: 'Publisher', val: book.publisher },
-                { label: 'Year', val: book.year.toString() },
-                { label: 'Pages', val: book.pages.toLocaleString() },
+                { label: 'Year', val: book.year },
                 { label: 'Category', val: book.category },
-                { label: 'Genre', val: book.genre },
               ].map(m => (
                 <div key={m.label}>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 2 }}>{m.label}</span>
@@ -677,7 +391,7 @@ function BookDetailPage({
               <h2 style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#C8521A', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 20 }}>Similar Titles</h2>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
                 {similar.map(s => {
-                  const sAvail = s.copiesTotal - s.checkedOut.length
+                  const sAvail = s.copiesAvailable
                   return (
                     <div
                       key={s.id}
@@ -687,7 +401,7 @@ function BookDetailPage({
                       onMouseLeave={e => { e.currentTarget.style.background = '#FAF3E4'; e.currentTarget.style.borderColor = '#D4B896' }}
                     >
                       <div style={{ width: 40, height: 52, overflow: 'hidden', flexShrink: 0, background: '#D4B896' }}>
-                        <img src={`https://images.unsplash.com/${s.img}?w=40&h=52&fit=crop&auto=format`} alt={s.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                        <BookCover book={s} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 600, color: '#2C1810', lineHeight: 1.3, marginBottom: 2 }}>{s.title}</h3>
@@ -719,11 +433,14 @@ function BookDetailPage({
 
               {/* Copy dots */}
               <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-                {Array.from({ length: book.copiesTotal }).map((_, i) => (
-                  <div key={i} style={{ flex: 1, padding: '8px 0', textAlign: 'center', border: `1.5px solid ${i < book.checkedOut.length ? '#C8521A' : '#4CAF50'}`, background: i < book.checkedOut.length ? 'rgba(200,82,26,0.06)' : 'rgba(76,175,80,0.06)' }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: i < book.checkedOut.length ? '#C8521A' : '#4CAF50' }}>#{i + 1}</span>
-                  </div>
-                ))}
+                {Array.from({ length: book.copiesTotal }).map((_, i) => {
+                  const out = i >= book.copiesAvailable
+                  return (
+                    <div key={i} style={{ flex: 1, padding: '8px 0', textAlign: 'center', border: `1.5px solid ${out ? '#C8521A' : '#4CAF50'}`, background: out ? 'rgba(200,82,26,0.06)' : 'rgba(76,175,80,0.06)' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: out ? '#C8521A' : '#4CAF50' }}>#{i + 1}</span>
+                    </div>
+                  )
+                })}
               </div>
 
               {/* Add to cart */}
@@ -739,43 +456,6 @@ function BookDetailPage({
               <p style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: '#9B7B6A', textAlign: 'center' }}>
                 {avail > 0 ? 'Reserve your copy for pickup.' : 'Join the waitlist — we\'ll notify you when available.'}
               </p>
-            </div>
-
-            {/* Current loans */}
-            {book.checkedOut.length > 0 && (
-              <div style={{ background: '#FAF3E4', border: '1px solid #D4B896', padding: '20px 24px' }}>
-                <h3 style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 14 }}>Current Loans</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {book.checkedOut.map((loan, i) => (
-                    <div key={i} style={{ padding: '12px 14px', background: '#F4E9D0', border: '1px solid #D4B896' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                        <div>
-                          <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: '#2C1810', marginBottom: 1 }}>{loan.patron}</p>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: '#9B7B6A', letterSpacing: '0.08em' }}>{loan.patronId}</span>
-                        </div>
-                        {loan.renewed && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: '#5C3D2E', background: '#F0C9A8', padding: '2px 6px' }}>Renewed</span>}
-                      </div>
-                      <div style={{ display: 'flex', gap: 16 }}>
-                        <div>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: '#9B7B6A', display: 'block' }}>Checked out</span>
-                          <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: '#5C3D2E' }}>{loan.checkedOut}</span>
-                        </div>
-                        <div>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: '#9B7B6A', display: 'block' }}>Due</span>
-                          <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: '#C8521A', fontWeight: 600 }}>{loan.dueDate}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Dewey */}
-            <div style={{ padding: '14px 16px', background: '#2C1810', display: 'flex', gap: 12, alignItems: 'center' }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Dewey</span>
-              <span style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: '#C8521A' }}>{book.dewey}</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', marginLeft: 'auto' }}>{book.isbn}</span>
             </div>
           </div>
         </div>
@@ -798,23 +478,24 @@ function FilterTag({ label, onRemove }: { label: string; onRemove: () => void })
 // ── Catalog page ──────────────────────────────────────────────────────────────
 
 function CatalogPage({
+  books,
   filters,
   setFilters,
   onViewBook,
   cartIds,
   onAddToCart,
 }: {
+  books: Book[]
   filters: Filters
   setFilters: (f: Filters) => void
   onViewBook: (book: Book) => void
-  cartIds: number[]
-  onAddToCart: (id: number) => void
+  cartIds: string[]
+  onAddToCart: (id: string) => void
 }) {
   const [filtersOpen, setFiltersOpen] = useState(false)
 
   const hasSearched = Object.entries(filters).some(([k, v]) => {
     if (k === 'category') return v !== 'All Categories'
-    if (k === 'genre') return v !== 'All Genres'
     if (k === 'availability') return v !== 'all'
     return v !== ''
   })
@@ -824,38 +505,34 @@ function CatalogPage({
   }
 
   const results = useMemo(() => {
-    return BOOKS.filter(b => {
+    return books.filter(b => {
       const q = filters.query.toLowerCase().trim()
       const kw = filters.keywords.toLowerCase().trim()
       if (q && !b.title.toLowerCase().includes(q) && !b.author.toLowerCase().includes(q)) return false
       if (kw && !b.keywords.some(k => k.includes(kw)) && !b.title.toLowerCase().includes(kw) && !b.summary.toLowerCase().includes(kw)) return false
       if (filters.category !== 'All Categories' && b.category !== filters.category) return false
-      if (filters.genre !== 'All Genres' && b.genre !== filters.genre) return false
-      if (filters.yearFrom && b.year < parseInt(filters.yearFrom)) return false
-      if (filters.yearTo && b.year > parseInt(filters.yearTo)) return false
-      const avail = b.copiesTotal - b.checkedOut.length
-      if (filters.availability === 'available' && avail === 0) return false
-      if (filters.availability === 'checkedout' && avail === b.copiesTotal) return false
+      if (filters.yearFrom && parseInt(b.year) < parseInt(filters.yearFrom)) return false
+      if (filters.yearTo && parseInt(b.year) > parseInt(filters.yearTo)) return false
+      if (filters.availability === 'available' && b.copiesAvailable === 0) return false
+      if (filters.availability === 'checkedout' && b.copiesAvailable === b.copiesTotal) return false
       return true
     })
-  }, [filters])
+  }, [books, filters])
 
-  const unavailableResults = results.filter(b => b.copiesTotal - b.checkedOut.length === 0)
+  const unavailableResults = results.filter(b => b.copiesAvailable === 0)
 
   const recommendations = useMemo(() => {
     if (!hasSearched || unavailableResults.length === 0) return []
     const resultIds = new Set(results.map(b => b.id))
     const seedKeywords = new Set(unavailableResults.flatMap(b => b.keywords))
-    const seedGenres = new Set(unavailableResults.map(b => b.genre))
     const seedCategories = new Set(unavailableResults.map(b => b.category))
     const seedWords = new Set(unavailableResults.flatMap(b => b.summary.toLowerCase().split(/\W+/).filter(w => w.length > 4)))
 
-    return BOOKS
-      .filter(b => !resultIds.has(b.id) && b.copiesTotal - b.checkedOut.length > 0)
+    return books
+      .filter(b => !resultIds.has(b.id) && b.copiesAvailable > 0)
       .map(b => {
         let score = 0
         b.keywords.forEach(k => { if (seedKeywords.has(k)) score += 3 })
-        if (seedGenres.has(b.genre)) score += 2
         if (seedCategories.has(b.category)) score += 1
         b.summary.toLowerCase().split(/\W+/).filter(w => w.length > 4).forEach(w => { if (seedWords.has(w)) score += 0.5 })
         return { book: b, score }
@@ -864,13 +541,12 @@ function CatalogPage({
       .sort((a, b) => b.score - a.score)
       .slice(0, 4)
       .map(({ book }) => book)
-  }, [results, hasSearched])
+  }, [books, results, hasSearched])
 
   const activeFilterCount = [
     filters.query,
     filters.keywords,
     filters.category !== 'All Categories' ? filters.category : '',
-    filters.genre !== 'All Genres' ? filters.genre : '',
     filters.yearFrom,
     filters.yearTo,
     filters.availability !== 'all' ? filters.availability : '',
@@ -887,7 +563,7 @@ function CatalogPage({
               <button onClick={() => setFilters(EMPTY_FILTERS)} style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', letterSpacing: '0.06em' }}>Clear ({activeFilterCount})</button>
             )}
           </div>
-          <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#9B7B6A' }}>{hasSearched ? `${results.length} result${results.length !== 1 ? 's' : ''}` : `${BOOKS.length} total items`}</p>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#9B7B6A' }}>{hasSearched ? `${results.length} result${results.length !== 1 ? 's' : ''}` : `${books.length} total items`}</p>
         </div>
 
         <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -903,7 +579,6 @@ function CatalogPage({
 
           {[
             { label: 'Category', key: 'category' as const, opts: CATEGORIES },
-            { label: 'Genre', key: 'genre' as const, opts: GENRES },
           ].map(f => (
             <div key={f.key}>
               <label style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{f.label}</label>
@@ -934,23 +609,6 @@ function CatalogPage({
             ))}
           </div>
         </div>
-
-        {/* Patron summary */}
-        <div style={{ margin: '0 20px 20px', padding: 14, background: '#F4E9D0', border: '1px solid #D4B896' }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#C8521A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 10 }}>Active Patrons</span>
-          {[
-            { name: 'Lassi Mäkinen', id: 'P-00412', count: BOOKS.filter(b => b.checkedOut.some(c => c.patron === 'Lassi Mäkinen')).length },
-            { name: 'Janani Krishnan', id: 'P-00287', count: BOOKS.filter(b => b.checkedOut.some(c => c.patron === 'Janani Krishnan')).length },
-          ].map(p => (
-            <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <div>
-                <p style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: '#2C1810', fontWeight: 600 }}>{p.name}</p>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: '#9B7B6A' }}>{p.id}</span>
-              </div>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#C8521A', fontWeight: 600 }}>{p.count} out</span>
-            </div>
-          ))}
-        </div>
       </aside>
 
       {/* Main results */}
@@ -974,7 +632,6 @@ function CatalogPage({
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.1)', alignItems: 'flex-end' }}>
               {[
                 { label: 'Category', key: 'category' as const, opts: CATEGORIES, type: 'select' },
-                { label: 'Genre', key: 'genre' as const, opts: GENRES, type: 'select' },
               ].map(f => (
                 <div key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase' }}>{f.label}</span>
@@ -1008,7 +665,6 @@ function CatalogPage({
               {filters.query && <FilterTag label={`"${filters.query}"`} onRemove={() => setF('query', '')} />}
               {filters.keywords && <FilterTag label={`keywords: ${filters.keywords}`} onRemove={() => setF('keywords', '')} />}
               {filters.category !== 'All Categories' && <FilterTag label={filters.category} onRemove={() => setF('category', 'All Categories')} />}
-              {filters.genre !== 'All Genres' && <FilterTag label={filters.genre} onRemove={() => setF('genre', 'All Genres')} />}
               {filters.yearFrom && <FilterTag label={`from ${filters.yearFrom}`} onRemove={() => setF('yearFrom', '')} />}
               {filters.yearTo && <FilterTag label={`to ${filters.yearTo}`} onRemove={() => setF('yearTo', '')} />}
               {filters.availability !== 'all' && <FilterTag label={filters.availability === 'available' ? 'Available now' : 'On loan'} onRemove={() => setF('availability', 'all')} />}
@@ -1026,7 +682,7 @@ function CatalogPage({
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 1, background: '#D4B896' }}>
               {results.map(book => {
-                const avail = book.copiesTotal - book.checkedOut.length
+                const avail = book.copiesAvailable
                 const inCart = cartIds.includes(book.id)
                 return (
                   <div key={book.id} style={{ background: '#FAF3E4', padding: 18, display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -1036,7 +692,7 @@ function CatalogPage({
                     >
                       <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
                         <div style={{ width: 44, height: 56, overflow: 'hidden', flexShrink: 0, background: '#D4B896' }}>
-                          <img src={`https://images.unsplash.com/${book.img}?w=44&h=56&fit=crop&auto=format`} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                          <BookCover book={book} />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 600, color: '#2C1810', lineHeight: 1.3, marginBottom: 2 }}>{book.title}</h3>
@@ -1052,7 +708,7 @@ function CatalogPage({
                       </p>
                     </div>
                     <div style={{ borderTop: '1px solid #D4B896', paddingTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontFamily: 'var(--font-body)', fontSize: 10, color: '#9B7B6A' }}>{book.genre}</span>
+                      <span style={{ fontFamily: 'var(--font-body)', fontSize: 10, color: '#9B7B6A' }}>{book.category}</span>
                       <button
                         onClick={() => onAddToCart(book.id)}
                         style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.06em', padding: '4px 10px', background: inCart ? '#2C1810' : '#C8521A', color: '#FAF3E4', border: 'none', cursor: 'pointer', transition: 'background 0.15s' }}
@@ -1076,7 +732,7 @@ function CatalogPage({
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
                 {recommendations.map(book => {
-                  const avail = book.copiesTotal - book.checkedOut.length
+                  const avail = book.copiesAvailable
                   const inCart = cartIds.includes(book.id)
                   const sharedKw = book.keywords.filter(k => unavailableResults.some(u => u.keywords.includes(k)))
                   return (
@@ -1084,7 +740,7 @@ function CatalogPage({
                       <div onClick={() => onViewBook(book)} style={{ cursor: 'pointer' }}>
                         <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
                           <div style={{ width: 36, height: 48, overflow: 'hidden', flexShrink: 0, background: '#D4B896' }}>
-                            <img src={`https://images.unsplash.com/${book.img}?w=36&h=48&fit=crop&auto=format`} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                            <BookCover book={book} />
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <h4 style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 600, color: '#2C1810', lineHeight: 1.3, marginBottom: 2 }}>{book.title}</h4>
@@ -1118,12 +774,13 @@ function CatalogPage({
 
 // ── Home page ─────────────────────────────────────────────────────────────────
 
-function HomePage({ onNav, onSearch, onViewBook, cartIds, onAddToCart }: {
+function HomePage({ books, onNav, onSearch, onViewBook, cartIds, onAddToCart }: {
+  books: Book[]
   onNav: (p: Page) => void
   onSearch: (q: string) => void
   onViewBook: (book: Book) => void
-  cartIds: number[]
-  onAddToCart: (id: number) => void
+  cartIds: string[]
+  onAddToCart: (id: string) => void
 }) {
   const [heroQuery, setHeroQuery] = useState('')
 
@@ -1184,18 +841,18 @@ function HomePage({ onNav, onSearch, onViewBook, cartIds, onAddToCart }: {
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#9B7B6A', letterSpacing: '0.1em' }}>July 2026</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
-          {BOOKS.slice(0, 3).map(book => {
-            const avail = book.copiesTotal - book.checkedOut.length
+          {books.slice(0, 3).map(book => {
+            const avail = book.copiesAvailable
             const inCart = cartIds.includes(book.id)
             return (
               <div key={book.id} style={{ background: '#FAF3E4', border: '1px solid #D4B896' }}>
                 <div onClick={() => onViewBook(book)} style={{ cursor: 'pointer' }}>
                   <div style={{ overflow: 'hidden', height: 160 }}>
-                    <img src={`https://images.unsplash.com/${book.img}?w=400&h=160&fit=crop&auto=format`} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.3s' }} onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.04)')} onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')} />
+                    <BookCover book={book} />
                   </div>
                   <div style={{ padding: '16px 18px 12px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{book.genre}</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{book.category}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         <div style={{ width: 5, height: 5, borderRadius: '50%', background: avail > 0 ? '#4CAF50' : '#C8521A' }} />
                         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: avail > 0 ? '#4CAF50' : '#C8521A' }}>{avail > 0 ? 'Available' : 'On Loan'}</span>
@@ -1586,15 +1243,27 @@ function AboutPage() {
 // ── Root ───────────────────────────────────────────────────────────────────────
 
 export default function App() {
+  const [books, setBooks] = useState<Book[]>([])
+  const [booksLoading, setBooksLoading] = useState(true)
+  const [booksError, setBooksError] = useState<string | null>(null)
   const [page, setPage] = useState<Page>('home')
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
   const [viewingBook, setViewingBook] = useState<Book | null>(null)
   const [prevPage, setPrevPage] = useState<Page>('home')
-  const [cartIds, setCartIds] = useState<number[]>([])
+  const [cartIds, setCartIds] = useState<string[]>([])
   const [showCart, setShowCart] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
   const [loggedIn, setLoggedIn] = useState(false)
   const [userName, setUserName] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    fetchBooks()
+      .then(data => { if (!cancelled) setBooks(data) })
+      .catch(err => { if (!cancelled) setBooksError(err instanceof Error ? err.message : 'Failed to load books') })
+      .finally(() => { if (!cancelled) setBooksLoading(false) })
+    return () => { cancelled = true }
+  }, [])
 
   function handleNav(p: Page) {
     setViewingBook(null)
@@ -1618,15 +1287,15 @@ export default function App() {
     setPage(prevPage)
   }
 
-  function addToCart(id: number) {
+  function addToCart(id: string) {
     setCartIds(ids => ids.includes(id) ? ids : [...ids, id])
   }
 
-  function removeFromCart(id: number) {
+  function removeFromCart(id: string) {
     setCartIds(ids => ids.filter(i => i !== id))
   }
 
-  function toggleCart(id: number) {
+  function toggleCart(id: string) {
     setCartIds(ids => ids.includes(id) ? ids.filter(i => i !== id) : [...ids, id])
   }
 
@@ -1643,9 +1312,19 @@ export default function App() {
       />
 
       <main style={{ paddingTop: 60 }}>
-        {viewingBook ? (
+        {booksLoading ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+            <p style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontStyle: 'italic', color: '#9B7B6A' }}>Loading the catalog…</p>
+          </div>
+        ) : booksError ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 8, textAlign: 'center', padding: 24 }}>
+            <p style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600, color: '#C8521A' }}>Couldn't load the catalog</p>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#9B7B6A' }}>{booksError}</p>
+          </div>
+        ) : viewingBook ? (
           <BookDetailPage
             book={viewingBook}
+            allBooks={books}
             onBack={handleBack}
             cartIds={cartIds}
             onAddToCart={addToCart}
@@ -1653,9 +1332,9 @@ export default function App() {
             onViewBook={handleViewBook}
           />
         ) : page === 'home' ? (
-          <HomePage onNav={handleNav} onSearch={handleSearch} onViewBook={handleViewBook} cartIds={cartIds} onAddToCart={toggleCart} />
+          <HomePage books={books} onNav={handleNav} onSearch={handleSearch} onViewBook={handleViewBook} cartIds={cartIds} onAddToCart={toggleCart} />
         ) : page === 'catalog' ? (
-          <CatalogPage filters={filters} setFilters={setFilters} onViewBook={handleViewBook} cartIds={cartIds} onAddToCart={toggleCart} />
+          <CatalogPage books={books} filters={filters} setFilters={setFilters} onViewBook={handleViewBook} cartIds={cartIds} onAddToCart={toggleCart} />
         ) : (
           <AboutPage />
         )}
@@ -1663,6 +1342,7 @@ export default function App() {
 
       {showCart && (
         <CartOverlay
+          books={books}
           cartIds={cartIds}
           onClose={() => setShowCart(false)}
           onRemove={removeFromCart}
