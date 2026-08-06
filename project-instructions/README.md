@@ -18,11 +18,14 @@ Before picking something up: read [GIT_WORKFLOW.md](GIT_WORKFLOW.md) in this sam
 
   `LoginModal` currently fakes a login in local state and accepts any name typed into it. Point its `onLogin` callback at `signIn()`; the form becomes email → code, and the patron's display name comes from their account rather than being typed at login. Note that supabase-js persists the session and refreshes tokens on its own, so `getCurrentPatron()` should read `supabase.auth.getSession()` and subscribe to `onAuthStateChange` rather than being a one-shot fetch — otherwise the UI won't notice a sign-out in another tab.
 
+  **Decided: signup is open** (`shouldCreateUser: true` in `signInWithOtp`) — anyone with an email can register and place holds, no member list to pre-load. Abuse isn't prevented up front; it's handled after the fact by staff, who can now be identified via the `staff` table (`is_staff()`, `supabase/migrations/0002_staff_role_and_returns.sql`) — there's no admin UI for cancelling a hold yet, but the pieces to build one exist.
+
 ### Checkout flow
 - [ ] [`src/lib/checkouts.ts`](../src/lib/checkouts.ts) — already wraps working, race-safe Postgres functions (`supabase/migrations/0001_checkouts_and_reservations.sql` is applied and live). Just needs wiring into the UI:
   - Cart add/remove → `reserveCopy()` / `releaseReservation()`
   - `CartOverlay`'s "Submit Hold Requests" button (App.tsx:272, currently has no `onClick` at all) → `checkoutBook()`
   - Remember: cart currently tracks `book.id`, but reservations are per-*copy* (`full_label`) — picking which copy needs deciding.
+- [ ] **Staff returns UI** — not started, doesn't exist in `App.tsx` at all yet. `return_book(full_label)` (`supabase/migrations/0002_staff_role_and_returns.sql`) marks a checkout returned and puts the copy back on the shelf, gated to the new `staff` table via `is_staff()`. No admin panel exists to call it from — for now staff can call it directly via the Supabase SQL Editor or `supabase.rpc('return_book', { p_full_label })` from the browser console while signed in as a staff account. Building an actual UI for this (and for admin generally) is open-ended; discuss scope with the project owner before starting.
 
 ### Content features (each needs a new table — schemas are sketched in the TODO comments)
 - [ ] [`src/lib/events.ts`](../src/lib/events.ts) — **not decided yet, see the PROPOSAL comment in the file.** Leaning toward dropping calendar-scraping entirely and scoping "events" down to book club sessions only, plus a plain link out to saisevasadan.org/events for everything else. Discuss with the project owner before building either direction. Replaces the hardcoded `EVENTS` array (App.tsx:31).
@@ -47,11 +50,10 @@ Before picking something up: read [GIT_WORKFLOW.md](GIT_WORKFLOW.md) in this sam
 ## Open decisions (not code — need a team call before building)
 
 - **Events scope** — see `src/lib/events.ts`'s PROPOSAL comment.
-- **Who is allowed to sign up.** Email auth settles *how* someone proves who they are, not *whether they're a member*. As it stands anyone on the internet could register and place holds on the physical collection. Two options: gate holds on a librarian linking the account to a real member, or pre-load the member list and refuse unknown emails. This needs deciding before any patron schema is designed — and note the first option depends on the staff role below, which doesn't exist yet.
-- **Who sends the login emails.** Passwordless means an email on *every* login. Supabase's built-in sender is rate-limited to a handful per hour and is explicitly not for production, so this needs a real SMTP provider (Resend, SendGrid, similar) configured and paid for by someone. Cheap, but it's a real account someone has to own.
-- **Admin role.** Several things (editing book club sessions, reading volunteer/donation submissions) assume someone is "staff," but there's no admin/staff concept anywhere yet. Until one exists, treat the Supabase dashboard as the admin panel. When it does get built, store the role in `app_metadata` or a table column with RLS — never in `user_metadata`, which patrons can write to themselves.
+- **Who sends the login emails.** Passwordless means an email on *every* login. Supabase's built-in sender is rate-limited to a handful per hour and is explicitly not for production, so this needs a real SMTP provider (Resend, SendGrid, similar) with a verified sending domain. The project owner is setting this up directly (needs `saisevasadan.org` DNS access) — not a task for the team, just flagging why login emails won't work until it's done.
 - **`STAFF` array in `App.tsx` (line 38).** Either build the "meet the team" section it implies, or delete it.
 - **Cover art source.** Retry Google Books (and actually read the error this time) vs. switch approach entirely.
+- **Category data cleanup.** Real `category` values have typo duplicates (e.g. `Books by N Kasturi` / `N.Kasturi` / `N. Kasuri` are one category spelled three ways), five books have no category at all, and `CATEGORIES` in `App.tsx:29` is still Figma placeholder data that matches none of them. This is a one-time data fix in Supabase, not a code task — project owner is handling the data side; `CATEGORIES` in `App.tsx` still needs updating to match once it's cleaned up (or better, derived from the real distinct values instead of hardcoded).
 
 ## Ground rules
 
