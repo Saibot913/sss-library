@@ -22,6 +22,7 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 - The catalog is cached in `localStorage` for five minutes rather than re-downloaded on every page load (~105 KB each time, for data that barely changes). Overlapping calls share one request, which also collapses the duplicate fetch `React.StrictMode` causes in dev. Five minutes matches the reservation hold window, so it adds no staleness the checkout flow doesn't already tolerate. `invalidateBooksCache()` is exported for the checkout flow to call once it exists.
 
 ### Changed
+- The task list now specifies email + one-time-code authentication, and drops library cards. Cards were Figma mockup leftovers — no card number exists anywhere in the database, and one couldn't serve as a credential regardless since it's printed on the card. Adds open decisions for who may sign up and who runs the mail sender.
 - README now names a direct contact for repo access and Supabase credentials instead of "whoever owns this repo."
 
 ## [0.1.0] - 2026-08-05
