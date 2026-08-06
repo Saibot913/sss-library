@@ -49,3 +49,4 @@ Before picking something up: read [GIT_WORKFLOW.md](GIT_WORKFLOW.md) in this sam
 - RLS is on for every table. If a query silently returns nothing instead of erroring, check policies before assuming the code is wrong.
 - Keep `.env` out of git (it already is). Never commit real Supabase keys anywhere, including in migration files or comments.
 - **For anything marked "discuss before coding"** (a new data source, a new scraping job, a schema design for a brand-new feature) — bring your planned approach to the project owner before writing implementation code, not after. A `TODO`/`PROPOSAL` comment in a stub file is a starting point for that conversation, not a finalized spec to build against silently.
+- **Every PR updates [`CHANGELOG.md`](../CHANGELOG.md)** under `[Unreleased]` — CI fails the PR otherwise. See [GIT_WORKFLOW.md](GIT_WORKFLOW.md) step 5.

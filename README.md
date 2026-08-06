@@ -126,6 +126,7 @@ To stop it later: click into the terminal and press `Ctrl + C`.
 - **`src/App.tsx`** — the whole app's UI currently lives here.
 - **`src/lib/`** — the Supabase-facing code (fetching books, logging in, checking out, etc.).
 - **`supabase/migrations/`** — SQL that sets up the database (tables, permissions, functions).
+- **`CHANGELOG.md`** — every PR adds a line here; see [project-instructions/GIT_WORKFLOW.md](project-instructions/GIT_WORKFLOW.md).
 - **`.mise.toml`**, **`pnpm-lock.yaml`**, **`package.json`** — tooling/dependency config, you generally won't hand-edit these.
 - **`CLAUDE.md`** / **`AGENTS.md`** — instructions for AI coding assistants (like Claude Code) working in this repo, not for you directly.
 

@@ -51,7 +51,11 @@ git merge main
 
 Resolve any conflicts Git flags, then commit the merge.
 
-## 5. Open a pull request
+## 5. Add a changelog entry
+
+Before opening the PR: add a line to [`CHANGELOG.md`](../CHANGELOG.md) under `[Unreleased]`, in the right section (`Added`/`Changed`/`Fixed`/`Removed`) — what you changed, one or two lines. This isn't optional — a GitHub Action checks every PR into `main` and fails it if `CHANGELOG.md` wasn't touched.
+
+## 6. Open a pull request
 
 Push your final commits, then open a PR from `yourname` → `main` on GitHub (or `gh pr create` from the terminal if you have the GitHub CLI).
 
