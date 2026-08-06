@@ -102,7 +102,98 @@ function toBook(row: BookRow): Book {
   }
 }
 
+// The catalog is ~105 KB and almost entirely static — titles and authors
+// don't change. Re-downloading it on every page load is wasted bandwidth
+// and a visible delay before anything renders, so it's cached in
+// localStorage and reused until it goes stale.
+//
+// Bump the version in the key whenever the shape of `Book` changes:
+// entries written by an older build are parsed straight back into `Book[]`
+// without validation, so a renamed field would otherwise surface as
+// undefined at runtime instead of being discarded.
+const CACHE_KEY = 'sss-library:books:v1'
+
+// The one volatile part of a Book is copiesAvailable, so the TTL is really
+// "how long may availability be wrong for?" Five minutes matches the
+// reservation hold window in migration 0001, which is already the amount
+// of staleness the checkout flow is built to tolerate. Cutting it shorter
+// trades page-load speed for accuracy that the database re-checks anyway.
+const CACHE_TTL_MS = 5 * 60 * 1000
+
+type CacheEntry = {
+  savedAt: number
+  books: Book[]
+}
+
+// Every localStorage access is wrapped: it throws outright in some private
+// browsing modes, and the cache is an optimisation, never a requirement.
+function readCache(): CacheEntry | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as CacheEntry
+    if (typeof parsed?.savedAt !== 'number' || !Array.isArray(parsed.books)) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function writeCache(books: Book[]): void {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ savedAt: Date.now(), books }))
+  } catch {
+    // Quota exceeded or storage blocked — carry on uncached.
+  }
+}
+
+/** Drop the cached catalog so the next fetchBooks() re-reads from Supabase. */
+export function invalidateBooksCache(): void {
+  try {
+    localStorage.removeItem(CACHE_KEY)
+  } catch {
+    // Nothing cached to drop.
+  }
+}
+
+function isFresh(entry: CacheEntry): boolean {
+  const age = Date.now() - entry.savedAt
+  // A negative age means the clock moved backwards since the write; treat
+  // that as stale rather than letting a future timestamp pin the entry
+  // as fresh indefinitely.
+  return age >= 0 && age < CACHE_TTL_MS
+}
+
+// Collapses overlapping calls onto one network request. main.tsx renders
+// under React.StrictMode, which deliberately runs effects twice in dev, so
+// the catalog would otherwise be fetched twice on every load — neither
+// call having written the cache before the other reads it.
+let inFlight: Promise<Book[]> | null = null
+
 export async function fetchBooks(): Promise<Book[]> {
+  const cached = readCache()
+  if (cached && isFresh(cached)) return cached.books
+  if (inFlight) return inFlight
+
+  inFlight = fetchAllBooks()
+    .then(books => {
+      writeCache(books)
+      return books
+    })
+    .catch((err: unknown) => {
+      // A stale catalog beats an error screen: the data is mostly static,
+      // and the database re-checks availability at checkout regardless.
+      if (cached) return cached.books
+      throw err
+    })
+    .finally(() => {
+      inFlight = null
+    })
+
+  return inFlight
+}
+
+async function fetchAllBooks(): Promise<Book[]> {
   const books: Book[] = []
 
   // Ordered by the primary key so pages can't overlap or skip rows —
