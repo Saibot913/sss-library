@@ -26,6 +26,7 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 - `auth.ts` stubs reshaped around the email + one-time-code flow: `requestSignInCode()` and `verifySignInCode()` replace `signIn(cardId, name)`, since a code flow is inherently two steps, and `onAuthChange()` is added so the UI tracks token refresh and cross-tab sign-out. `cardId` is gone from `Patron`. Still unimplemented — each function carries a `TODO(team)` naming the exact Supabase call.
 - The task list now specifies email + one-time-code authentication, and drops library cards. Cards were Figma mockup leftovers — no card number exists anywhere in the database, and one couldn't serve as a credential regardless since it's printed on the card. Adds open decisions for who may sign up and who runs the mail sender.
 - README now names a direct contact for repo access and Supabase credentials instead of "whoever owns this repo."
+- Closed two open decisions: signup is open (`shouldCreateUser: true`, no member pre-loading) and the admin role now exists (`staff` table). `requestSignInCode()`'s TODO and the task list are updated accordingly. SMTP setup and category data cleanup stay open but are now flagged as the project owner's job, not the team's.
 
 ## [0.1.0] - 2026-08-05
 
