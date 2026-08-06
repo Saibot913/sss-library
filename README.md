@@ -1,49 +1,134 @@
-# SSS Library
+# SSS Library — Setup Guide
 
-React + Vite + Tailwind CSS front end for the library catalog, backed by Supabase.
+This is a website (React + Vite + Tailwind, backed by Supabase) for the Sri Sathya Sai Baba Center of Sacramento's library. This guide gets the project running on your computer from a completely blank start — it assumes nothing is installed yet. Follow it top to bottom, in order.
 
-## Setup
+## 0. What you'll need
 
-1. `pnpm install`
-2. Copy `.env.example` to `.env` and fill in the two values from the Supabase project (Project Settings → API):
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_PUBLISHABLE_KEY`
-3. `pnpm dev`
+- A **GitHub account** — sign up free at [github.com](https://github.com) if you don't have one.
+- Ask whoever owns this repo to **add you as a collaborator** (GitHub → repo → Settings → Collaborators). You can't push code without this.
+- Ask them for the **two Supabase credentials** too (you'll need them in step 6) — send these privately (text/Slack/DM), never post them anywhere public.
 
-`.env` is gitignored — every teammate needs their own copy with the shared project's credentials (ask whoever owns the Supabase project for them).
+Everything else below you'll install yourself.
 
-New to the project? [project-instructions/README.md](project-instructions/README.md) has the task checklist, and [project-instructions/SETUP_AND_GIT_WORKFLOW.md](project-instructions/SETUP_AND_GIT_WORKFLOW.md) walks through cloning and the branch/commit/PR process.
+## 1. Open a terminal
 
-## Repo layout
+The terminal is where you'll type commands for the rest of this guide.
 
-Files you likely won't need to touch, but might wonder about:
+- **Mac**: press `Cmd + Space`, type `Terminal`, press Enter.
+- **Windows**: press the Start key, type `PowerShell`, press Enter.
 
-- **`.mise.toml`** — pins the Node.js/pnpm versions this project uses. Auto-applied if you have `mise` installed.
-- **`pnpm-lock.yaml`** — lockfile for `pnpm` (this project's package manager — not `npm`/`yarn`). Auto-generated, never hand-edit.
-- **`package.json`** — project manifest: scripts (`dev`/`build`/`preview`) and dependencies. Add a library with `pnpm add <package>`, don't edit this by hand.
-- **`CLAUDE.md` / `AGENTS.md`** — instructions for AI coding assistants working in this repo (Claude Code, and others that support the AGENTS.md convention), not for you. `CLAUDE.md` just points at `AGENTS.md` so both read the same doc.
+Keep it open — every command below gets typed into this window, then press Enter to run it.
 
-## Wiring up Supabase
+## 2. Install Git
 
-The data layer is stubbed out but not implemented yet. Each stub has a `TODO(team)` comment with the expected table shape:
+Git is the tool that downloads the code and tracks changes.
 
-- [`src/lib/books.ts`](src/lib/books.ts) — `fetchBooks()`, reads the `books` + `copies` tables. Not implemented yet, but it's the one stub already wired into `App.tsx` (runs on page load), so it's the first thing to build.
-- [`src/lib/auth.ts`](src/lib/auth.ts) — `signIn()` / `signOut()` / `getCurrentPatron()`, patron authentication via Supabase Auth.
-- [`src/lib/checkouts.ts`](src/lib/checkouts.ts) — reserve/release/checkout a copy. Wraps the Postgres functions in [`supabase/migrations/0001_checkouts_and_reservations.sql`](supabase/migrations/0001_checkouts_and_reservations.sql) — the race-safety and the 5-minute cart hold are enforced in the database, not in this file.
-- [`src/lib/bookCovers.ts`](src/lib/bookCovers.ts) — `useBookCover()`, cover art lookup. Not stored in Supabase; a first attempt at the Google Books API didn't work and wasn't debugged further.
-- [`src/lib/events.ts`](src/lib/events.ts) — `fetchEvents()`, pulls the calendar from https://www.saisevasadan.org/events (a public Google Calendar).
-- [`src/lib/bookClub.ts`](src/lib/bookClub.ts) — `fetchBookClubSessions()` / `reserveBookClubSpot()`. Matches the real feature already in `App.tsx`'s `BOOK_CLUBS` array: multiple recurring sessions, each with capacity + a live "spots left" count and a working "Reserve a Spot" button — same race-condition shape as book checkout, see the TODO for the pattern to reuse.
-- [`src/lib/thoughtForTheDay.ts`](src/lib/thoughtForTheDay.ts) — daily thought scraped from https://www.sssmediacentre.org/sai-inspires/. Has to run server-side (cross-origin scraping, not an API) on a daily schedule — see the TODO for options.
-- [`src/lib/volunteers.ts`](src/lib/volunteers.ts) — `submitVolunteerApplication()`. The volunteer sign-up form in `AboutPage` currently discards its submission; needs a table to actually save it.
-- [`src/lib/donations.ts`](src/lib/donations.ts) — `submitBookDonation()`. Same situation as volunteers — the donation form goes nowhere right now.
-- [`src/lib/siteInfo.ts`](src/lib/siteInfo.ts) — static contact info (name/address) plus a note on sourcing hero images from saisevasadan.org without hotlinking.
-- [`src/lib/supabaseClient.ts`](src/lib/supabaseClient.ts) — the configured Supabase client; import `supabase` from here, don't create a second client.
+- **Mac**: type `git --version` and press Enter. If it's not installed, macOS will pop up a prompt to install the "Command Line Tools" — click Install and wait for it to finish.
+- **Windows**: download and run the installer from [git-scm.com/download/win](https://git-scm.com/download/win). Default options are fine — just keep clicking Next.
 
-None of the new stubs (`checkouts`, `events`, `bookClub`, `thoughtForTheDay`, `volunteers`, `donations`, `siteInfo`) are wired into `App.tsx` yet — that's part of the work. A few specific things found while auditing `App.tsx` for what's still hardcoded or dead, worth knowing before you start:
+Set your name and email once (used to label your commits later — use the same email as your GitHub account):
 
-- `EVENTS` (App.tsx:31) and `BOOK_CLUBS` (App.tsx:906) are hardcoded placeholder data — `events.ts` and `bookClub.ts` are meant to replace them.
-- `CartOverlay`'s "Submit Hold Requests" button (App.tsx:272) has no `onClick` at all currently — it's the spot where `checkoutBook()`/`reserveCopy()` from `checkouts.ts` need to be called.
-- The contact footer (App.tsx:1232) has a fake placeholder address/phone/email — swap in `siteInfo.ts`'s real address once that's decided.
-- `STAFF` (App.tsx:38) is defined but never rendered anywhere in the file — either a "meet the team" section was planned and dropped, or it's dead code to delete. Worth a team decision either way.
+```bash
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
+```
 
-Each teammate needs their own `.env` (step 2 above) to actually hit Supabase — cloning the repo alone doesn't wire anything up by itself.
+## 3. Install Node.js
+
+Node.js runs the project's JavaScript tooling.
+
+1. Go to [nodejs.org](https://nodejs.org), download the **LTS** version for your OS, run the installer, keep clicking Next/default options.
+2. Verify it worked — in your terminal:
+   ```bash
+   node --version
+   ```
+   Should print something like `v22.x.x`. If you get "command not found," close and reopen your terminal and try again.
+
+## 4. Install pnpm
+
+This project uses `pnpm` instead of the more common `npm` to manage its packages.
+
+```bash
+npm install -g pnpm
+```
+
+Verify:
+```bash
+pnpm --version
+```
+
+## 5. Get a code editor
+
+You'll want something to actually look at and edit the code. Recommended: [VS Code](https://code.visualstudio.com) — download, install, default options.
+
+## 6. Clone the repo (download the code)
+
+Pick a folder to keep your projects in, then download the code into it.
+
+**Mac Terminal:**
+```bash
+mkdir -p ~/Projects
+cd ~/Projects
+git clone https://github.com/Saibot913/sss-library.git
+cd sss-library
+```
+
+**Windows PowerShell:**
+```powershell
+New-Item -ItemType Directory -Force -Path "$HOME\Projects"
+cd "$HOME\Projects"
+git clone https://github.com/Saibot913/sss-library.git
+cd sss-library
+```
+
+The first time you `git clone` or push, GitHub will likely open a browser window asking you to log in — sign in there, and your terminal will remember it after that.
+
+Open the folder in VS Code to actually browse/edit the code: `code .` in the terminal (if that doesn't work, open VS Code normally and use File → Open Folder).
+
+## 7. Install the project's dependencies
+
+Still inside the project folder in your terminal:
+
+```bash
+pnpm install
+```
+
+This downloads all the libraries the project depends on (React, Supabase, etc.) into a `node_modules` folder. Takes a minute, only needs to be done once (and again later if dependencies change).
+
+## 8. Connect to Supabase
+
+The two credentials someone gave you in step 0 go here.
+
+1. Copy the example file to a real one:
+   - **Mac**: `cp .env.example .env`
+   - **Windows**: `Copy-Item .env.example .env`
+2. Open `.env` in VS Code and fill in the two values you were given, so it looks like:
+   ```
+   VITE_SUPABASE_URL=https://xxxxx.supabase.co
+   VITE_SUPABASE_PUBLISHABLE_KEY=xxxxxxxxxxxxxxxx
+   ```
+3. Save the file.
+
+`.env` never gets uploaded to GitHub (it's in `.gitignore` on purpose) — every teammate keeps their own local copy.
+
+## 9. Run it
+
+```bash
+pnpm dev
+```
+
+Leave this running in your terminal. It'll print a URL like `http://localhost:8443` — open that in your browser. That's the live site, running on your machine. Saving any code change auto-refreshes it.
+
+To stop it later: click into the terminal and press `Ctrl + C`.
+
+## Repo layout, quick reference
+
+- **`src/App.tsx`** — the whole app's UI currently lives here.
+- **`src/lib/`** — the Supabase-facing code (fetching books, logging in, checking out, etc.).
+- **`supabase/migrations/`** — SQL that sets up the database (tables, permissions, functions).
+- **`.mise.toml`**, **`pnpm-lock.yaml`**, **`package.json`** — tooling/dependency config, you generally won't hand-edit these.
+- **`CLAUDE.md`** / **`AGENTS.md`** — instructions for AI coding assistants (like Claude Code) working in this repo, not for you directly.
+
+## Now go get started
+
+You're set up. Head to [`project-instructions/`](project-instructions/) — `README.md` there has what needs to be built, and `GIT_WORKFLOW.md` covers how we branch, commit, and open pull requests.

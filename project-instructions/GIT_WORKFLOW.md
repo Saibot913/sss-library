@@ -1,51 +1,8 @@
-# Setup and git workflow
+# Git workflow
 
-Step-by-step for getting the code onto your machine, working on your own branch, and getting it back into `main` via a PR. Written assuming you might not have done this before — if you have, skip to whatever section you need.
+How we use git day-to-day on this project. Assumes you've already followed the root [README.md](../README.md) — Git installed, repo cloned, app running. This is about branches, commits, and pull requests from here on.
 
-## 0. One-time setup
-
-Install Git if you don't have it:
-- **Mac**: open Terminal, run `git --version` — if it's not installed, macOS will prompt you to install the Xcode Command Line Tools. Accept that.
-- **Windows**: install [Git for Windows](https://git-scm.com/download/win), which gives you "Git Bash." You can use PowerShell too — the `git` commands below are identical in both; only folder-navigation commands (`mkdir`, `cd`, `ls`/`dir`) differ, and both are noted.
-
-Set your name/email once, globally (used to attribute your commits):
-
-```bash
-git config --global user.name "Your Name"
-git config --global user.email "you@example.com"
-```
-
-Make sure you have access to the GitHub repo (ask whoever owns it to add you as a collaborator) and can authenticate — either via SSH key or a GitHub personal access token when prompted for a password.
-
-## 1. Make a folder and clone the repo
-
-**Mac/Linux Terminal:**
-```bash
-mkdir -p ~/Projects
-cd ~/Projects
-git clone https://github.com/<org>/<repo>.git
-cd <repo>
-```
-
-**Windows PowerShell:**
-```powershell
-New-Item -ItemType Directory -Force -Path "$HOME\Projects"
-cd "$HOME\Projects"
-git clone https://github.com/<org>/<repo>.git
-cd <repo>
-```
-
-Cloning already sets up a remote named `origin` pointing at that GitHub URL — that's what `push`/`pull`/`fetch` talk to by default. Verify it:
-
-```bash
-git remote -v
-```
-
-You should see `origin` listed twice (fetch and push), pointing at the repo URL. You don't need to configure this yourself — clone does it for you.
-
-Then follow the main [README.md](../README.md) setup steps (`pnpm install`, copy `.env.example` to `.env`, get Supabase credentials from whoever owns the project).
-
-## 2. Make sure you're on an up-to-date `main`
+## 1. Make sure you're on an up-to-date `main`
 
 Every time you start new work, do this first — `main` moves as other people merge PRs, and you want to branch off the latest version:
 
@@ -54,7 +11,7 @@ git checkout main
 git pull origin main
 ```
 
-## 3. Create your branch
+## 2. Create your branch
 
 Branch name: just your name (lowercase, no spaces — use a dash if you have two words, e.g. `jane-doe`).
 
@@ -64,7 +21,7 @@ git checkout -b yourname
 
 This creates the branch and switches to it in one step. Everything you do now happens on `yourname`, not `main` — `main` stays untouched until you open a PR.
 
-## 4. Work, and commit periodically
+## 3. Work, and commit periodically
 
 Don't wait until a feature is fully done to make your first commit. Commit at natural checkpoints — got `fetchBooks()` reading real data, got the login form calling `signIn()`, got the catalog page rendering it — each of those is a commit. Small, frequent commits make it much easier for someone (including future you) to see what changed and roll back a single bad step instead of an entire day's work.
 
@@ -81,7 +38,7 @@ git push -u origin yourname   # first push on this branch — sets up tracking
 git push                      # every push after that
 ```
 
-## 5. Keep your branch synced with `main`
+## 4. Keep your branch synced with `main`
 
 If `main` gets new commits while you're mid-feature (someone else merged a PR), pull them into your branch periodically so you don't end up with a huge conflict at the end:
 
@@ -94,7 +51,7 @@ git merge main
 
 Resolve any conflicts Git flags, then commit the merge.
 
-## 6. Open a pull request
+## 5. Open a pull request
 
 Push your final commits, then open a PR from `yourname` → `main` on GitHub (or `gh pr create` from the terminal if you have the GitHub CLI).
 
