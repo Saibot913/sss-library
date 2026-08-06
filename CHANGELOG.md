@@ -9,7 +9,7 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## How to use this file
 
-Every PR adds a line under `[Unreleased]`, in the right section (`Added` / `Changed` / `Fixed` / `Removed`) — plain language, one or two lines, what changed and why if it's not obvious from the line itself. This is required, not optional: `.github/workflows/changelog.yml` fails any PR into `main` that doesn't touch this file.
+Every PR adds a line under `[Unreleased]`, in the right section (`Added` / `Changed` / `Fixed` / `Removed`). This is required, not optional: `.github/workflows/changelog.yml` fails any PR into `main` that doesn't touch this file — but the entry itself doesn't need to be a full writeup. A short, plain-language line is enough for most changes ("Fixed catalog sort order"); only add more detail when the *why* isn't obvious from the line alone (a non-obvious tradeoff, a workaround, something a reader would otherwise wonder about). Use judgment — terse by default.
 
 When a set of changes is ready to be called a release: bump `version` in `package.json` following the rules above, rename `[Unreleased]` below to the new version number + today's date, and start a fresh empty `[Unreleased]` section above it.
 
