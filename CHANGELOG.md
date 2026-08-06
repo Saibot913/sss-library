@@ -15,6 +15,10 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 
 ## [Unreleased]
 
+### Added
+- `fetchBooks()` reads the real catalog from `books` + `copies` instead of throwing. Two things that aren't obvious from the code: the embedded `copies` select has to name its columns because `copies(*)` is rejected by the column-level grants added in 0.1.0, and the query is paged so it won't silently truncate at PostgREST's 1000-row cap as the catalog grows.
+- Copies with a retired status (`lost`/`damaged`/`withdrawn`) are left out of both the available and total counts, so a book with permanently missing copies doesn't read as "3 of 5 available" forever. Nothing writes those statuses yet — only `available` and `checked_out` exist today.
+
 ### Changed
 - README now names a direct contact for repo access and Supabase credentials instead of "whoever owns this repo."
 
