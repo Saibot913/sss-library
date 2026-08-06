@@ -127,3 +127,14 @@ $$;
 grant execute on function reserve_copy(text) to authenticated;
 grant execute on function release_reservation(text) to authenticated;
 grant execute on function checkout_book(text) to authenticated;
+
+-- 8. Don't leak who has a copy on hold. The "Public read access" policy
+-- above controls which *rows* are visible (all of them), not which
+-- *columns* — without this, reserved_by (a user's UUID) is exposed to
+-- anyone reading the catalog. Column-level grants layer on top of RLS
+-- row policies in Postgres, so this restricts anon/authenticated to the
+-- columns the catalog UI actually needs and hides the rest. The three
+-- functions above are unaffected — security definer functions run as
+-- the function owner, not bound by the caller's column grants.
+revoke select on copies from anon, authenticated;
+grant select (full_label, book_code, location, status) on copies to anon, authenticated;
