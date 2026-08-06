@@ -8,7 +8,15 @@ Before picking something up: read [GIT_WORKFLOW.md](GIT_WORKFLOW.md) in this sam
 
 ### Core catalog (do this first — everything else depends on being able to see books)
 - [ ] [`src/lib/books.ts`](../src/lib/books.ts) — `fetchBooks()`, reads the `books` + `copies` tables. This is the one stub already wired into `App.tsx` (runs the moment the page loads) — nothing renders until this works, so it's the first thing to build.
-- [ ] [`src/lib/auth.ts`](../src/lib/auth.ts) — `signIn()` / `signOut()` / `getCurrentPatron()` via Supabase Auth. `LoginModal` in `App.tsx` currently fakes a login in local state — needs its `onLogin` callback pointed at `signIn()` instead.
+- [ ] [`src/lib/auth.ts`](../src/lib/auth.ts) — `requestSignInCode()` / `verifySignInCode()` / `signOut()` / `getCurrentPatron()` / `onAuthChange()` via Supabase Auth. All five are stubbed with step-by-step `TODO(team)` comments naming the exact Supabase calls; start there. **Decided: authentication is by email, with no password.** The patron types their email, Supabase emails them a six-digit code, they type it back (`signInWithOtp`, then `verifyOtp`). Prefer the code over a magic link — on phones a link often opens in a different browser than the one that asked for it, and the session lands in the wrong place.
+
+  Two reasons for no password: people use a library site a few times a year, which is exactly when passwords get forgotten, and every forgotten one becomes a support request to a volunteer.
+
+  **Library cards are not part of this — remove them.** `LoginModal` asks for a "Library Card Number" and `Patron` carries a `cardId`, but both are Figma mockup leftovers: no card number exists anywhere in the database, and the center doesn't appear to issue cards at all. A card number couldn't be a credential regardless — it's printed on the card and readable by anyone at the desk, so it identifies you without proving anything. Drop the field from `LoginModal` and `cardId` from `Patron` as part of this task.
+
+  The stub previously offered a custom `patrons` table keyed by card number as an alternative to Supabase Auth. That option is closed and has been removed: the migration is already live and hardwired to Supabase Auth — `checkouts.user_id` is a foreign key to `auth.users(id)`, every RLS policy is written against `auth.uid()`, and all three checkout functions are granted to the `authenticated` role. Building a custom table would mean rewriting working, race-safe SQL.
+
+  `LoginModal` currently fakes a login in local state and accepts any name typed into it. Point its `onLogin` callback at `signIn()`; the form becomes email → code, and the patron's display name comes from their account rather than being typed at login. Note that supabase-js persists the session and refreshes tokens on its own, so `getCurrentPatron()` should read `supabase.auth.getSession()` and subscribe to `onAuthStateChange` rather than being a one-shot fetch — otherwise the UI won't notice a sign-out in another tab.
 
 ### Checkout flow
 - [ ] [`src/lib/checkouts.ts`](../src/lib/checkouts.ts) — already wraps working, race-safe Postgres functions (`supabase/migrations/0001_checkouts_and_reservations.sql` is applied and live). Just needs wiring into the UI:
@@ -39,7 +47,9 @@ Before picking something up: read [GIT_WORKFLOW.md](GIT_WORKFLOW.md) in this sam
 ## Open decisions (not code — need a team call before building)
 
 - **Events scope** — see `src/lib/events.ts`'s PROPOSAL comment.
-- **Admin role.** Several things (editing book club sessions, reading volunteer/donation submissions) assume someone is "staff," but there's no admin/staff concept anywhere yet. Until one exists, treat the Supabase dashboard as the admin panel.
+- **Who is allowed to sign up.** Email auth settles *how* someone proves who they are, not *whether they're a member*. As it stands anyone on the internet could register and place holds on the physical collection. Two options: gate holds on a librarian linking the account to a real member, or pre-load the member list and refuse unknown emails. This needs deciding before any patron schema is designed — and note the first option depends on the staff role below, which doesn't exist yet.
+- **Who sends the login emails.** Passwordless means an email on *every* login. Supabase's built-in sender is rate-limited to a handful per hour and is explicitly not for production, so this needs a real SMTP provider (Resend, SendGrid, similar) configured and paid for by someone. Cheap, but it's a real account someone has to own.
+- **Admin role.** Several things (editing book club sessions, reading volunteer/donation submissions) assume someone is "staff," but there's no admin/staff concept anywhere yet. Until one exists, treat the Supabase dashboard as the admin panel. When it does get built, store the role in `app_metadata` or a table column with RLS — never in `user_metadata`, which patrons can write to themselves.
 - **`STAFF` array in `App.tsx` (line 38).** Either build the "meet the team" section it implies, or delete it.
 - **Cover art source.** Retry Google Books (and actually read the error this time) vs. switch approach entirely.
 
