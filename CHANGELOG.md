@@ -15,8 +15,8 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 
 ## [Unreleased]
 
-### Added
-- Nothing yet.
+### Changed
+- README now names a direct contact for repo access and Supabase credentials instead of "whoever owns this repo."
 
 ## [0.1.0] - 2026-08-05
 
