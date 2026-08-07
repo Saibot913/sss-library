@@ -11,7 +11,7 @@
  * change the wrong one.
  *
  * Nothing here creates the table; the migration does that
- * (supabase/migrations/0002_thought_of_the_day.sql).
+ * (supabase/migrations/0003_thought_of_the_day.sql).
  *
  * Deliberately ASCII-only: this file gets copy-pasted through a browser,
  * and that is a good way to mangle non-ASCII characters.
