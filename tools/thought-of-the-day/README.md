@@ -22,7 +22,7 @@ The email is the only reliable source, and it arrives as real text rather than a
 
 ## 1. Create the table
 
-Run [`supabase/migrations/0002_thought_of_the_day.sql`](../../supabase/migrations/0002_thought_of_the_day.sql) against the project — paste it into the Supabase dashboard's **SQL Editor** and hit Run.
+Run [`supabase/migrations/0003_thought_of_the_day.sql`](../../supabase/migrations/0003_thought_of_the_day.sql) against the project — paste it into the Supabase dashboard's **SQL Editor** and hit Run.
 
 Confirm it worked: **Table Editor** should now list `thought_of_the_day`, empty.
 
