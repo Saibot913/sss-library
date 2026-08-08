@@ -149,6 +149,14 @@ function decodeEntities(text) {
  * Upsert, keyed on the `date` primary key. Re-running for a day that is
  * already stored corrects that row instead of adding a duplicate, which is
  * what makes this safe to re-run by hand.
+ *
+ * SUPABASE_SERVICE_ROLE_KEY must hold the *legacy* service_role JWT (starts
+ * with 'eyJ'), not a new-style sb_secret_ key. Supabase rejects secret keys
+ * when the User-Agent looks like a browser, Apps Script's User-Agent starts
+ * with 'Mozilla/5.0', and Apps Script strips any User-Agent you try to set -
+ * so a secret key can never work from here. It fails with
+ * "Forbidden use of secret API key in browser". See README.md step 3,
+ * including what to do before legacy keys are retired at the end of 2026.
  */
 function upsertThought(supabaseUrl, serviceKey, thought) {
   var response = UrlFetchApp.fetch(supabaseUrl + '/rest/v1/' + TABLE, {

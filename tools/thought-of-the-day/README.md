@@ -36,21 +36,36 @@ If it differs, update `GROUP_ADDRESS` at the top of `Code.gs` — that string is
 
 While you're there, note **what time the email arrives**. You need it in step 6.
 
-## 3. Get the service-role key
+## 3. Get the write key — and it must be the *legacy* one
 
-Supabase dashboard → **Settings → API → Project API keys** → copy **`service_role`**.
+Supabase dashboard → **Settings → API Keys → Legacy API keys** → copy **`service_role`** (a long JWT starting `eyJ`).
 
-This is not the key in `.env`. Two different keys, for opposite reasons:
+**Do not use a new-style `sb_secret_…` key here. It cannot work.** Supabase rejects secret keys whenever the request's `User-Agent` looks like a browser, and Apps Script's is hardcoded to `Mozilla/5.0 (compatible; Google-Apps-Script; …)`. Apps Script also strips any `User-Agent` you try to set, so there is no way around it from inside the script. You get:
 
-| | `publishable` (in `.env`) | `service_role` |
+```
+HTTP 401 {"message":"Forbidden use of secret API key in browser"}
+```
+
+That was verified directly: the same key succeeds with a `curl/8.0.1` User-Agent and fails with Apps Script's. Legacy JWT keys predate that check and have no such restriction.
+
+Whichever you use, it is *not* the key in `.env`:
+
+| | `publishable` / `anon` (in `.env`) | `service_role` |
 |---|---|---|
 | Used by | the website, in the browser | this script only |
 | RLS policies | enforced | **bypassed entirely** |
 | Safe to expose | yes, that's the point | **no — full admin access** |
 
-The table has a read-only policy, so the publishable key *cannot* write to it. That's why the importer needs `service_role`.
+The table has a read-only policy, so the publishable key *cannot* write to it. That's the whole reason the importer needs `service_role`.
 
-Treat that key like a database password: Script Properties and nowhere else. Never in this repo, never in `.env`, never in anything under `src/`. Anyone who has it can read and change every table from anywhere.
+Treat it like a database password: Script Properties and nowhere else. Never in this repo, never in `.env`, never anywhere under `src/`, never pasted into a chat or an issue. Anyone holding it can read and change every table from anywhere in the world.
+
+### This needs revisiting before the end of 2026
+
+Supabase [plans to deprecate legacy JWT keys by the end of 2026](https://supabase.com/docs/guides/getting-started/api-keys). When that lands, this script stops working and cannot be fixed by swapping in a secret key, because of the User-Agent problem above. Two ways out, neither urgent yet:
+
+- **Put an Edge Function in front.** Apps Script calls the function with a shared secret; the function holds the secret key and does the write server-side, where no browser User-Agent is involved.
+- **Move the job to GitHub Actions and read the mailbox over IMAP** with a Gmail app password. A CI runner sends an ordinary User-Agent, so `sb_secret_…` works there. This also puts the whole job in this repo instead of in one person's Google account — see the sync caveat near the end of this file.
 
 ## 4. Create the Apps Script project
 
