@@ -22,40 +22,29 @@ export type ThoughtForTheDay = {
 // through old mail, not because the UI needs all of them.
 
 /**
- * Today's date in Sacramento, as YYYY-MM-DD.
+ * The most recently dated thought, or null if the table is empty.
  *
- * Deliberately the library's timezone rather than the visitor's: "today's
- * thought" means today at the center. Using the browser's local date would
- * show tomorrow's a few hours early for anyone east of Pacific. `en-CA`
- * formats as YYYY-MM-DD, which is what the `date` column wants.
- */
-function todayInSacramento(): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Los_Angeles',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date())
-}
-
-/**
- * The most recent thought that isn't in the future, or null if there isn't
- * one yet.
+ * Deliberately does *not* hold back future-dated rows. These are published on
+ * India time, so the email arriving in Sacramento early each afternoon is
+ * dated the following day — from roughly 2pm Pacific the newest row is
+ * tomorrow's, and this shows it straight away rather than waiting for
+ * midnight.
  *
- * The `.lte()` matters. These are published on India time, so the email
- * arriving in Sacramento early afternoon carries *tomorrow's* date and is
- * stored under it — the table's newest row is normally a day ahead. Taking
- * that row outright would put tomorrow's thought on the page today.
+ * That's a decision, not an oversight. The alternative (filtering to
+ * `date <= today`) is more literally correct but leaves the section blank
+ * for the rest of the day whenever the importer runs ahead — including
+ * showing nothing at all on its first day. Freshness won.
  *
- * A consequence: on the importer's very first day the only row is a future
- * one, so this returns null until the following day. From then on there is
- * always a row at or before today, because each run adds one.
+ * Two things follow from it. If the UI renders `date`, expect it to read
+ * tomorrow for part of each day, so don't label it "today". And a failed
+ * import is invisible here: this keeps serving the last row it has, however
+ * old, so the trigger's failure notifications are the only thing that will
+ * tell anyone the pipeline has stopped.
  */
 export async function fetchThoughtForTheDay(): Promise<ThoughtForTheDay | null> {
   const { data, error } = await supabase
     .from('thought_of_the_day')
     .select('date, intro, passage, attribution, quote')
-    .lte('date', todayInSacramento())
     .order('date', { ascending: false })
     .limit(1)
     .maybeSingle()

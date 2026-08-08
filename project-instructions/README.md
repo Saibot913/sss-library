@@ -36,7 +36,9 @@ Before picking something up: read [GIT_WORKFLOW.md](GIT_WORKFLOW.md) in this sam
   const thought = await fetchThoughtForTheDay()  // null | { date, intro, passage, attribution, quote }
   ```
 
-  Render `thought.quote` — the short highlighted line, ~150–210 chars, ending `– BABA`. Not `passage`, which is the 1000+ character discourse extract. `null` means nothing is available and should render nothing at all, not an empty box. No sign-in needed; the table is public-read. See [the importer's README](../tools/thought-of-the-day/README.md#reading-it-from-the-frontend) for the full contract, including why the query filters on Sacramento's date rather than the visitor's.
+  Render `thought.quote` — the short highlighted line, ~150–210 chars, ending `– BABA`. Not `passage`, which is the 1000+ character discourse extract. `null` means the table is empty and should render nothing at all, not an empty box. No sign-in needed; the table is public-read.
+
+  It returns the newest row even when that row is dated tomorrow, which it is from about 2pm Pacific each day — the emails are published on India time and arrive a day ahead. That's chosen for freshness over strict correctness, so **don't label the section "today's thought"** if you also show `date`. See [the importer's README](../tools/thought-of-the-day/README.md#reading-it-from-the-frontend) for the full contract.
 
   Unlike every other stub, this has **no counterpart in `App.tsx`** — there's no thought-of-the-day section to replace, so placement is a design call. The homepage near the hero is the obvious spot; check with the project owner.
 
