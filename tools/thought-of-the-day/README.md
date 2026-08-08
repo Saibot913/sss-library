@@ -145,11 +145,16 @@ Four things to know:
 
 **No sign-in required.** The table has a public read policy, same as the catalog, so this works for anonymous visitors. Nothing about the thought should be gated behind auth.
 
-**`null` is normal, not an error.** It means there's no row dated today or earlier. Render nothing at all in that case rather than an empty bordered box — a missing quote should be invisible, not look broken. It happens on the importer's first day (see below) and any time the importer has been failing for over a day.
+**`null` only means the table is empty.** In practice that's before the importer's first successful run. Render nothing at all in that case rather than an empty bordered box — a missing quote should be invisible, not look broken.
 
-**It returns the newest row *not in the future*, deliberately.** The emails are published on India time, so the one arriving in Sacramento early afternoon carries tomorrow's date and is stored under it. The table's newest row is normally a day ahead, and taking it outright would put tomorrow's thought on the page today. The function filters on today's date **in Sacramento** rather than the visitor's local date, so someone browsing from the east coast late at night doesn't get tomorrow's early either.
+**It returns the newest row, including future-dated ones.** The emails are published on India time, so the one arriving in Sacramento early each afternoon is dated the *following* day. From roughly 2pm Pacific onward, the newest row is tomorrow's, and this shows it immediately rather than holding it until midnight.
 
-One consequence worth expecting: **on the importer's first day, the only row is a future one, so the function returns null until the next day.** From then on there's always a row at or before today, because each run adds one. That's correct behaviour, not a bug — don't "fix" it by dropping the date filter.
+That's a deliberate choice in favour of freshness. Filtering to `date <= today` would be more literally correct, but it leaves the section blank for the rest of every day the importer runs ahead — and blank all of the first day. If you ever want the stricter behaviour, add `.lte('date', ...)` using **Sacramento's** date rather than the visitor's, or east-coast visitors get tomorrow's early anyway.
+
+Two things follow:
+
+- **Don't label it "today's thought"** if you also render `date`, because for part of each day it says tomorrow.
+- **A broken importer is invisible here.** With no date filter this keeps serving the last row it has, however stale, so nothing on the page will ever indicate the pipeline stopped. The trigger's failure notifications are the only warning — which is why step 7 (forwarding them to a real person) matters more than it looks.
 
 ## Keeping this file and Apps Script in sync
 
