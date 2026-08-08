@@ -22,15 +22,15 @@ export type Patron = {
 
 // TODO(team): map a Supabase auth user onto a Patron.
 //
-// `id` and `email` come straight off the user object. `name` has no
-// source yet: auth.users has no display name, and there's no `patrons`
-// profile table (signup is open — see requestSignInCode below — so
-// nothing requires one to exist).
+// `id` and `email` come straight off the user object. `name` is the open
+// question: auth.users has no display name, and the `patrons` profile
+// table that would hold one doesn't exist yet (it depends on the "who is
+// allowed to sign up" decision in project-instructions/README.md).
 //
-// Fall back to the email local-part (the part before '@') and let
-// patrons correct it later — that's the cheapest honest option and
-// needs no new table. Whatever this returns is what the header greeting
-// and hold requests will display.
+// Until that's settled, the cheapest honest option is to fall back to the
+// email local-part and let patrons correct it later. Don't invent a name
+// column here without reading that open decision first — whatever this
+// returns is what the header greeting and hold requests will display.
 function toPatron(_user: unknown): Patron {
   throw new Error('toPatron() is not implemented yet — see TODO in src/lib/auth.ts')
 }
@@ -39,17 +39,16 @@ function toPatron(_user: unknown): Patron {
 //
 //   const { error } = await supabase.auth.signInWithOtp({
 //     email,
-//     options: { shouldCreateUser: true },
+//     options: { shouldCreateUser: /* see below */ },
 //   })
 //   if (error) throw error
 //
-// Decided: signup is open — anyone with an email can register and place
-// holds (`shouldCreateUser: true`). Reasoning is in
-// project-instructions/README.md. Abuse isn't handled by gating signup;
-// it's handled after the fact by staff, who can now identify themselves
-// via the `staff` table (`is_staff()` in
-// supabase/migrations/0002_staff_role_and_returns.sql) — there's no
-// admin UI for cancelling a hold yet, but the pieces exist to build one.
+// `shouldCreateUser` IS the "who is allowed to sign up" decision, so don't
+// pick it casually:
+//   - true  -> anyone with an email can register and place holds
+//   - false -> unknown emails are rejected, and a librarian has to seed
+//              the member list up front
+// Settle it with the project owner before wiring this up.
 //
 // Two things worth handling in the UI rather than discovering in
 // production: Supabase rate-limits how often the same address can be
