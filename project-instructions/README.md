@@ -6,9 +6,11 @@ Before picking something up: read [GIT_WORKFLOW.md](GIT_WORKFLOW.md) in this sam
 
 ## Checklist
 
-### Core catalog (do this first — everything else depends on being able to see books)
-- [ ] [`src/lib/books.ts`](../src/lib/books.ts) — `fetchBooks()`, reads the `books` + `copies` tables. This is the one stub already wired into `App.tsx` (runs the moment the page loads) — nothing renders until this works, so it's the first thing to build.
-- [ ] [`src/lib/auth.ts`](../src/lib/auth.ts) — `requestSignInCode()` / `verifySignInCode()` / `signOut()` / `getCurrentPatron()` / `onAuthChange()` via Supabase Auth. All five are stubbed with step-by-step `TODO(team)` comments naming the exact Supabase calls; start there. **Decided: authentication is by email, with no password.** The patron types their email, Supabase emails them a six-digit code, they type it back (`signInWithOtp`, then `verifyOtp`). Prefer the code over a magic link — on phones a link often opens in a different browser than the one that asked for it, and the session lands in the wrong place.
+> **Start here: [`src/lib/auth.ts`](../src/lib/auth.ts).** It's the next thing to build and the only item blocking others — the checkout flow and book club RSVPs both need a signed-in user, and neither can be wired until it exists. Every decision it depended on is now closed and the email side is configured and tested, so it's implementation with no unknowns left. Details in the Core catalog section below.
+
+### Core catalog
+- [x] [`src/lib/books.ts`](../src/lib/books.ts) — **done.** `fetchBooks()` reads `books` + `copies`, paged so it can't silently truncate, nullable columns coalesced, and cached in `localStorage` for five minutes. Availability is an allowlist on `status = 'available'`; copies marked `lost`/`damaged`/`withdrawn` count toward neither total nor available.
+- [ ] [`src/lib/auth.ts`](../src/lib/auth.ts) — **next up.** `requestSignInCode()` / `verifySignInCode()` / `signOut()` / `getCurrentPatron()` / `onAuthChange()` via Supabase Auth. All five are stubbed with step-by-step `TODO(team)` comments naming the exact Supabase calls; start there. **Decided: authentication is by email, with no password.** The patron types their email, Supabase emails them a six-digit code, they type it back (`signInWithOtp`, then `verifyOtp`). Prefer the code over a magic link — on phones a link often opens in a different browser than the one that asked for it, and the session lands in the wrong place.
 
   Two reasons for no password: people use a library site a few times a year, which is exactly when passwords get forgotten, and every forgotten one becomes a support request to a volunteer.
 
@@ -19,6 +21,31 @@ Before picking something up: read [GIT_WORKFLOW.md](GIT_WORKFLOW.md) in this sam
   `LoginModal` currently fakes a login in local state and accepts any name typed into it. Point its `onLogin` callback at `signIn()`; the form becomes email → code, and the patron's display name comes from their account rather than being typed at login. Note that supabase-js persists the session and refreshes tokens on its own, so `getCurrentPatron()` should read `supabase.auth.getSession()` and subscribe to `onAuthStateChange` rather than being a one-shot fetch — otherwise the UI won't notice a sign-out in another tab.
 
   **Decided: signup is open** (`shouldCreateUser: true` in `signInWithOtp`) — anyone with an email can register and place holds, no member list to pre-load. Abuse isn't prevented up front; it's handled after the fact by staff, who can now be identified via the `staff` table (`is_staff()`, `supabase/migrations/0002_staff_role_and_returns.sql`) — there's no admin UI for cancelling a hold yet, but the pieces to build one exist.
+
+  #### The email side already works — this is now pure wiring
+
+  Custom SMTP is configured on the project and the whole flow is verified end to end **without any app code**, using the two REST endpoints `signInWithOtp` and `verifyOtp` wrap. `POST /auth/v1/otp` returns `200` and a six-digit code arrives; `POST /auth/v1/verify` exchanges that code for an `access_token`. So there is no unknown left in the backend — `auth.ts` is wiring around calls that are known to work.
+
+  You can re-run either at any time to separate "my code is wrong" from "the backend is broken", which is worth doing before debugging React:
+
+  ```bash
+  # send a code
+  curl -X POST 'https://<project>.supabase.co/auth/v1/otp' \
+    -H 'apikey: <publishable key from .env>' -H 'Content-Type: application/json' \
+    -d '{"email":"you@example.com","create_user":true}'
+
+  # exchange it for a session
+  curl -X POST 'https://<project>.supabase.co/auth/v1/verify' \
+    -H 'apikey: <publishable key from .env>' -H 'Content-Type: application/json' \
+    -d '{"type":"email","email":"you@example.com","token":"123456"}'
+  ```
+
+  Two things to know while working on this:
+
+  - **Codes currently land in spam.** Mail is going out through a Gmail account, which has no DKIM signature on a domain the center owns and no sending reputation for transactional mail, so Gmail filters it. Fine for development — check your spam folder — but it means login is effectively broken for real members until the sending domain is sorted. See Open decisions.
+  - **The `Magic Link` email template is what `signInWithOtp` sends.** Supabase's default contains `{{ .ConfirmationURL }}`, a clickable link. For the code flow the template has to include `{{ .Token }}`, otherwise patrons receive a link and there's nothing to type into the form.
+
+  Whatever the login screen ends up looking like, **tell people to check their spam folder** on the "we've sent you a code" step. Cheap, and it's the difference between a confused member and a support request.
 
 ### Checkout flow
 - [ ] [`src/lib/checkouts.ts`](../src/lib/checkouts.ts) — already wraps working, race-safe Postgres functions (`supabase/migrations/0001_checkouts_and_reservations.sql` is applied and live). Just needs wiring into the UI:
@@ -68,7 +95,7 @@ Before picking something up: read [GIT_WORKFLOW.md](GIT_WORKFLOW.md) in this sam
 ## Open decisions (not code — need a team call before building)
 
 - **Events scope** — see `src/lib/events.ts`'s PROPOSAL comment.
-- **Who sends the login emails.** Passwordless means an email on *every* login. Supabase's built-in sender is rate-limited to a handful per hour and is explicitly not for production, so this needs a real SMTP provider (Resend, SendGrid, similar) with a verified sending domain. The project owner is setting this up directly (needs `saisevasadan.org` DNS access) — not a task for the team, just flagging why login emails won't work until it's done.
+- **Where login emails send *from*.** Partly settled: custom SMTP is configured and codes do arrive, so the flow is testable today. But mail goes out through a Gmail account, and **codes land in spam** — a consumer Gmail can't carry a DKIM signature for a domain the center owns, and has no reputation for transactional mail. A login code in spam means the member simply can't sign in, so this blocks real use even though it doesn't block development. The fix is a transactional provider (Resend, Brevo, similar) with SPF/DKIM/DMARC on `saisevasadan.org`, which needs DNS access — project owner's, not the team's. Switching later is four fields in the Supabase dashboard and no code change. Sending a code to a [mail-tester.com](https://www.mail-tester.com) address gives a scored breakdown of exactly which records are missing, which is worth having in hand when asking for the DNS changes.
 - **`STAFF` array in `App.tsx` (line 38).** Either build the "meet the team" section it implies, or delete it.
 - **Cover art source.** Retry Google Books (and actually read the error this time) vs. switch approach entirely.
 - **Per-book reviews/ratings shown on the site.** The reviews feature actually built (see Content features above) is a general feedback form, not this — an Amazon-style rating + review shown on each book's page, with a real `book_id` → `reviews` one-to-many relationship, is a bigger idea that was deliberately scoped down for now. Revisit if the simple version turns out to not be enough.
