@@ -28,6 +28,15 @@ html, body, #root {
   padding: 0;
 }
 
+/* Site-wide bigger UI for readability. `zoom` (not a font-size bump)
+   because every style in App.tsx is a hardcoded px inline style, not
+   rem-based — a root font-size change wouldn't touch any of it. `zoom`
+   scales the whole rendered page, including layout, the same way
+   Cmd/Ctrl-+ does. Supported in Chrome/Edge/Safari and Firefox 126+. */
+html {
+  zoom: 1.15;
+}
+
 body {
   font-family: var(--font-body);
   background-color: #F4E9D0;
