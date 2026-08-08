@@ -111,6 +111,46 @@ When a trigger throws, Google emails **the account the script belongs to** — a
 
 Set up a forwarding rule from that Gmail to a real person, or add them as a collaborator on the script. Every failure path in `Code.gs` throws on purpose so problems surface; that only helps if the alert reaches someone.
 
+## Reading it from the frontend
+
+The app never touches Gmail or sssmediacentre.org — it reads the table, and only through [`src/lib/thoughtForTheDay.ts`](../../src/lib/thoughtForTheDay.ts), which is implemented:
+
+```ts
+import { fetchThoughtForTheDay } from './lib/thoughtForTheDay'
+
+const thought = await fetchThoughtForTheDay()
+// null, or { date, intro, passage, attribution, quote }
+```
+
+In a component:
+
+```tsx
+const [thought, setThought] = useState<ThoughtForTheDay | null>(null)
+
+useEffect(() => {
+  let cancelled = false
+  fetchThoughtForTheDay()
+    .then(t => { if (!cancelled) setThought(t) })
+    .catch(() => { if (!cancelled) setThought(null) })
+  return () => { cancelled = true }
+}, [])
+
+if (!thought) return null
+return <blockquote>{thought.quote}</blockquote>
+```
+
+Four things to know:
+
+**Use `quote`, not `passage`.** `quote` is the short highlighted line — roughly 150–210 characters, ending `– BABA`. `passage` is the discourse extract and runs well over a thousand characters, which will swamp a homepage. `intro` and `attribution` are there if you want a fuller treatment.
+
+**No sign-in required.** The table has a public read policy, same as the catalog, so this works for anonymous visitors. Nothing about the thought should be gated behind auth.
+
+**`null` is normal, not an error.** It means there's no row dated today or earlier. Render nothing at all in that case rather than an empty bordered box — a missing quote should be invisible, not look broken. It happens on the importer's first day (see below) and any time the importer has been failing for over a day.
+
+**It returns the newest row *not in the future*, deliberately.** The emails are published on India time, so the one arriving in Sacramento early afternoon carries tomorrow's date and is stored under it. The table's newest row is normally a day ahead, and taking it outright would put tomorrow's thought on the page today. The function filters on today's date **in Sacramento** rather than the visitor's local date, so someone browsing from the east coast late at night doesn't get tomorrow's early either.
+
+One consequence worth expecting: **on the importer's first day, the only row is a future one, so the function returns null until the next day.** From then on there's always a row at or before today, because each run adds one. That's correct behaviour, not a bug — don't "fix" it by dropping the date filter.
+
 ## Keeping this file and Apps Script in sync
 
 Apps Script is edited in a browser, so the copy running in production can drift from the one in this repo. `Code.gs` here is the source of truth — **if you change it there, paste it back here and commit.** Otherwise the next person improves the wrong copy.

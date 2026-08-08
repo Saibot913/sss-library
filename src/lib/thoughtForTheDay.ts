@@ -1,3 +1,5 @@
+import { supabase } from './supabaseClient'
+
 export type ThoughtForTheDay = {
   date: string
   intro: string | null
@@ -6,40 +8,58 @@ export type ThoughtForTheDay = {
   quote: string | null
 }
 
-// TODO(team): the import side is built — this function just has to read a
-// table. See tools/thought-of-the-day/ for the importer (a Google Apps
-// Script on a daily trigger that parses the Sai Inspires group email) and
-// supabase/migrations/0003_thought_of_the_day.sql for the table.
+// Rows are written by the importer in tools/thought-of-the-day/ (a Google
+// Apps Script on a daily trigger that parses the Sai Inspires group email).
+// The table is supabase/migrations/0003_thought_of_the_day.sql.
 //
-//   const { data, error } = await supabase
-//     .from('thought_of_the_day')
-//     .select('date, intro, passage, attribution, quote')
-//     .lte('date', <today in Pacific, as YYYY-MM-DD>)
-//     .order('date', { ascending: false })
-//     .limit(1)
-//     .maybeSingle()
-//
-// Use `.lte('date', today)` rather than just taking the newest row. These
-// are published on India time, so the email reaching Sacramento early
-// afternoon carries *tomorrow's* date and is stored under it — the plain
-// newest row would put tomorrow's thought on the page a few hours early.
-// Rows land a day ahead, so there is always one at or before today.
-//
-// What the columns map to on the page (this wasn't obvious from the schema,
-// so: confirmed against a real email):
-//   - `quote`       the short highlighted line, ~140 chars, ends "- BABA".
-//                   The only piece short enough for a homepage — use this.
-//   - `passage`     the discourse extract, several hundred words.
+// What the four content columns hold, confirmed against real emails:
+//   - `quote`       the short highlighted line, ~150-210 chars, ends
+//                   "- BABA". The only piece short enough for a homepage.
+//   - `passage`     the discourse extract, over a thousand characters.
 //   - `intro`       one-line teaser that sits above the passage.
 //   - `attribution` the source, e.g. "- Divine Discourse Jul 06, 1975".
-// All four are imported so that backfilling history later doesn't mean
-// digging through old mail, not because the UI needs all of them.
-//
-// Returns null when there's no row yet — that's the normal state before the
-// importer's first run, not an error.
-//
-// Note this doesn't exist in App.tsx at all yet, unlike the other stubs
-// which replace hardcoded arrays. The UI section is net-new work.
+// All four are imported so backfilling history later doesn't mean digging
+// through old mail, not because the UI needs all of them.
+
+/**
+ * Today's date in Sacramento, as YYYY-MM-DD.
+ *
+ * Deliberately the library's timezone rather than the visitor's: "today's
+ * thought" means today at the center. Using the browser's local date would
+ * show tomorrow's a few hours early for anyone east of Pacific. `en-CA`
+ * formats as YYYY-MM-DD, which is what the `date` column wants.
+ */
+function todayInSacramento(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date())
+}
+
+/**
+ * The most recent thought that isn't in the future, or null if there isn't
+ * one yet.
+ *
+ * The `.lte()` matters. These are published on India time, so the email
+ * arriving in Sacramento early afternoon carries *tomorrow's* date and is
+ * stored under it — the table's newest row is normally a day ahead. Taking
+ * that row outright would put tomorrow's thought on the page today.
+ *
+ * A consequence: on the importer's very first day the only row is a future
+ * one, so this returns null until the following day. From then on there is
+ * always a row at or before today, because each run adds one.
+ */
 export async function fetchThoughtForTheDay(): Promise<ThoughtForTheDay | null> {
-  throw new Error('fetchThoughtForTheDay() is not implemented yet — see TODO in src/lib/thoughtForTheDay.ts')
+  const { data, error } = await supabase
+    .from('thought_of_the_day')
+    .select('date, intro, passage, attribution, quote')
+    .lte('date', todayInSacramento())
+    .order('date', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (error) throw error
+  return data
 }

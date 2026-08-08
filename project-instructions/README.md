@@ -30,7 +30,15 @@ Before picking something up: read [GIT_WORKFLOW.md](GIT_WORKFLOW.md) in this sam
 ### Content features (each needs a new table — schemas are sketched in the TODO comments)
 - [ ] [`src/lib/events.ts`](../src/lib/events.ts) — **not decided yet, see the PROPOSAL comment in the file.** Leaning toward dropping calendar-scraping entirely and scoping "events" down to book club sessions only, plus a plain link out to saisevasadan.org/events for everything else. Discuss with the project owner before building either direction. Replaces the hardcoded `EVENTS` array (App.tsx:31).
 - [ ] [`src/lib/bookClub.ts`](../src/lib/bookClub.ts) — `fetchBookClubSessions()` / `reserveBookClubSpot()`. Replaces the hardcoded `BOOK_CLUBS` array (App.tsx:906) with real sessions + working RSVP/capacity tracking — same race-condition shape as book checkout, see the TODO for the pattern to reuse.
-- [ ] [`src/lib/thoughtForTheDay.ts`](../src/lib/thoughtForTheDay.ts) — daily thought. **The import side is done**: [`tools/thought-of-the-day/`](../tools/thought-of-the-day/) has a Google Apps Script that reads the Sai Inspires group email on a daily trigger and writes to the table in [`0003_thought_of_the_day.sql`](../supabase/migrations/0003_thought_of_the_day.sql), with setup steps in its README. What's left is reading that table in this stub and building the UI section — which doesn't exist in `App.tsx` at all, so unlike the other stubs it isn't a swap for hardcoded data.
+- [x] ~~`src/lib/thoughtForTheDay.ts`~~ — **data layer done, UI still to build.** `fetchThoughtForTheDay()` is implemented and returning real rows; the importer in [`tools/thought-of-the-day/`](../tools/thought-of-the-day/) is deployed and running daily. All that's left is the display:
+
+  ```ts
+  const thought = await fetchThoughtForTheDay()  // null | { date, intro, passage, attribution, quote }
+  ```
+
+  Render `thought.quote` — the short highlighted line, ~150–210 chars, ending `– BABA`. Not `passage`, which is the 1000+ character discourse extract. `null` means nothing is available and should render nothing at all, not an empty box. No sign-in needed; the table is public-read. See [the importer's README](../tools/thought-of-the-day/README.md#reading-it-from-the-frontend) for the full contract, including why the query filters on Sacramento's date rather than the visitor's.
+
+  Unlike every other stub, this has **no counterpart in `App.tsx`** — there's no thought-of-the-day section to replace, so placement is a design call. The homepage near the hero is the obvious spot; check with the project owner.
 
   Don't try to scrape the website: `sssmediacentre.org/sai-inspires` renders its content with JavaScript so a plain fetch returns empty placeholders, `archive.sssmediacentre.org` serves a broken TLS certificate chain, and the Google Group archive is private. All three were tested. The email is the only workable source.
 - [ ] [`src/lib/volunteers.ts`](../src/lib/volunteers.ts) / [`src/lib/donations.ts`](../src/lib/donations.ts) — wire the two forms in `AboutPage` to actually save submissions. Right now both just flip local state and discard what was typed.
