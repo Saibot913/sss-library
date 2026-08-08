@@ -28,6 +28,16 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 - The task list now specifies email + one-time-code authentication, and drops library cards. Cards were Figma mockup leftovers — no card number exists anywhere in the database, and one couldn't serve as a credential regardless since it's printed on the card. Adds open decisions for who may sign up and who runs the mail sender.
 - README now names a direct contact for repo access and Supabase credentials instead of "whoever owns this repo."
 - Closed two open decisions: signup is open (`shouldCreateUser: true`, no member pre-loading) and the admin role now exists (`staff` table). `requestSignInCode()`'s TODO and the task list are updated accordingly. SMTP setup and category data cleanup stay open but are now flagged as the project owner's job, not the team's.
+- Volunteer sign-up simplified to name / contact / area-of-interest, and no longer a custom Supabase-backed form — `AboutPage` now links out to an external Google Form (`VOLUNTEER_FORM_URL` in `src/lib/volunteers.ts`, not yet set) instead. Cheaper to maintain for a small team and comes with a response spreadsheet for free.
+
+### Added
+- New `AboutPage` section, "Reviews & Feedback" (`src/lib/reviews.ts`), same Google Form pattern as volunteer sign-up — name, contact, a review-type dropdown, and a text box. Not per-book reviews shown on the site; that bigger version is noted as an open decision for later.
+- Site-wide password gate (`src/lib/siteAccess.ts`, `SiteGate` in `App.tsx`) — nothing renders until the shared community password is entered once; remembered afterward via `localStorage`. Not real data security (the catalog's RLS policies still allow public reads directly against Supabase) — see the file's comment for the reasoning. Sits in front of the existing public-browsing / signed-in-patron tiers, doesn't change either.
+- `siteInfo.ts` now has the real meeting room (`MEETING_ROOM`) and weekly timings (`WEEKLY_TIMINGS`) — not wired into `App.tsx` yet, that's a task for the team (see `project-instructions/README.md`).
+- Site-wide bigger UI via `zoom: 1.15` on `html` (`src/index.css`) for readability — `zoom`, not a font-size bump, since every style in `App.tsx` is a hardcoded px inline style rather than rem-based.
+
+### Removed
+- Book donations feature (form + info section in `AboutPage`, `src/lib/donations.ts`) pulled from V1 scope entirely — deferred, not abandoned, may return as a later feature.
 
 ## [0.1.0] - 2026-08-05
 
