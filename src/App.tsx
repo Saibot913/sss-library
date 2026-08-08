@@ -1,6 +1,9 @@
 import { useState, useMemo, useEffect } from 'react'
 import { fetchBooks, type Book } from './lib/books'
 import { useBookCover } from './lib/bookCovers'
+import { VOLUNTEER_FORM_URL } from './lib/volunteers'
+import { REVIEW_FORM_URL } from './lib/reviews'
+import { SITE_PASSWORD, hasSiteAccess, grantSiteAccess } from './lib/siteAccess'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -140,16 +143,58 @@ function TopNav({
   )
 }
 
-// ── Login modal ───────────────────────────────────────────────────────────────
+// ── Site gate ─────────────────────────────────────────────────────────────────
+// See src/lib/siteAccess.ts for what this is and isn't protecting.
 
-function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (name: string) => void }) {
-  const [name, setName] = useState('')
-  const [cardId, setCardId] = useState('')
+function SiteGate({ onUnlock }: { onUnlock: () => void }) {
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name.trim() || !cardId.trim()) { setError('Please enter your name and library card number.'); return }
+    if (password.trim().toLowerCase() === SITE_PASSWORD.toLowerCase()) {
+      onUnlock()
+    } else {
+      setError('That password is incorrect.')
+    }
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#2C1810' }}>
+      <div style={{ background: '#FAF3E4', padding: '44px 44px', maxWidth: 380, width: '90%', textAlign: 'center', boxShadow: '0 24px 64px rgba(0,0,0,0.35)' }}>
+        <p style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontStyle: 'italic', color: '#C8521A', marginBottom: 6 }}>Sairam</p>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: '#2C1810', marginBottom: 20 }}>Welcome to SSS-Library</h1>
+        <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#5C3D2E', marginBottom: 24 }}>Please enter password to access the site.</p>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={e => { setPassword(e.target.value); setError('') }}
+            autoFocus
+            style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 14, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box', textAlign: 'center' }}
+            onFocus={e => (e.target.style.borderColor = '#C8521A')}
+            onBlur={e => (e.target.style.borderColor = '#D4B896')}
+          />
+          {error && <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#C8521A' }}>{error}</p>}
+          <button type="submit" style={{ padding: '12px', background: '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', cursor: 'pointer' }}>
+            Enter
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ── Login modal ───────────────────────────────────────────────────────────────
+
+function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (name: string) => void }) {
+  const [name, setName] = useState('')
+  const [error, setError] = useState('')
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!name.trim()) { setError('Please enter your name.'); return }
     onLogin(name.trim())
     onClose()
   }
@@ -172,18 +217,6 @@ function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (name:
               placeholder="e.g. Lassi Mäkinen"
               value={name}
               onChange={e => setName(e.target.value)}
-              style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 14, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box' }}
-              onFocus={e => (e.target.style.borderColor = '#C8521A')}
-              onBlur={e => (e.target.style.borderColor = '#D4B896')}
-            />
-          </div>
-          <div>
-            <label style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Library Card Number</label>
-            <input
-              type="text"
-              placeholder="e.g. P-00412"
-              value={cardId}
-              onChange={e => setCardId(e.target.value)}
               style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 14, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box' }}
               onFocus={e => (e.target.style.borderColor = '#C8521A')}
               onBlur={e => (e.target.style.borderColor = '#D4B896')}
@@ -1006,11 +1039,6 @@ const VOLUNTEER_ROLES = [
 ]
 
 function AboutPage() {
-  const [volunteerForm, setVolunteerForm] = useState({ name: '', email: '', role: '', message: '' })
-  const [donationForm, setDonationForm] = useState({ name: '', title: '', author: '', condition: 'Good' })
-  const [volunteerSent, setVolunteerSent] = useState(false)
-  const [donationSent, setDonationSent] = useState(false)
-
   const sectionHead = (num: string, title: string) => (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 36, borderBottom: '1px solid #D4B896', paddingBottom: 12 }}>
       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase' }}>{num}</span>
@@ -1027,7 +1055,7 @@ function AboutPage() {
         <div style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '0 64px 36px' }}>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.2em', color: '#C8521A', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>Sai Library · Community</span>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(32px,5vw,48px)', fontWeight: 700, color: '#FAF3E4', lineHeight: 1.1 }}>Get Involved</h1>
-          <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#D4B896', marginTop: 8 }}>Book clubs · Donations · Volunteering</p>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#D4B896', marginTop: 8 }}>Book clubs · Volunteering</p>
         </div>
       </section>
 
@@ -1084,78 +1112,9 @@ function AboutPage() {
         </div>
       </section>
 
-      {/* ── § 02 Book Donations ── */}
-      <section style={{ background: '#FAF3E4', padding: '56px 64px 48px', borderTop: '1px solid #D4B896' }}>
-        {sectionHead('§ 02', 'Book Donations')}
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 56 }}>
-          {/* Left — appeal */}
-          <div>
-            <p style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontStyle: 'italic', color: '#2C1810', lineHeight: 1.45, marginBottom: 20 }}>
-              "Every book donated is a door opened for someone who might not yet know what's waiting behind it."
-            </p>
-            <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#5C3D2E', lineHeight: 1.75, marginBottom: 16 }}>
-              Sai Library gratefully accepts donations of books in good condition. Whether it's a novel you've treasured, a reference work you've finished with, or a collection being passed on — your contribution directly enriches our community's reading life.
-            </p>
-            <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#5C3D2E', lineHeight: 1.75, marginBottom: 24 }}>
-              Donated books are added to our circulating collection, offered through our annual book sale, or shared with partner schools and literacy programmes.
-            </p>
-            <div style={{ padding: '20px 24px', background: '#F4E9D0', borderLeft: '3px solid #C8521A' }}>
-              <p style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 10 }}>We accept</p>
-              {['Fiction and non-fiction in any genre', 'Books published within the last 20 years (older accepted case by case)', 'Clean pages — no heavy underlining or water damage', 'Children\'s and young adult titles always needed', 'Spiritual, devotional, and philosophical works'].map(item => (
-                <div key={item} style={{ display: 'flex', gap: 10, marginBottom: 6, alignItems: 'flex-start' }}>
-                  <span style={{ color: '#C8521A', fontSize: 12, flexShrink: 0, marginTop: 1 }}>—</span>
-                  <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#5C3D2E', lineHeight: 1.5 }}>{item}</p>
-                </div>
-              ))}
-            </div>
-            <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#9B7B6A', marginTop: 16 }}>
-              Drop off at the main desk during opening hours, or contact us to arrange a larger collection pickup.
-            </p>
-          </div>
-
-          {/* Right — notify form */}
-          <div>
-            <div style={{ marginBottom: 20 }}>
-              <p style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 6 }}>Let us know you're coming</p>
-              <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#9B7B6A', lineHeight: 1.6 }}>Fill in what you're bringing and we'll have the right team member ready to receive your donation.</p>
-            </div>
-
-            {donationSent ? (
-              <div style={{ padding: '28px', background: 'rgba(76,175,80,0.08)', border: '1px solid #4CAF50', textAlign: 'center' }}>
-                <p style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600, color: '#2C7A2C', marginBottom: 6 }}>Thank you!</p>
-                <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#5C3D2E' }}>We've received your donation notice. See you soon at the library.</p>
-              </div>
-            ) : (
-              <form onSubmit={e => { e.preventDefault(); setDonationSent(true) }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {[
-                  { label: 'Your Name', key: 'name' as const, placeholder: 'Full name' },
-                  { label: 'Book Title(s)', key: 'title' as const, placeholder: 'e.g. Loving God, Anna Karenina…' },
-                  { label: 'Author(s)', key: 'author' as const, placeholder: 'e.g. Prof. Kasturi, Tolstoy…' },
-                ].map(f => (
-                  <div key={f.key}>
-                    <label style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{f.label}</label>
-                    <input type="text" placeholder={f.placeholder} value={donationForm[f.key]} onChange={e => setDonationForm(d => ({ ...d, [f.key]: e.target.value }))} style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 13, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box' }} onFocus={e => (e.target.style.borderColor = '#C8521A')} onBlur={e => (e.target.style.borderColor = '#D4B896')} />
-                  </div>
-                ))}
-                <div>
-                  <label style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Book Condition</label>
-                  <select value={donationForm.condition} onChange={e => setDonationForm(d => ({ ...d, condition: e.target.value }))} style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 13, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', appearance: 'none', cursor: 'pointer', boxSizing: 'border-box' }}>
-                    {['Like New', 'Good', 'Fair', 'Worn but readable'].map(o => <option key={o}>{o}</option>)}
-                  </select>
-                </div>
-                <button type="submit" style={{ marginTop: 6, padding: '12px', background: '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', cursor: 'pointer' }}>
-                  Submit Donation Notice
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* ── § 03 Volunteers ── */}
-      <section style={{ padding: '56px 64px 64px' }}>
-        {sectionHead('§ 03', 'Volunteer With Us')}
+      {/* ── § 02 Volunteers ── */}
+      <section style={{ padding: '56px 64px 64px', borderTop: '1px solid #D4B896' }}>
+        {sectionHead('§ 02', 'Volunteer With Us')}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 56, marginBottom: 56 }}>
           <div>
@@ -1170,40 +1129,26 @@ function AboutPage() {
             </p>
           </div>
 
-          {/* Volunteer sign-up form */}
+          {/* Volunteer interest — hands off to an external Google Form,
+              see src/lib/volunteers.ts for why and how it's set up. */}
           <div>
             <p style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 16 }}>Express your interest</p>
-            {volunteerSent ? (
-              <div style={{ padding: '28px', background: 'rgba(76,175,80,0.08)', border: '1px solid #4CAF50', textAlign: 'center' }}>
-                <p style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600, color: '#2C7A2C', marginBottom: 6 }}>Thank you for volunteering!</p>
-                <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#5C3D2E' }}>A member of our team will be in touch within a few days.</p>
-              </div>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#5C3D2E', lineHeight: 1.7, marginBottom: 20 }}>
+              Tell us your name, how to reach you, and what kind of volunteering interests you — takes a minute, and someone from our team will follow up.
+            </p>
+            {VOLUNTEER_FORM_URL ? (
+              <a
+                href={VOLUNTEER_FORM_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'inline-block', padding: '12px 20px', background: '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                Open Volunteer Interest Form ↗
+              </a>
             ) : (
-              <form onSubmit={e => { e.preventDefault(); setVolunteerSent(true) }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {[
-                  { label: 'Your Name', key: 'name' as const, placeholder: 'Full name' },
-                  { label: 'Email Address', key: 'email' as const, placeholder: 'your@email.com' },
-                ].map(f => (
-                  <div key={f.key}>
-                    <label style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{f.label}</label>
-                    <input type="text" placeholder={f.placeholder} value={volunteerForm[f.key]} onChange={e => setVolunteerForm(v => ({ ...v, [f.key]: e.target.value }))} style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 13, color: '#2C1810', background: '#FAF3E4', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box' }} onFocus={e => (e.target.style.borderColor = '#C8521A')} onBlur={e => (e.target.style.borderColor = '#D4B896')} />
-                  </div>
-                ))}
-                <div>
-                  <label style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Role of Interest</label>
-                  <select value={volunteerForm.role} onChange={e => setVolunteerForm(v => ({ ...v, role: e.target.value }))} style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 13, color: '#2C1810', background: '#FAF3E4', border: '1px solid #D4B896', outline: 'none', appearance: 'none', cursor: 'pointer', boxSizing: 'border-box' }}>
-                    <option value="">Select a role…</option>
-                    {VOLUNTEER_ROLES.map(r => <option key={r.title}>{r.title}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Anything else you'd like to share?</label>
-                  <textarea value={volunteerForm.message} onChange={e => setVolunteerForm(v => ({ ...v, message: e.target.value }))} placeholder="Skills, availability, questions…" rows={3} style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 13, color: '#2C1810', background: '#FAF3E4', border: '1px solid #D4B896', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }} onFocus={e => (e.target.style.borderColor = '#C8521A')} onBlur={e => (e.target.style.borderColor = '#D4B896')} />
-                </div>
-                <button type="submit" style={{ padding: '12px', background: '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', cursor: 'pointer' }}>
-                  Submit Volunteer Application
-                </button>
-              </form>
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#9B7B6A', fontStyle: 'italic' }}>
+                Sign-up form coming soon — check back shortly.
+              </p>
             )}
           </div>
         </div>
@@ -1227,6 +1172,45 @@ function AboutPage() {
         </div>
       </section>
 
+      {/* ── § 03 Reviews & Feedback ── */}
+      <section style={{ padding: '0 64px 64px' }}>
+        {sectionHead('§ 03', 'Reviews & Feedback')}
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 56 }}>
+          <div>
+            <p style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontStyle: 'italic', color: '#2C1810', lineHeight: 1.5, marginBottom: 18 }}>
+              "Tell us what you think — of a book, or of the library itself."
+            </p>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#5C3D2E', lineHeight: 1.75 }}>
+              Loved something you borrowed? Have a thought on how the library or this site could serve you better? We read every submission.
+            </p>
+          </div>
+
+          {/* Reviews/feedback — hands off to an external Google Form,
+              see src/lib/reviews.ts for why and how it's set up. */}
+          <div>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 16 }}>Share a review</p>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#5C3D2E', lineHeight: 1.7, marginBottom: 20 }}>
+              Name, how to reach you, whether it's about a book or the library/website itself, and your review — takes a minute.
+            </p>
+            {REVIEW_FORM_URL ? (
+              <a
+                href={REVIEW_FORM_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'inline-block', padding: '12px 20px', background: '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                Open Review Form ↗
+              </a>
+            ) : (
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#9B7B6A', fontStyle: 'italic' }}>
+                Review form coming soon — check back shortly.
+              </p>
+            )}
+          </div>
+        </div>
+      </section>
+
       {/* Contact footer */}
       <div style={{ background: '#2C1810', padding: '36px 64px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 32 }}>
         {[{ label: 'Address', value: '418 Elm Street\nSai Library Campus' }, { label: 'Phone', value: '(614) 555-0187' }, { label: 'Email', value: 'hello@sailibrary.org' }].map(c => (
@@ -1243,6 +1227,7 @@ function AboutPage() {
 // ── Root ───────────────────────────────────────────────────────────────────────
 
 export default function App() {
+  const [siteUnlocked, setSiteUnlocked] = useState(() => hasSiteAccess())
   const [books, setBooks] = useState<Book[]>([])
   const [booksLoading, setBooksLoading] = useState(true)
   const [booksError, setBooksError] = useState<string | null>(null)
@@ -1297,6 +1282,10 @@ export default function App() {
 
   function toggleCart(id: string) {
     setCartIds(ids => ids.includes(id) ? ids.filter(i => i !== id) : [...ids, id])
+  }
+
+  if (!siteUnlocked) {
+    return <SiteGate onUnlock={() => { grantSiteAccess(); setSiteUnlocked(true) }} />
   }
 
   return (
