@@ -6,6 +6,7 @@ import { useBookCover } from './lib/bookCovers'
 import { VOLUNTEER_FORM_URL } from './lib/volunteers'
 import { REVIEW_FORM_URL } from './lib/reviews'
 import { SITE_PASSWORD, hasSiteAccess, grantSiteAccess } from './lib/siteAccess'
+import { onAuthChange, requestSignInCode, signOut, verifySignInCode, type Patron } from './lib/auth'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -209,15 +210,38 @@ function SiteGate({ onUnlock }: { onUnlock: () => void }) {
 
 // ── Login modal ───────────────────────────────────────────────────────────────
 
-function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (name: string) => void }) {
-  const [name, setName] = useState('')
-  const [error, setError] = useState('')
+const inputStyle: React.CSSProperties = {
+  width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 14,
+  color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box',
+}
 
-  function handleSubmit(e: React.FormEvent) {
+function LoginModal({ onClose }: { onClose: () => void }) {
+  const [step, setStep] = useState<'email' | 'code'>('email')
+  const [email, setEmail] = useState('')
+  const [code, setCode] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name.trim()) { setError('Please enter your name.'); return }
-    onLogin(name.trim())
-    onClose()
+    setError('')
+    setBusy(true)
+    try {
+      if (step === 'email') {
+        const trimmed = email.trim()
+        if (!trimmed) { setError('Please enter your email.'); return }
+        await requestSignInCode(trimmed)
+        setStep('code')
+      } else {
+        if (!code.trim()) { setError('Please enter the code from your email.'); return }
+        await verifySignInCode(email.trim(), code.trim())
+        onClose()
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -231,21 +255,42 @@ function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (name:
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#9B7B6A', cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>✕</button>
         </div>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div>
-            <label style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Full Name</label>
-            <input
-              type="text"
-              placeholder="e.g. Lassi Mäkinen"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 14, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box' }}
-              onFocus={e => (e.target.style.borderColor = '#C8521A')}
-              onBlur={e => (e.target.style.borderColor = '#D4B896')}
-            />
-          </div>
+          {step === 'email' ? (
+            <div>
+              <label style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Email</label>
+              <input
+                type="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                style={inputStyle}
+                onFocus={e => (e.target.style.borderColor = '#C8521A')}
+                onBlur={e => (e.target.style.borderColor = '#D4B896')}
+              />
+            </div>
+          ) : (
+            <div>
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#5C3D2E', marginBottom: 12 }}>
+                We sent a six-digit code to {email.trim()}. Enter it below.
+              </p>
+              <label style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Code</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="123456"
+                value={code}
+                onChange={e => setCode(e.target.value)}
+                style={inputStyle}
+                onFocus={e => (e.target.style.borderColor = '#C8521A')}
+                onBlur={e => (e.target.style.borderColor = '#D4B896')}
+              />
+            </div>
+          )}
           {error && <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#C8521A' }}>{error}</p>}
-          <button type="submit" style={{ marginTop: 8, padding: '12px', background: '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', cursor: 'pointer' }}>
-            Log In to Your Account
+          <button type="submit" disabled={busy} style={{ marginTop: 8, padding: '12px', background: '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.7 : 1 }}>
+            {busy ? 'Please wait…' : step === 'email' ? 'Send Code' : 'Verify & Log In'}
           </button>
         </form>
       </div>
@@ -1374,8 +1419,7 @@ export default function App() {
   const [cartIds, setCartIds] = useState<string[]>([])
   const [showCart, setShowCart] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
-  const [loggedIn, setLoggedIn] = useState(false)
-  const [userName, setUserName] = useState('')
+  const [patron, setPatron] = useState<Patron | null>(null)
 
   const navigate = useNavigate()
   const location = useLocation()
@@ -1395,6 +1439,8 @@ export default function App() {
       .finally(() => { if (!cancelled) setBooksLoading(false) })
     return () => { cancelled = true }
   }, [])
+
+  useEffect(() => onAuthChange(setPatron), [])
 
   function handleNav(p: Page) {
     setViewingBook(null)
@@ -1442,9 +1488,12 @@ export default function App() {
         onNav={handleNav}
         cartCount={cartIds.length}
         onCart={() => setShowCart(true)}
-        onLogin={() => setShowLogin(true)}
-        loggedIn={loggedIn}
-        userName={userName}
+        onLogin={() => {
+          if (patron) void signOut()
+          else setShowLogin(true)
+        }}
+        loggedIn={!!patron}
+        userName={patron?.name ?? ''}
       />
 
       <main style={{ paddingTop: 60 }}>
@@ -1489,12 +1538,7 @@ export default function App() {
         />
       )}
 
-      {showLogin && (
-        <LoginModal
-          onClose={() => setShowLogin(false)}
-          onLogin={name => { setLoggedIn(true); setUserName(name) }}
-        />
-      )}
+      {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
     </div>
   )
 }
