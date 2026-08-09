@@ -1,31 +1,19 @@
-export type VolunteerApplication = {
-  name: string
-  email: string
-  role: string
-  message: string
-}
-
-// TODO(team): the volunteer sign-up form in AboutPage (App.tsx ~line
-// 1182) currently just sets local state (setVolunteerSent(true)) and
-// throws the submission away — nothing is persisted anywhere. Needs a
-// `volunteer_applications` table:
+// Volunteer interest is collected via an external Google Form, not a
+// Supabase table — decided against the original `volunteer_applications`
+// table plan (still in git history if that's ever reconsidered). A
+// Google Form needs zero backend code, gives free spam protection and a
+// response spreadsheet, and doesn't need an admin UI built for staff to
+// read submissions — all real gaps the Supabase version would've had for
+// a small volunteer team.
 //
-//   create table volunteer_applications (
-//     id uuid primary key default gen_random_uuid(),
-//     name text not null,
-//     email text not null,
-//     role text not null,
-//     message text,
-//     created_at timestamptz default now()
-//   );
-//
-// RLS: no `select` policy for anon/authenticated — applications should
-// only be readable by whoever's staffing the library, not by every
-// visitor. Until there's an admin role, read them from the Supabase
-// Table Editor directly. `insert` can stay open to `anon` (this form
-// doesn't require being logged in), but keep in mind anon+insert-only
-// means anyone can spam this table — fine for a first pass, but a
-// simple rate-limit or a basic honeypot field is worth adding later.
-export async function submitVolunteerApplication(_application: VolunteerApplication): Promise<void> {
-  throw new Error('submitVolunteerApplication() is not implemented yet — see TODO in src/lib/volunteers.ts')
-}
+// TODO(owner): create the form under the org's Google account (the one
+// tied to saisevasadan.org, not a personal email — so access isn't lost
+// if one person leaves) with three fields:
+//   - Name (short answer, required)
+//   - Email or phone (short answer, required)
+//   - Area of interest (paragraph, optional) — prompt: "What kind of
+//     volunteering interests you?"
+// Then: Send → the link (🔗) icon → copy the shareable link → paste it
+// below. AboutPage links out to this rather than embedding it, so the
+// page doesn't need to change again if the form's fields ever do.
+export const VOLUNTEER_FORM_URL = ''
