@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { fetchBooks, type Book } from './lib/books'
 import { fetchThoughtForTheDay, type ThoughtForTheDay } from './lib/thoughtForTheDay'
@@ -6,6 +6,10 @@ import { useBookCover } from './lib/bookCovers'
 import { VOLUNTEER_FORM_URL } from './lib/volunteers'
 import { REVIEW_FORM_URL } from './lib/reviews'
 import { SITE_PASSWORD, hasSiteAccess, grantSiteAccess } from './lib/siteAccess'
+import { SITE_NAME, SITE_ADDRESS, MEETING_ROOM } from './lib/siteInfo'
+import { onAuthChange, requestSignInCode, signOut, updatePatronProfile, verifySignInCode, type Patron } from './lib/auth'
+import { checkoutBookByCode } from './lib/checkouts'
+import { invalidateBooksCache } from './lib/books'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -50,8 +54,6 @@ const EMPTY_FILTERS: Filters = {
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
-const CATEGORIES = ['All Categories', 'Fiction', 'Non-Fiction']
-
 const EVENTS = [
   { date: 'Jul 22', title: 'Summer Reading Circle', time: '6:00 PM', room: 'Reading Room B' },
   { date: 'Jul 25', title: "Children's Story Hour", time: '10:30 AM', room: "Children's Wing" },
@@ -95,17 +97,47 @@ function TopNav({
   cartCount,
   onCart,
   onLogin,
-  loggedIn,
-  userName,
+  onSignOut,
+  patron,
 }: {
   active: Page
   onNav: (p: Page) => void
   cartCount: number
   onCart: () => void
   onLogin: () => void
-  loggedIn: boolean
-  userName: string
+  onSignOut: () => void
+  patron: Patron | null
 }) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const accountRef = useRef<HTMLDivElement>(null)
+
+  // Close the account menu on an outside click or Escape. The listener
+  // ignores clicks inside `accountRef`, so the button's own handler stays in
+  // charge of toggling — otherwise mousedown would close it a moment before
+  // click reopened it.
+  useEffect(() => {
+    if (!menuOpen) return
+    function onPointerDown(e: MouseEvent) {
+      if (accountRef.current && !accountRef.current.contains(e.target as Node)) setMenuOpen(false)
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [menuOpen])
+
+  // Signing out elsewhere (another tab) shouldn't leave a menu hanging open.
+  useEffect(() => {
+    if (!patron) setMenuOpen(false)
+  }, [patron])
+
+  const loggedIn = !!patron
+
   return (
     <header style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, background: '#2C1810', borderBottom: '1px solid rgba(200,82,26,0.35)', height: 60, display: 'flex', alignItems: 'center', padding: '0 40px', gap: 0 }}>
       {/* Logo */}
@@ -135,16 +167,43 @@ function TopNav({
 
       {/* Right controls */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-        {/* Login */}
-        <button
-          onClick={onLogin}
-          style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 16px', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, letterSpacing: '0.06em', color: loggedIn ? '#FAF3E4' : '#D4B896', background: loggedIn ? 'rgba(200,82,26,0.25)' : 'rgba(255,255,255,0.06)', border: `1px solid ${loggedIn ? 'rgba(200,82,26,0.5)' : 'rgba(255,255,255,0.15)'}`, cursor: 'pointer', transition: 'all 0.2s' }}
-          onMouseEnter={e => (e.currentTarget.style.borderColor = '#C8521A')}
-          onMouseLeave={e => (e.currentTarget.style.borderColor = loggedIn ? 'rgba(200,82,26,0.5)' : 'rgba(255,255,255,0.15)')}
-        >
-          <span style={{ fontSize: 14 }}>{loggedIn ? '👤' : '⊙'}</span>
-          <span>{loggedIn ? userName : 'Log In'}</span>
-        </button>
+        {/* Account. Signed out this opens the login modal; signed in it opens
+            a menu — clicking your own name should never sign you out by
+            itself, which is what it used to do. */}
+        <div ref={accountRef} style={{ position: 'relative' }}>
+          <button
+            onClick={() => (patron ? setMenuOpen(open => !open) : onLogin())}
+            aria-haspopup={loggedIn ? 'menu' : undefined}
+            aria-expanded={loggedIn ? menuOpen : undefined}
+            style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 16px', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, letterSpacing: '0.06em', color: loggedIn ? '#FAF3E4' : '#D4B896', background: loggedIn ? 'rgba(200,82,26,0.25)' : 'rgba(255,255,255,0.06)', border: `1px solid ${loggedIn ? 'rgba(200,82,26,0.5)' : 'rgba(255,255,255,0.15)'}`, cursor: 'pointer', transition: 'all 0.2s' }}
+            onMouseEnter={e => (e.currentTarget.style.borderColor = '#C8521A')}
+            onMouseLeave={e => (e.currentTarget.style.borderColor = loggedIn ? 'rgba(200,82,26,0.5)' : 'rgba(255,255,255,0.15)')}
+          >
+            <span style={{ fontSize: 14 }}>{loggedIn ? '👤' : '⊙'}</span>
+            <span>{patron ? patron.name : 'Log In'}</span>
+            {loggedIn && (
+              <span style={{ fontSize: 9, color: '#D4B896', marginLeft: 2, transform: menuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>▾</span>
+            )}
+          </button>
+
+          {menuOpen && patron && (
+            <div role="menu" style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, minWidth: 220, background: '#2C1810', border: '1px solid rgba(200,82,26,0.4)', boxShadow: '0 14px 36px rgba(0,0,0,0.4)', zIndex: 300 }}>
+              <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(250,243,228,0.12)' }}>
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 5 }}>Signed in as</p>
+                <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#FAF3E4', wordBreak: 'break-all' }}>{patron.email}</p>
+              </div>
+              <button
+                role="menuitem"
+                onClick={() => { setMenuOpen(false); onSignOut() }}
+                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '11px 16px', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, letterSpacing: '0.06em', color: '#D4B896', background: 'transparent', border: 'none', cursor: 'pointer' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(200,82,26,0.22)'; e.currentTarget.style.color = '#FAF3E4' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#D4B896' }}
+              >
+                Sign Out
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Cart */}
         <button
@@ -209,15 +268,38 @@ function SiteGate({ onUnlock }: { onUnlock: () => void }) {
 
 // ── Login modal ───────────────────────────────────────────────────────────────
 
-function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (name: string) => void }) {
-  const [name, setName] = useState('')
-  const [error, setError] = useState('')
+const inputStyle: React.CSSProperties = {
+  width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 14,
+  color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box',
+}
 
-  function handleSubmit(e: React.FormEvent) {
+function LoginModal({ onClose }: { onClose: () => void }) {
+  const [step, setStep] = useState<'email' | 'code'>('email')
+  const [email, setEmail] = useState('')
+  const [code, setCode] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name.trim()) { setError('Please enter your name.'); return }
-    onLogin(name.trim())
-    onClose()
+    setError('')
+    setBusy(true)
+    try {
+      if (step === 'email') {
+        const trimmed = email.trim()
+        if (!trimmed) { setError('Please enter your email.'); return }
+        await requestSignInCode(trimmed)
+        setStep('code')
+      } else {
+        if (!code.trim()) { setError('Please enter the code from your email.'); return }
+        await verifySignInCode(email.trim(), code.trim())
+        onClose()
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -231,21 +313,123 @@ function LoginModal({ onClose, onLogin }: { onClose: () => void; onLogin: (name:
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#9B7B6A', cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>✕</button>
         </div>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {step === 'email' ? (
+            <div>
+              <label style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Email</label>
+              <input
+                type="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                style={inputStyle}
+                onFocus={e => (e.target.style.borderColor = '#C8521A')}
+                onBlur={e => (e.target.style.borderColor = '#D4B896')}
+              />
+            </div>
+          ) : (
+            <div>
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#5C3D2E', marginBottom: 12 }}>
+                We sent a six-digit code to {email.trim()}. Enter it below.
+              </p>
+              <label style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Code</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="123456"
+                value={code}
+                onChange={e => setCode(e.target.value)}
+                style={inputStyle}
+                onFocus={e => (e.target.style.borderColor = '#C8521A')}
+                onBlur={e => (e.target.style.borderColor = '#D4B896')}
+              />
+            </div>
+          )}
+          {error && <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#C8521A' }}>{error}</p>}
+          <button type="submit" disabled={busy} style={{ marginTop: 8, padding: '12px', background: '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.7 : 1 }}>
+            {busy ? 'Please wait…' : step === 'email' ? 'Send Code' : 'Verify & Log In'}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ── Patron details ────────────────────────────────────────────────────────────
+
+/**
+ * Normalise a typed phone number to digits, or null if it isn't a plausible
+ * US number. Accepts the ways people actually type them — (916) 805-0152,
+ * 916.805.0152, +1 916 805 0152 — and rejects anything that isn't 10 digits,
+ * or 11 starting with a country code of 1.
+ */
+function normalizePhone(input: string): string | null {
+  const digits = input.replace(/\D/g, '')
+  const local = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits
+  if (local.length !== 10) return null
+  // Area codes and exchanges never start with 0 or 1.
+  if (/^[01]/.test(local) || /^[01]/.test(local.slice(3))) return null
+  return `(${local.slice(0, 3)}) ${local.slice(3, 6)}-${local.slice(6)}`
+}
+
+/**
+ * Asked once, before a patron's first checkout. The library needs a name and
+ * a number to reach someone about a book they've borrowed, and the email
+ * address alone doesn't give staff either.
+ */
+function ProfileModal({ patron, onClose, onSaved }: {
+  patron: Patron
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [name, setName] = useState(patron.name)
+  const [phone, setPhone] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+
+    if (!name.trim()) { setError('Please enter your name.'); return }
+    const normalized = normalizePhone(phone)
+    if (!normalized) { setError('That doesn\'t look like a valid phone number.'); return }
+
+    setBusy(true)
+    try {
+      await updatePatronProfile(name.trim(), normalized)
+      onSaved()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save your details.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(44,24,16,0.7)' }} onClick={onClose}>
+      <div style={{ background: '#FAF3E4', padding: '40px 44px', maxWidth: 420, width: '90%', boxShadow: '0 24px 64px rgba(44,24,16,0.35)' }} onClick={e => e.stopPropagation()}>
+        <div style={{ marginBottom: 24 }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>One-time Setup</span>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, color: '#2C1810' }}>Your Details</h2>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#5C3D2E', lineHeight: 1.6, marginTop: 10 }}>
+            So the library can reach you about the books you borrow. We'll only ask this once.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
             <label style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Full Name</label>
-            <input
-              type="text"
-              placeholder="e.g. Lassi Mäkinen"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 14, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box' }}
-              onFocus={e => (e.target.style.borderColor = '#C8521A')}
-              onBlur={e => (e.target.style.borderColor = '#D4B896')}
-            />
+            <input type="text" autoComplete="name" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} style={inputStyle} />
+          </div>
+          <div>
+            <label style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Phone Number</label>
+            <input type="tel" autoComplete="tel" placeholder="(916) 555-0123" value={phone} onChange={e => setPhone(e.target.value)} style={inputStyle} />
           </div>
           {error && <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#C8521A' }}>{error}</p>}
-          <button type="submit" style={{ marginTop: 8, padding: '12px', background: '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', cursor: 'pointer' }}>
-            Log In to Your Account
+          <button type="submit" disabled={busy} style={{ marginTop: 8, padding: '12px', background: '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.7 : 1 }}>
+            {busy ? 'Saving…' : 'Save & Check Out'}
           </button>
         </form>
       </div>
@@ -261,12 +445,22 @@ function CartOverlay({
   onClose,
   onRemove,
   onViewBook,
+  onCheckout,
+  patron,
+  busy,
+  error,
+  done,
 }: {
   books: Book[]
   cartIds: string[]
   onClose: () => void
   onRemove: (id: string) => void
   onViewBook: (book: Book) => void
+  onCheckout: () => void
+  patron: Patron | null
+  busy: boolean
+  error: string
+  done: string[] | null
 }) {
   const cartBooks = cartIds.map(id => books.find(b => b.id === id)).filter(Boolean) as Book[]
 
@@ -286,11 +480,26 @@ function CartOverlay({
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#9B7B6A', cursor: 'pointer', fontSize: 20 }}>✕</button>
         </div>
 
-        {cartBooks.length === 0 ? (
+        {done ? (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 40, textAlign: 'center' }}>
+            <span style={{ fontSize: 40, marginBottom: 16, color: '#4CAF50' }}>✓</span>
+            <p style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: '#2C1810', marginBottom: 10 }}>
+              Checked out
+            </p>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#5C3D2E', lineHeight: 1.7, marginBottom: 18 }}>
+              {done.length} book{done.length !== 1 ? 's are' : ' is'} reserved in your name. Collect {done.length !== 1 ? 'them' : 'it'} from the center during opening times.
+            </p>
+            <div style={{ width: '100%', textAlign: 'left', borderTop: '1px solid #D4B896', paddingTop: 14 }}>
+              {done.map(title => (
+                <p key={title} style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#2C1810', lineHeight: 1.6, marginBottom: 4 }}>· {title}</p>
+              ))}
+            </div>
+          </div>
+        ) : cartBooks.length === 0 ? (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 40, textAlign: 'center' }}>
             <span style={{ fontSize: 40, marginBottom: 16, opacity: 0.3 }}>⊡</span>
             <p style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontStyle: 'italic', color: '#9B7B6A', marginBottom: 8 }}>Your cart is empty</p>
-            <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#9B7B6A' }}>Browse the catalog and add books to request a hold.</p>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#9B7B6A' }}>Browse the catalog and add books to check out.</p>
           </div>
         ) : (
           <>
@@ -321,12 +530,25 @@ function CartOverlay({
             {/* Footer */}
             <div style={{ padding: '20px 28px', borderTop: '1px solid #D4B896', background: '#F4E9D0' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#5C3D2E' }}>{cartBooks.length} book{cartBooks.length !== 1 ? 's' : ''} requested</span>
+                <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#5C3D2E' }}>{cartBooks.length} book{cartBooks.length !== 1 ? 's' : ''} in your cart</span>
               </div>
-              <button style={{ width: '100%', padding: '13px', background: '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', cursor: 'pointer' }}>
-                Submit Hold Requests
+              {error && (
+                <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#C8521A', marginBottom: 10, lineHeight: 1.5 }}>{error}</p>
+              )}
+              <button
+                onClick={onCheckout}
+                disabled={busy}
+                style={{ width: '100%', padding: '13px', background: '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.7 : 1 }}
+              >
+                {busy
+                  ? 'Checking out…'
+                  : `Check Out ${cartBooks.length} Book${cartBooks.length !== 1 ? 's' : ''}`}
               </button>
-              <p style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: '#9B7B6A', textAlign: 'center', marginTop: 10 }}>We will notify you when your books are ready for pickup.</p>
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: '#9B7B6A', textAlign: 'center', marginTop: 10 }}>
+                {patron
+                  ? 'Collect your books from the center during opening times.'
+                  : 'You\'ll be asked to sign in first.'}
+              </p>
             </div>
           </>
         )}
@@ -485,18 +707,6 @@ function BookDetailPage({
                 </span>
               </div>
 
-              {/* Copy dots */}
-              <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-                {Array.from({ length: book.copiesTotal }).map((_, i) => {
-                  const out = i >= book.copiesAvailable
-                  return (
-                    <div key={i} style={{ flex: 1, padding: '8px 0', textAlign: 'center', border: `1.5px solid ${out ? '#C8521A' : '#4CAF50'}`, background: out ? 'rgba(200,82,26,0.06)' : 'rgba(76,175,80,0.06)' }}>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: out ? '#C8521A' : '#4CAF50' }}>#{i + 1}</span>
-                    </div>
-                  )
-                })}
-              </div>
-
               {/* Add to cart */}
               <button
                 onClick={() => inCart ? onRemoveFromCart(book.id) : onAddToCart(book.id)}
@@ -547,6 +757,27 @@ function CatalogPage({
   onAddToCart: (id: string) => void
 }) {
   const [filtersOpen, setFiltersOpen] = useState(false)
+
+  // Built from the catalog rather than hardcoded. This was the Figma
+  // placeholder ['All Categories', 'Fiction', 'Non-Fiction'], and the library
+  // has neither Fiction nor Non-Fiction — so picking either filtered every
+  // book out, which made the dropdown worse than useless.
+  //
+  // Deliberately not merging near-identical names: the data really does carry
+  // "Books by N Kasturi", "Books by N.Kasturi" and "Books by N. Kasuri" as
+  // three separate categories. Collapsing them here would hide a data problem
+  // being fixed at the source, and guessing which spellings mean the same
+  // thing is the kind of thing that goes quietly wrong. Books with no category
+  // are left out of the list; they're still reachable via search and
+  // "All Categories".
+  const categories = useMemo(() => {
+    const distinct = new Set<string>()
+    for (const book of books) {
+      const name = book.category.trim()
+      if (name) distinct.add(name)
+    }
+    return ['All Categories', ...[...distinct].sort((a, b) => a.localeCompare(b))]
+  }, [books])
 
   const hasSearched = Object.entries(filters).some(([k, v]) => {
     if (k === 'category') return v !== 'All Categories'
@@ -632,7 +863,7 @@ function CatalogPage({
           ))}
 
           {[
-            { label: 'Category', key: 'category' as const, opts: CATEGORIES },
+            { label: 'Category', key: 'category' as const, opts: categories },
           ].map(f => (
             <div key={f.key}>
               <label style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{f.label}</label>
@@ -685,7 +916,7 @@ function CatalogPage({
           {filtersOpen && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.1)', alignItems: 'flex-end' }}>
               {[
-                { label: 'Category', key: 'category' as const, opts: CATEGORIES, type: 'select' },
+                { label: 'Category', key: 'category' as const, opts: categories, type: 'select' },
               ].map(f => (
                 <div key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase' }}>{f.label}</span>
@@ -957,68 +1188,29 @@ function HomePage({ books, onNav, onSearch, onViewBook, cartIds, onAddToCart }: 
 
 // ── About page ────────────────────────────────────────────────────────────────
 
-const BOOK_CLUBS = [
-  {
-    date: 'Aug 5, 2026',
-    day: 'Wednesday',
-    time: '6:30 PM',
-    title: 'Spiritual Classics Circle',
-    description: 'This month we explore Geeta Vahini — Sai Baba\'s exposition on the Bhagavad Gita. We\'ll discuss the nature of duty, devotion, and the path of selfless action as described in the text. All are welcome, no prior reading of the Gita required.',
-    book: 'Geeta Vahini',
-    host: 'Dr. Eleanor Voss',
-    room: 'Reading Room A',
-    spots: 12,
-    spotsLeft: 4,
-  },
-  {
-    date: 'Aug 14, 2026',
-    day: 'Thursday',
-    time: '7:00 PM',
-    title: 'World Fiction Evening',
-    description: 'Join us for a lively discussion of Invisible Cities by Italo Calvino. We\'ll unpack Calvino\'s 55 fantastical cities as metaphors for memory, desire, and the human imagination. Bring your favourite passage to share.',
-    book: 'Invisible Cities',
-    host: 'Marcus Trent',
-    room: 'Reading Room B',
-    spots: 16,
-    spotsLeft: 9,
-  },
-  {
-    date: 'Aug 21, 2026',
-    day: 'Thursday',
-    time: '5:30 PM',
-    title: 'Biography & Lives',
-    description: 'We turn to Sathyam Shivam Sundaram, the authorised biography of Sathya Sai Baba by Prof. Kasturi. Members are encouraged to read Volume I ahead of time. Discussion will focus on the early life chapters and Kasturi\'s method of devotional biography.',
-    book: 'Sathyam Shivam Sundaram',
-    host: 'Saoirse Callahan',
-    room: 'Main Hall',
-    spots: 20,
-    spotsLeft: 11,
-  },
-  {
-    date: 'Sep 3, 2026',
-    day: 'Wednesday',
-    time: '6:00 PM',
-    title: 'Science & Ideas',
-    description: 'This session features Sapiens by Yuval Noah Harari. We\'ll debate Harari\'s central claim that shared fictions — money, nations, religions — are the engine of human civilisation. Come ready to agree or push back.',
-    book: 'Sapiens',
-    host: 'Dev Anand Pillai',
-    room: 'Reading Room A',
-    spots: 14,
-    spotsLeft: 14,
-  },
-  {
-    date: 'Sep 18, 2026',
-    day: 'Friday',
-    time: '7:00 PM',
-    title: 'Classics & Masterworks',
-    description: 'We read The Brothers Karamazov together — one chapter block per session. This meeting covers Books IV–VI: the Elder Zosima, the Grand Inquisitor, and the crisis of faith. New members joining this arc are very welcome.',
-    book: 'The Brothers Karamazov',
-    host: 'Marcus Trent',
-    room: 'Reading Room B',
-    spots: 10,
-    spotsLeft: 3,
-  },
-]
+type BookClubEntry = {
+  date: string
+  day: string
+  time: string
+  title: string
+  description: string
+  book: string
+  host: string
+  room: string
+  spots: number
+  spotsLeft: number
+}
+
+// Emptied on purpose. These were Figma placeholders — a "World Fiction
+// Evening" on Calvino's Invisible Cities, "Science & Ideas" on Sapiens,
+// Dostoevsky — hosted by the invented staff from the mockup, and nothing to do
+// with this center. Showing made-up sessions with live "Reserve a Spot"
+// buttons is worse than showing none.
+//
+// Real sessions arrive when src/lib/bookClub.ts is implemented; it needs two
+// new tables and a capacity check, see the TODO in that file. The section
+// below renders an empty state until then.
+const BOOK_CLUBS: BookClubEntry[] = []
 
 const VOLUNTEER_ROLES = [
   {
@@ -1131,15 +1323,6 @@ function ThoughtPage() {
           </div>
         ) : (
           <>
-            {/* The short highlighted line — the centrepiece */}
-            {thought.quote && (
-              <blockquote style={{ margin: 0, marginBottom: 48, paddingLeft: 28, borderLeft: '3px solid #C8521A' }}>
-                <p style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px,2.6vw,28px)', fontStyle: 'italic', fontWeight: 500, color: '#2C1810', lineHeight: 1.5 }}>
-                  {thought.quote}
-                </p>
-              </blockquote>
-            )}
-
             {/* Teaser above the discourse */}
             {thought.intro && (
               <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, color: '#C8521A', lineHeight: 1.7, marginBottom: 24 }}>
@@ -1159,6 +1342,17 @@ function ThoughtPage() {
               <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: '#5C3D2E', textAlign: 'right', marginTop: 28 }}>
                 {thought.attribution}
               </p>
+            )}
+
+            {/* The short highlighted line, closing the page — same order the
+                email itself uses, where it sits in a band below the discourse
+                rather than above it. */}
+            {thought.quote && (
+              <blockquote style={{ margin: '48px 0 0', background: '#2C1810', padding: '32px 36px' }}>
+                <p style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(18px,2.2vw,24px)', fontStyle: 'italic', fontWeight: 500, color: '#FAF3E4', lineHeight: 1.55, textAlign: 'center' }}>
+                  {thought.quote}
+                </p>
+              </blockquote>
             )}
 
             <div style={{ marginTop: 48, paddingTop: 20, borderTop: '1px solid #D4B896' }}>
@@ -1202,6 +1396,11 @@ function AboutPage() {
         {sectionHead('§ 01', 'Upcoming Book Clubs')}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+          {BOOK_CLUBS.length === 0 && (
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#5C3D2E', lineHeight: 1.7, maxWidth: 580 }}>
+              No sessions are scheduled just yet. Book club dates will appear here once they're set — ask at the center in the meantime.
+            </p>
+          )}
           {BOOK_CLUBS.map((club, i) => {
             const full = club.spotsLeft === 0
             const almost = club.spotsLeft <= 4 && !full
@@ -1351,7 +1550,13 @@ function AboutPage() {
 
       {/* Contact footer */}
       <div style={{ background: '#2C1810', padding: '36px 64px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 32 }}>
-        {[{ label: 'Address', value: '418 Elm Street\nSai Library Campus' }, { label: 'Phone', value: '(614) 555-0187' }, { label: 'Email', value: 'hello@sailibrary.org' }].map(c => (
+        {/* Real details from siteInfo.ts, replacing the Figma placeholders
+            ('418 Elm Street', '(614) 555-0187', 'hello@sailibrary.org').
+            There is no Phone or Email column because the center hasn't given
+            a public number or address to publish — an empty column is better
+            than an invented one, and a wrong phone number on a real site is
+            worse than none. Add them here once someone supplies them. */}
+        {[{ label: 'Center', value: SITE_NAME }, { label: 'Address', value: SITE_ADDRESS }, { label: 'Room', value: MEETING_ROOM }].map(c => (
           <div key={c.label}>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{c.label}</span>
             <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#D4B896', lineHeight: 1.6, whiteSpace: 'pre-line' }}>{c.value}</p>
@@ -1374,8 +1579,11 @@ export default function App() {
   const [cartIds, setCartIds] = useState<string[]>([])
   const [showCart, setShowCart] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
-  const [loggedIn, setLoggedIn] = useState(false)
-  const [userName, setUserName] = useState('')
+  const [showProfile, setShowProfile] = useState(false)
+  const [patron, setPatron] = useState<Patron | null>(null)
+  const [checkoutBusy, setCheckoutBusy] = useState(false)
+  const [checkoutError, setCheckoutError] = useState('')
+  const [checkedOut, setCheckedOut] = useState<string[] | null>(null)
 
   const navigate = useNavigate()
   const location = useLocation()
@@ -1395,6 +1603,8 @@ export default function App() {
       .finally(() => { if (!cancelled) setBooksLoading(false) })
     return () => { cancelled = true }
   }, [])
+
+  useEffect(() => onAuthChange(setPatron), [])
 
   function handleNav(p: Page) {
     setViewingBook(null)
@@ -1431,6 +1641,54 @@ export default function App() {
     setCartIds(ids => ids.includes(id) ? ids.filter(i => i !== id) : [...ids, id])
   }
 
+  // Checkout has three gates before it can run: signed in, details on file,
+  // then the actual checkout. Each one hands off to the next rather than
+  // dead-ending, so the patron isn't told to go and do something and then
+  // left to find their own way back to the cart.
+  function handleCheckout() {
+    if (!patron) { setShowCart(false); setShowLogin(true); return }
+    if (!patron.phone) { setShowProfile(true); return }
+    void runCheckout()
+  }
+
+  async function runCheckout() {
+    setCheckoutBusy(true)
+    setCheckoutError('')
+    const succeeded: string[] = []
+    const failed: string[] = []
+
+    // Sequential rather than parallel: these all contend for copies, and
+    // several at once against the same book would just race each other.
+    for (const id of cartIds) {
+      const title = books.find(b => b.id === id)?.title ?? id
+      try {
+        await checkoutBookByCode(id)
+        succeeded.push(title)
+      } catch {
+        failed.push(title)
+      }
+    }
+
+    // Availability has changed, so the cached catalog is now wrong.
+    invalidateBooksCache()
+    try {
+      setBooks(await fetchBooks())
+    } catch {
+      // A stale catalog is not worth failing a successful checkout over.
+    }
+
+    setCartIds(failed.length ? cartIds.filter(id => failed.includes(books.find(b => b.id === id)?.title ?? id)) : [])
+    if (failed.length) {
+      setCheckoutError(
+        succeeded.length
+          ? `Checked out ${succeeded.length}, but couldn't get: ${failed.join(', ')}. Someone may have taken the last copy.`
+          : `Couldn't check out ${failed.join(', ')}. Someone may have taken the last copy.`
+      )
+    }
+    if (succeeded.length && !failed.length) setCheckedOut(succeeded)
+    setCheckoutBusy(false)
+  }
+
   if (!siteUnlocked) {
     return <SiteGate onUnlock={() => { grantSiteAccess(); setSiteUnlocked(true) }} />
   }
@@ -1443,8 +1701,8 @@ export default function App() {
         cartCount={cartIds.length}
         onCart={() => setShowCart(true)}
         onLogin={() => setShowLogin(true)}
-        loggedIn={loggedIn}
-        userName={userName}
+        onSignOut={() => void signOut()}
+        patron={patron}
       />
 
       <main style={{ paddingTop: 60 }}>
@@ -1483,16 +1741,32 @@ export default function App() {
         <CartOverlay
           books={books}
           cartIds={cartIds}
-          onClose={() => setShowCart(false)}
+          onClose={() => { setShowCart(false); setCheckedOut(null); setCheckoutError('') }}
           onRemove={removeFromCart}
           onViewBook={book => { setShowCart(false); handleViewBook(book) }}
+          onCheckout={handleCheckout}
+          patron={patron}
+          busy={checkoutBusy}
+          error={checkoutError}
+          done={checkedOut}
         />
       )}
 
       {showLogin && (
         <LoginModal
-          onClose={() => setShowLogin(false)}
-          onLogin={name => { setLoggedIn(true); setUserName(name) }}
+          onClose={() => {
+            setShowLogin(false)
+            // Came here from the cart — put them back where they were.
+            if (cartIds.length) setShowCart(true)
+          }}
+        />
+      )}
+
+      {showProfile && patron && (
+        <ProfileModal
+          patron={patron}
+          onClose={() => setShowProfile(false)}
+          onSaved={() => { setShowProfile(false); void runCheckout() }}
         />
       )}
     </div>
