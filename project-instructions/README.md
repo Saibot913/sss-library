@@ -6,11 +6,17 @@ Before picking something up: read [GIT_WORKFLOW.md](GIT_WORKFLOW.md) in this sam
 
 ## Checklist
 
-> **Start here: [`src/lib/auth.ts`](../src/lib/auth.ts).** It's the next thing to build and the only item blocking others — the checkout flow and book club RSVPs both need a signed-in user, and neither can be wired until it exists. Every decision it depended on is now closed and the email side is configured and tested, so it's implementation with no unknowns left. Details in the Core catalog section below.
+> **Start here: [`src/lib/checkouts.ts`](../src/lib/checkouts.ts).** Auth is done, which unblocks it — the three Postgres functions it wraps are already live and race-safe, so this is UI wiring rather than new backend. Details in the Checkout flow section below.
+>
+> Before real members can use any of it, though, **login codes still land in spam** — see Open decisions. That's the project owner's DNS, not a code task.
 
 ### Core catalog
 - [x] [`src/lib/books.ts`](../src/lib/books.ts) — **done.** `fetchBooks()` reads `books` + `copies`, paged so it can't silently truncate, nullable columns coalesced, and cached in `localStorage` for five minutes. Availability is an allowlist on `status = 'available'`; copies marked `lost`/`damaged`/`withdrawn` count toward neither total nor available.
-- [ ] [`src/lib/auth.ts`](../src/lib/auth.ts) — **next up.** `requestSignInCode()` / `verifySignInCode()` / `signOut()` / `getCurrentPatron()` / `onAuthChange()` via Supabase Auth. All five are stubbed with step-by-step `TODO(team)` comments naming the exact Supabase calls; start there. **Decided: authentication is by email, with no password.** The patron types their email, Supabase emails them a six-digit code, they type it back (`signInWithOtp`, then `verifyOtp`). Prefer the code over a magic link — on phones a link often opens in a different browser than the one that asked for it, and the session lands in the wrong place.
+- [x] [`src/lib/auth.ts`](../src/lib/auth.ts) — **done.** All five functions are implemented and `LoginModal` is a two-step email → code form; `App` holds a `Patron` from `onAuthChange()` rather than a typed-in name, and the nav button signs out when you're already signed in. `signOut()` clears the catalog cache, since availability counts read during a session shouldn't outlive it.
+
+  **It works but isn't usable by members yet: codes land in spam.** See Open decisions — that needs DNS records on `saisevasadan.org`, not code. Test with your own address and check the spam folder.
+
+  Still worth doing on top: a "check your spam folder" line on the code step, and a resend button with a cooldown (Supabase rate-limits repeat sends to the same address). Reference for the original design — `requestSignInCode()` / `verifySignInCode()` / `signOut()` / `getCurrentPatron()` / `onAuthChange()` via Supabase Auth. All five are stubbed with step-by-step `TODO(team)` comments naming the exact Supabase calls; start there. **Decided: authentication is by email, with no password.** The patron types their email, Supabase emails them a six-digit code, they type it back (`signInWithOtp`, then `verifyOtp`). Prefer the code over a magic link — on phones a link often opens in a different browser than the one that asked for it, and the session lands in the wrong place.
 
   Two reasons for no password: people use a library site a few times a year, which is exactly when passwords get forgotten, and every forgotten one becomes a support request to a volunteer.
 
