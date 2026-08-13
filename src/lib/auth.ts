@@ -18,17 +18,48 @@ export type Patron = {
   /** Supabase auth user id (a uuid). This is what checkouts.user_id holds. */
   id: string
   email: string
-  /** Display name — email local-part until a profile table exists. */
+  /** What they told us to call them; falls back to the email local-part. */
   name: string
+  /** Null until they've filled in the profile form at first checkout. */
+  phone: string | null
 }
 
+// Name and phone live in the auth user's `user_metadata` rather than in a
+// `patrons` table, which doesn't exist yet (see the open decision in
+// project-instructions/README.md). That's fine for these two fields
+// specifically, because they're the patron's own contact details and there's
+// no harm in them editing their own name.
+//
+// It would NOT be fine for anything granting privileges. `user_metadata` is
+// writable by the user it belongs to, so a `role: 'staff'` stored here could
+// be self-awarded. Staff membership lives in the `staff` table for exactly
+// that reason — keep it that way.
 function toPatron(user: User): Patron {
   const email = user.email ?? ''
+  const meta = (user.user_metadata ?? {}) as { full_name?: unknown; phone?: unknown }
+  const name = typeof meta.full_name === 'string' ? meta.full_name.trim() : ''
+  const phone = typeof meta.phone === 'string' ? meta.phone.trim() : ''
   return {
     id: user.id,
     email,
-    name: email.split('@')[0] || email,
+    name: name || email.split('@')[0] || email,
+    phone: phone || null,
   }
+}
+
+/**
+ * Save the patron's own name and phone.
+ *
+ * Fires a USER_UPDATED event, so anything subscribed through onAuthChange()
+ * picks up the new name without needing to be told.
+ */
+export async function updatePatronProfile(name: string, phone: string): Promise<Patron> {
+  const { data, error } = await supabase.auth.updateUser({
+    data: { full_name: name, phone },
+  })
+  if (error) throw error
+  if (!data.user) throw new Error('Saving your details failed — please try again.')
+  return toPatron(data.user)
 }
 
 /** Send a six-digit sign-in code. Signup is open (`shouldCreateUser: true`). */
