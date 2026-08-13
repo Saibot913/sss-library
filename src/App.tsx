@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { fetchBooks, type Book } from './lib/books'
+import { fetchThoughtForTheDay, type ThoughtForTheDay } from './lib/thoughtForTheDay'
 import { useBookCover } from './lib/bookCovers'
 import { VOLUNTEER_FORM_URL } from './lib/volunteers'
 import { REVIEW_FORM_URL } from './lib/reviews'
@@ -7,7 +9,26 @@ import { SITE_PASSWORD, hasSiteAccess, grantSiteAccess } from './lib/siteAccess'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Page = 'home' | 'catalog' | 'about'
+type Page = 'home' | 'catalog' | 'thought' | 'about'
+
+// Each page has a real URL, so pages can be linked to, bookmarked, and
+// refreshed, and the back button moves between them instead of leaving the
+// site. `Page` is kept because the nav highlights the active one — it's now
+// derived from the URL rather than being the source of truth.
+//
+// Book detail is deliberately still component state, not a route, so there's
+// no URL for an individual book yet.
+const PAGE_PATHS: Record<Page, string> = {
+  home: '/',
+  catalog: '/catalog',
+  thought: '/thought',
+  about: '/community',
+}
+
+function pageFromPath(pathname: string): Page {
+  const match = (Object.keys(PAGE_PATHS) as Page[]).find(p => PAGE_PATHS[p] === pathname)
+  return match ?? 'home'
+}
 
 type Filters = {
   query: string
@@ -98,7 +119,7 @@ function TopNav({
 
       {/* Page links */}
       <nav style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1 }}>
-        {([['home', '01', 'Home'], ['catalog', '02', 'Catalog'], ['about', '03', 'Community']] as const).map(([id, num, label]) => (
+        {([['home', '01', 'Home'], ['catalog', '02', 'Catalog'], ['thought', '03', 'Daily Thought'], ['about', '04', 'Community']] as const).map(([id, num, label]) => (
           <button
             key={id}
             onClick={() => onNav(id)}
@@ -1038,6 +1059,123 @@ const VOLUNTEER_ROLES = [
   },
 ]
 
+// ── Thought for the Day ───────────────────────────────────────────────────────
+
+// 'YYYY-MM-DD' -> "Thursday, August 13, 2026".
+//
+// Built from the parts rather than new Date(iso): that form is parsed as UTC
+// midnight, which renders as the *previous* day anywhere west of Greenwich —
+// including here. new Date(y, m, d) is local midnight, so the date shown is the
+// date stored.
+function formatThoughtDate(iso: string): string {
+  const [year, month, day] = iso.split('-').map(Number)
+  if (!year || !month || !day) return iso
+  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+function ThoughtPage() {
+  const [thought, setThought] = useState<ThoughtForTheDay | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    fetchThoughtForTheDay()
+      .then(t => { if (!cancelled) setThought(t) })
+      .catch(err => { if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load the thought') })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [])
+
+  return (
+    <div style={{ minHeight: '100vh' }}>
+      {/* Header band */}
+      <section style={{ background: '#2C1810', padding: '48px 64px 40px' }}>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.2em', color: '#C8521A', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
+          Sai Inspires · From Prasanthi Nilayam
+        </span>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(30px,4.5vw,44px)', fontWeight: 700, color: '#FAF3E4', lineHeight: 1.1 }}>
+          Thought for the Day
+        </h1>
+        {/* Deliberately not labelled "today": the daily mail is published on
+            India time, so from early afternoon the newest thought carries
+            tomorrow's date. Showing the date plainly avoids contradicting it. */}
+        {thought && (
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#D4B896', marginTop: 10 }}>
+            {formatThoughtDate(thought.date)}
+          </p>
+        )}
+      </section>
+
+      <section style={{ padding: '56px 64px 72px', maxWidth: 900, margin: '0 auto' }}>
+        {loading ? (
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#9B7B6A', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+            Loading…
+          </p>
+        ) : error ? (
+          <div>
+            <p style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600, color: '#C8521A', marginBottom: 6 }}>Couldn't load the thought</p>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#9B7B6A' }}>{error}</p>
+          </div>
+        ) : !thought ? (
+          <div>
+            <p style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600, color: '#2C1810', marginBottom: 6 }}>Nothing here yet</p>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#5C3D2E' }}>
+              Today's thought hasn't arrived. It's imported once a day — please check back later.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* The short highlighted line — the centrepiece */}
+            {thought.quote && (
+              <blockquote style={{ margin: 0, marginBottom: 48, paddingLeft: 28, borderLeft: '3px solid #C8521A' }}>
+                <p style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px,2.6vw,28px)', fontStyle: 'italic', fontWeight: 500, color: '#2C1810', lineHeight: 1.5 }}>
+                  {thought.quote}
+                </p>
+              </blockquote>
+            )}
+
+            {/* Teaser above the discourse */}
+            {thought.intro && (
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, color: '#C8521A', lineHeight: 1.7, marginBottom: 24 }}>
+                {thought.intro}
+              </p>
+            )}
+
+            {/* The discourse extract. Paragraph breaks are stored as blank
+                lines by the importer, so split rather than dumping one block. */}
+            {thought.passage.split('\n\n').filter(Boolean).map((para, i) => (
+              <p key={i} style={{ fontFamily: 'var(--font-body)', fontSize: 16, color: '#2C1810', lineHeight: 1.85, marginBottom: 20, textAlign: 'justify' }}>
+                {para}
+              </p>
+            ))}
+
+            {thought.attribution && (
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: '#5C3D2E', textAlign: 'right', marginTop: 28 }}>
+                {thought.attribution}
+              </p>
+            )}
+
+            <div style={{ marginTop: 48, paddingTop: 20, borderTop: '1px solid #D4B896' }}>
+              <p style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                Source ·{' '}
+                <a href="https://www.sssmediacentre.org/sai-inspires/" target="_blank" rel="noreferrer" style={{ color: '#C8521A' }}>
+                  Sai Inspires, Radio Sai
+                </a>
+              </p>
+            </div>
+          </>
+        )}
+      </section>
+    </div>
+  )
+}
+
 function AboutPage() {
   const sectionHead = (num: string, title: string) => (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 36, borderBottom: '1px solid #D4B896', paddingBottom: 12 }}>
@@ -1231,15 +1369,23 @@ export default function App() {
   const [books, setBooks] = useState<Book[]>([])
   const [booksLoading, setBooksLoading] = useState(true)
   const [booksError, setBooksError] = useState<string | null>(null)
-  const [page, setPage] = useState<Page>('home')
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
   const [viewingBook, setViewingBook] = useState<Book | null>(null)
-  const [prevPage, setPrevPage] = useState<Page>('home')
   const [cartIds, setCartIds] = useState<string[]>([])
   const [showCart, setShowCart] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
   const [loggedIn, setLoggedIn] = useState(false)
   const [userName, setUserName] = useState('')
+
+  const navigate = useNavigate()
+  const location = useLocation()
+  const page = pageFromPath(location.pathname)
+
+  // Routers don't reset scroll on navigation, so without this you land
+  // part-way down a new page after scrolling the previous one.
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [location.pathname])
 
   useEffect(() => {
     let cancelled = false
@@ -1252,24 +1398,25 @@ export default function App() {
 
   function handleNav(p: Page) {
     setViewingBook(null)
-    setPage(p)
+    navigate(PAGE_PATHS[p])
   }
 
   function handleSearch(q: string) {
     setFilters({ ...EMPTY_FILTERS, query: q })
     setViewingBook(null)
-    setPage('catalog')
+    navigate(PAGE_PATHS.catalog)
   }
 
   function handleViewBook(book: Book) {
-    setPrevPage(page)
     setViewingBook(book)
     window.scrollTo(0, 0)
   }
 
+  // Book detail renders over whichever route you're on, so closing it just
+  // clears the book — no need to remember which page you came from.
   function handleBack() {
     setViewingBook(null)
-    setPage(prevPage)
+    window.scrollTo(0, 0)
   }
 
   function addToCart(id: string) {
@@ -1320,12 +1467,15 @@ export default function App() {
             onRemoveFromCart={removeFromCart}
             onViewBook={handleViewBook}
           />
-        ) : page === 'home' ? (
-          <HomePage books={books} onNav={handleNav} onSearch={handleSearch} onViewBook={handleViewBook} cartIds={cartIds} onAddToCart={toggleCart} />
-        ) : page === 'catalog' ? (
-          <CatalogPage books={books} filters={filters} setFilters={setFilters} onViewBook={handleViewBook} cartIds={cartIds} onAddToCart={toggleCart} />
         ) : (
-          <AboutPage />
+          <Routes>
+            <Route path={PAGE_PATHS.home} element={<HomePage books={books} onNav={handleNav} onSearch={handleSearch} onViewBook={handleViewBook} cartIds={cartIds} onAddToCart={toggleCart} />} />
+            <Route path={PAGE_PATHS.catalog} element={<CatalogPage books={books} filters={filters} setFilters={setFilters} onViewBook={handleViewBook} cartIds={cartIds} onAddToCart={toggleCart} />} />
+            <Route path={PAGE_PATHS.thought} element={<ThoughtPage />} />
+            <Route path={PAGE_PATHS.about} element={<AboutPage />} />
+            {/* Unknown URL: send them home rather than rendering a blank main. */}
+            <Route path="*" element={<Navigate to={PAGE_PATHS.home} replace />} />
+          </Routes>
         )}
       </main>
 
