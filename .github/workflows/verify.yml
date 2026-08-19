@@ -1,0 +1,48 @@
+name: Verify
+
+# Runs on pushes to main as well as pull requests, on purpose.
+#
+# The changelog check only runs on pull_request, so a direct push to main skips
+# it entirely — which has already happened. Whatever else is true, main should
+# at least be known to compile.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # --frozen-lockfile fails if package.json and pnpm-lock.yaml disagree,
+      # which catches a dependency added without the lockfile being committed.
+      - run: pnpm install --frozen-lockfile
+
+      # Type errors don't fail `vite build` — Vite strips types without
+      # checking them — so this has to be its own step. Without it, code that
+      # doesn't typecheck merges green.
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+      # A committed conflict marker is valid text to git and to Vite, so
+      # nothing above necessarily catches it. This has reached a PR before.
+      - name: Reject conflict markers
+        run: |
+          if git grep -nE '^(<<<<<<<|=======|>>>>>>>)( |$)' -- src supabase tools; then
+            echo "::error::Merge conflict markers are committed in the lines above."
+            exit 1
+          fi
+          echo "No conflict markers found."

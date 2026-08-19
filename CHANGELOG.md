@@ -15,7 +15,17 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 
 ## [Unreleased]
 
+### Fixed
+- **Restored work that was reverted by accident.** `4c3f933` was committed from a copy of `App.tsx` predating PR #8, so committing it removed everything that PR added — the checkout wiring, the derived category filter, the real contact footer, the empty book-club section, and the copy boxes all came back to their placeholder state. Git recorded it as intentional because a commit built from a stale file is indistinguishable from a deliberate deletion. All of it is re-applied here **on top of** the newer profile work, which is kept.
+- Catalog cache key bumped to `v2`. `copies` was added to `Book` and `App.tsx` now calls `book.copies.find(...)` during checkout, but entries written by the previous build have no `copies` field and `readCache()` only checks that `books` is an array — so a surviving old entry made that call throw on `undefined`. Bumping the key discards them.
+- Removed the `ponytail` dependency. Unrelated to this project ("Rethinking maintenance of multiple sites"), imported nowhere, and added incidentally — an unused third-party package in an app that handles auth is surface area for nothing.
+- `main` now typechecks. It had three unused-binding errors: a leftover `supabase` import, the mockup `STAFF` array, and a dead `onLogin` prop on `LoginModal` (vestigial from the one-time-code flow — magic links complete on redirect, so there's nothing for the modal to hand back).
+- Checkout looks copies up in the database instead of in `book.copies`, which comes from a cache up to five minutes old and can't see holds at all. It also tries another copy if the first is taken mid-checkout, invalidates the cache afterwards, reports partial failures by title, and leaves failed books in the cart rather than clearing everything.
+- The account menu closes on outside click and Escape.
+- Home-page category shortcuts use the four largest real categories and actually search for them; they were `Fiction`/`Non-Fiction`/`Spiritual`/`History` — none of which exist here — and dropped you on an unfiltered catalog.
+
 ### Added
+- CI now typechecks, builds, and rejects committed conflict markers (`.github/workflows/verify.yml`), on pushes to `main` as well as pull requests. Until now `require-changelog` was the only check and it only ran on PRs, so a direct push to `main` was verified by nothing — and code that didn't compile reached `main` twice. `pnpm typecheck` is a script now, because `vite build` strips types without checking them and passes regardless.
 - Email + one-time-code auth in `src/lib/auth.ts` (`requestSignInCode` / `verifySignInCode` / `signOut` / `getCurrentPatron` / `onAuthChange`); `LoginModal` is email → code, no library card / typed name. Display name is the email local-part until a profile table exists.
 - `fetchBooks()` reads the real catalog from `books` + `copies` instead of throwing. Two things that aren't obvious from the code: the embedded `copies` select has to name its columns because `copies(*)` is rejected by the column-level grants added in 0.1.0, and the query is paged so it won't silently truncate at PostgREST's 1000-row cap as the catalog grows.
 - Copies with a retired status (`lost`/`damaged`/`withdrawn`) are left out of both the available and total counts, so a book with permanently missing copies doesn't read as "3 of 5 available" forever. Nothing writes those statuses yet — only `available` and `checked_out` exist today.

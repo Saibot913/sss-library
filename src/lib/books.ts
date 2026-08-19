@@ -120,7 +120,12 @@ function toBook(row: BookRow): Book {
 // entries written by an older build are parsed straight back into `Book[]`
 // without validation, so a renamed field would otherwise surface as
 // undefined at runtime instead of being discarded.
-const CACHE_KEY = 'sss-library:books:v1'
+// v2: `copies` was added to `Book` and App.tsx now reads
+// `book.copies.find(...)` during checkout. Entries written by the v1 build have
+// no `copies` field, and readCache() only checks that `books` is an array — so
+// a v1 entry surviving into this build makes that call throw on undefined.
+// Bumping the key is what discards them.
+const CACHE_KEY = 'sss-library:books:v2'
 
 // The one volatile part of a Book is copiesAvailable, so the TTL is really
 // "how long may availability be wrong for?" Five minutes matches the
