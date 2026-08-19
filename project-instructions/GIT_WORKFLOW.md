@@ -51,6 +51,23 @@ git merge main
 
 Resolve any conflicts Git flags, then commit the merge.
 
+## 4a. Read your own diff before you commit
+
+```bash
+git diff --stat
+```
+
+Look at the deletion count. **If you're adding a feature and the diff deletes a lot of lines, stop and find out why.** That's the whole check, and it takes five seconds.
+
+This has bitten the project twice. Both times someone had pulled main correctly, but the file they committed came from an editor buffer or a copy that predated someone else's merge — so the commit quietly removed work that was already on `main`. Git can't warn you: a commit built from a stale file looks exactly like a deliberate deletion.
+
+Pulling first is necessary but **not sufficient** — it stops your branch diverging, it doesn't stop a stale file being written back over what you pulled. The diff is what catches it.
+
+Two related habits:
+
+- **Don't push straight to `main`.** Open a PR even for small things. A reviewer looking at "+40 −385" asks the obvious question immediately.
+- **If a merge conflicts, resolve it hunk by hunk.** Taking one whole side (`--ours`, `--theirs`, or pasting your file over the merged one) is how both incidents happened.
+
 ## 5. Add a changelog entry
 
 Before opening the PR: add a line to [`CHANGELOG.md`](../CHANGELOG.md) under `[Unreleased]`, in the right section (`Added`/`Changed`/`Fixed`/`Removed`) — what you changed, one or two lines. This isn't optional — a GitHub Action checks every PR into `main` and fails it if `CHANGELOG.md` wasn't touched.

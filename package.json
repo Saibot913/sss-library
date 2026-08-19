@@ -3,15 +3,17 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "//": "packageManager pins pnpm for CI (pnpm/action-setup reads it) and for corepack. Keep it in step with .mise.toml.",
+  "packageManager": "pnpm@10.34.3",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
+    "typecheck": "tsc --noEmit",
     "build": "vite build",
     "preview": "vite preview",
     "format": "oxfmt"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.0",
-    "ponytail": "^1.0.57",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.18.2"
