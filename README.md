@@ -121,6 +121,25 @@ Leave this running in your terminal. It'll print a URL like `http://localhost:84
 
 To stop it later: click into the terminal and press `Ctrl + C`.
 
+## 10. Deploy email auth
+
+Signup and login email requests run through `supabase/functions/auth-email`.
+The function keeps the service-role key on Supabase and uses the Invite user
+template for signup. From the project root, link your Supabase project and set
+the service secret before deploying:
+
+```bash
+supabase link --project-ref YOUR_PROJECT_REF
+supabase secrets set APP_ORIGIN=http://localhost:3000
+supabase functions deploy auth-email --no-verify-jwt
+supabase functions deploy delete-account --no-verify-jwt
+```
+
+`APP_ORIGIN` should be your real deployed website URL in production.
+`SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are
+provided automatically to the deployed function by Supabase. Never put the
+service-role key in `.env` or frontend code.
+
 ## Repo layout, quick reference
 
 - **`src/App.tsx`** — the whole app's UI currently lives here.

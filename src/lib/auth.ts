@@ -72,31 +72,39 @@ function toPatron(user: unknown, profile?: ProfileRow | null): Patron {
 
 export async function requestSignInCode(email: string, mode: 'login' | 'signup' = 'login'): Promise<void> {
   const normalizedEmail = email.trim()
-  const redirectTo = `${window.location.origin}${AUTH_REDIRECT_PATH}?auth=${mode}`
-
-  const { error } = await supabase.auth.signInWithOtp({
-    email: normalizedEmail,
-    options: {
-      shouldCreateUser: mode === 'signup',
-      emailRedirectTo: redirectTo,
+  const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/auth-email`, {
+    method: 'POST',
+    headers: {
+      apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      'Content-Type': 'application/json',
     },
+    body: JSON.stringify({ email: normalizedEmail, mode }),
   })
 
-  if (error) throw error
+  const result = await response.json() as { error?: string }
+  if (!response.ok) throw new Error(result.error ?? 'We could not send your sign-in email.')
 }
 
 export async function verifySignInCode(_email: string, _code: string): Promise<Patron> {
   throw new Error('This app uses email magic links instead of one-time codes.')
 }
 
-export async function updatePatronProfile(input: { firstName: string; lastName: string; phone: string }): Promise<Patron> {
+export async function updatePatronProfile(input: { email: string; firstName: string; lastName: string; phone: string }): Promise<Patron> {
   const normalized = {
+    email: input.email.trim().toLowerCase(),
     firstName: input.firstName.trim(),
     lastName: input.lastName.trim(),
     phone: input.phone.trim(),
   }
 
+  if (!normalized.email) throw new Error('Please enter your email address.')
+
+  const { data: currentSession } = await supabase.auth.getSession()
+  const currentEmail = currentSession.session?.user.email?.toLowerCase() ?? ''
+  const emailChanged = normalized.email !== currentEmail
+
   const { data, error } = await supabase.auth.updateUser({
+    ...(emailChanged ? { email: normalized.email } : {}),
     data: {
       first_name: normalized.firstName,
       last_name: normalized.lastName,
@@ -127,6 +135,26 @@ export async function updatePatronProfile(input: { firstName: string; lastName: 
 export async function signOut(): Promise<void> {
   const { error } = await supabase.auth.signOut()
   if (error) throw error
+  invalidateBooksCache()
+}
+
+export async function deleteAccount(): Promise<void> {
+  const { data } = await supabase.auth.getSession()
+  const accessToken = data.session?.access_token
+  if (!accessToken) throw new Error('You must be signed in to delete your account.')
+
+  const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-account`, {
+    method: 'POST',
+    headers: {
+      apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+  })
+  const result = await response.json() as { error?: string }
+  if (!response.ok) throw new Error(result.error ?? 'We could not delete your account.')
+
+  await supabase.auth.signOut()
   invalidateBooksCache()
 }
 

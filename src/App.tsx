@@ -6,7 +6,7 @@ import { useBookCover } from './lib/bookCovers'
 import { VOLUNTEER_FORM_URL } from './lib/volunteers'
 import { REVIEW_FORM_URL } from './lib/reviews'
 import { SITE_PASSWORD, hasSiteAccess, grantSiteAccess } from './lib/siteAccess'
-import { AUTH_REDIRECT_PATH, getCurrentPatron, onAuthChange, requestSignInCode, signOut, updatePatronProfile, type Patron } from './lib/auth'
+import { AUTH_REDIRECT_PATH, deleteAccount, getCurrentPatron, onAuthChange, requestSignInCode, signOut, updatePatronProfile, type Patron } from './lib/auth'
 import { checkoutBook } from './lib/checkouts'
 import { supabase } from './lib/supabaseClient'
 
@@ -423,21 +423,28 @@ function CartOverlay({
 function ProfilePage({
   patron,
   onSaved,
+  onDeleted,
+  onboarding = false,
 }: {
   patron: Patron | null
   onSaved: (updatedPatron: Patron) => void
+  onDeleted: () => void
+  onboarding?: boolean
 }) {
   const navigate = useNavigate()
   const [firstName, setFirstName] = useState(patron?.firstName ?? '')
   const [lastName, setLastName] = useState(patron?.lastName ?? '')
   const [phone, setPhone] = useState(patron?.phone ?? '')
+  const [email, setEmail] = useState(patron?.email ?? '')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     setFirstName(patron?.firstName ?? '')
     setLastName(patron?.lastName ?? '')
     setPhone(patron?.phone ?? '')
+    setEmail(patron?.email ?? '')
   }, [patron])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -445,16 +452,17 @@ function ProfilePage({
     const trimmedFirst = firstName.trim()
     const trimmedLast = lastName.trim()
     const trimmedPhone = phone.trim()
+    const trimmedEmail = email.trim().toLowerCase()
 
-    if (!trimmedFirst || !trimmedLast || !trimmedPhone) {
-      setError('Please enter your first name, last name, and phone number.')
+    if (!trimmedEmail || !trimmedFirst || !trimmedLast || !trimmedPhone) {
+      setError('Please enter your email, first name, last name, and phone number.')
       return
     }
 
     try {
       setSaving(true)
       setError('')
-      const updatedPatron = await updatePatronProfile({ firstName: trimmedFirst, lastName: trimmedLast, phone: trimmedPhone })
+      const updatedPatron = await updatePatronProfile({ email: trimmedEmail, firstName: trimmedFirst, lastName: trimmedLast, phone: trimmedPhone })
       localStorage.setItem(`sss-library:patron-profile:${(patron?.email ?? updatedPatron.email).toLowerCase()}`, JSON.stringify({ firstName: updatedPatron.firstName, lastName: updatedPatron.lastName, phone: updatedPatron.phone }))
       onSaved(updatedPatron)
     } catch (err) {
@@ -464,14 +472,32 @@ function ProfilePage({
     }
   }
 
+  async function handleDelete() {
+    if (!window.confirm('This action is irreversible. Your account, profile, and checkout history will be permanently deleted. Continue?')) return
+
+    try {
+      setDeleting(true)
+      setError('')
+      await deleteAccount()
+      onDeleted()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'We could not delete your account.')
+      setDeleting(false)
+    }
+  }
+
   return (
     <div style={{ maxWidth: 640, margin: '120px auto 80px', padding: '0 20px' }}>
       <div style={{ background: '#FAF3E4', border: '1px solid #D4B896', padding: '32px 28px', boxShadow: '0 20px 50px rgba(44,24,16,0.08)' }}>
-        <p style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 8 }}>Profile</p>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: '#2C1810', margin: '0 0 16px' }}>Your contact details</h1>
-        <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#5C3D2E', marginBottom: 20 }}>This information is saved to your account and tied to {patron?.email ?? 'your email'}.</p>
+        <p style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 8 }}>{onboarding ? 'Finish sign up' : 'Profile'}</p>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: '#2C1810', margin: '0 0 16px' }}>{onboarding ? 'Create your library profile' : 'Your contact details'}</h1>
+        <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#5C3D2E', marginBottom: 20 }}>{onboarding ? 'Add your name and phone number to finish creating your account. You can edit these details later from Profile.' : 'This information is saved to your account. Changing your email may require confirmation from the new address.'}</p>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <label style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Email Address</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 14, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box' }} />
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div>
               <label style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>First Name</label>
@@ -497,6 +523,14 @@ function ProfilePage({
               Continue to catalog
             </button>
           </div>
+          {!onboarding && (
+            <div style={{ marginTop: 20, paddingTop: 18, borderTop: '1px solid #D4B896' }}>
+              <button type="button" onClick={handleDelete} disabled={saving || deleting} style={{ padding: '10px 14px', background: 'transparent', color: '#A52A2A', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 12, border: '1px solid #A52A2A', cursor: saving || deleting ? 'not-allowed' : 'pointer', opacity: saving || deleting ? 0.6 : 1 }}>
+                {deleting ? 'Deleting account…' : 'Delete account'}
+              </button>
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: '#9B7B6A', marginTop: 8 }}>This action is irreversible.</p>
+            </div>
+          )}
         </form>
       </div>
     </div>
@@ -1803,7 +1837,7 @@ export default function App() {
                   <p style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontStyle: 'italic', color: '#9B7B6A' }}>Checking your sign-in…</p>
                 </div>
               ) : currentPatron ? (
-                <ProfilePage patron={currentPatron} onSaved={updatedPatron => { setCurrentPatron(updatedPatron); setUserName(updatedPatron.name); navigate(PAGE_PATHS.catalog) }} />
+                <ProfilePage onboarding={authReturnMode === 'signup'} patron={currentPatron} onSaved={updatedPatron => { setCurrentPatron(updatedPatron); setUserName(updatedPatron.name); navigate(PAGE_PATHS.catalog) }} onDeleted={() => { setCurrentPatron(null); setLoggedIn(false); setUserName(''); navigate(PAGE_PATHS.home, { replace: true }) }} />
               ) : <Navigate to={PAGE_PATHS.home} replace />}
             />
             {/* Unknown URL: send them home rather than rendering a blank main. */}
@@ -1844,6 +1878,7 @@ export default function App() {
             setShowProfileForm(false)
             setShowUserMenu(false)
           }}
+          onDeleted={() => { setCurrentPatron(null); setLoggedIn(false); setUserName(''); setShowProfileForm(false); navigate(PAGE_PATHS.home, { replace: true }) }}
         />
       )}
 
