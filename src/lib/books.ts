@@ -11,6 +11,10 @@ export type Book = {
   publisher: string
   copiesTotal: number
   copiesAvailable: number
+  copies: Array<{
+    fullLabel: string
+    status: string | null
+  }>
 }
 
 type CopyRow = {
@@ -84,6 +88,10 @@ function countCopies(copies: CopyRow[]) {
 // category). App.tsx calls .toLowerCase() on summary and author while
 // filtering, so nulls have to become '' here rather than pass through.
 function toBook(row: BookRow): Book {
+  const copies = (row.copies ?? []).map(copy => ({
+    fullLabel: copy.full_label,
+    status: copy.status,
+  }))
   const { total, available } = countCopies(row.copies ?? [])
   return {
     id: row.book_code,
@@ -99,6 +107,7 @@ function toBook(row: BookRow): Book {
     publisher: row.published_by ?? '',
     copiesTotal: total,
     copiesAvailable: available,
+    copies,
   }
 }
 
