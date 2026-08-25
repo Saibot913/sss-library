@@ -10,14 +10,12 @@ create table if not exists public.profiles (
 
 alter table public.profiles enable row level security;
 
-drop policy if exists "Users can view their own profile" on public.profiles;
 create policy "Users can view their own profile"
 on public.profiles
 for select
 to authenticated
 using (auth.uid() = id);
 
-drop policy if exists "Users can update their own profile" on public.profiles;
 create policy "Users can update their own profile"
 on public.profiles
 for update
@@ -25,14 +23,12 @@ to authenticated
 using (auth.uid() = id)
 with check (auth.uid() = id);
 
-drop policy if exists "Users can insert their own profile" on public.profiles;
 create policy "Users can insert their own profile"
 on public.profiles
 for insert
 to authenticated
 with check (auth.uid() = id);
 
-drop policy if exists "Public read access to profile emails is not allowed" on public.profiles;
 create policy "Public read access to profile emails is not allowed"
 on public.profiles
 for select

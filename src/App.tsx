@@ -7,11 +7,9 @@ import { VOLUNTEER_FORM_URL } from './lib/volunteers'
 import { REVIEW_FORM_URL } from './lib/reviews'
 import { SITE_PASSWORD, hasSiteAccess, grantSiteAccess } from './lib/siteAccess'
 import { AUTH_REDIRECT_PATH, deleteAccount, getCurrentPatron, onAuthChange, requestSignInCode, signOut, updatePatronProfile, type Patron } from './lib/auth'
-import { checkoutBookByCode, fetchMyActiveHolds, releaseReservation, reserveCopy, type ActiveHold } from './lib/checkouts'
+import { checkoutBookByCode } from './lib/checkouts'
 import { SITE_NAME, SITE_ADDRESS, MEETING_ROOM } from './lib/siteInfo'
 import { invalidateBooksCache } from './lib/books'
-import { recordPageView } from './lib/analytics'
-import { fetchStaffAnalytics, fetchStaffDashboard, fetchStaffInventory, isCurrentUserStaff, type StaffAnalytics, type StaffDashboard } from './lib/staff'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -99,9 +97,6 @@ function TopNav({
   userName,
   showUserMenu,
   onCloseUserMenu,
-  isStaff,
-  onAdmin,
-  onHolds,
 }: {
   active: Page
   onNav: (p: Page) => void
@@ -115,9 +110,6 @@ function TopNav({
   userName: string
   showUserMenu: boolean
   onCloseUserMenu: () => void
-  isStaff: boolean
-  onAdmin: () => void
-  onHolds: () => void
 }) {
   const accountRef = useRef<HTMLDivElement>(null)
 
@@ -190,9 +182,6 @@ function TopNav({
                 <button onClick={onProfile} style={{ width: '100%', textAlign: 'left', padding: '12px 14px', background: 'transparent', border: 'none', borderBottom: '1px solid #E7D7B0', color: '#2C1810', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   Profile
                 </button>
-                {isStaff && <button onClick={onAdmin} style={{ width: '100%', textAlign: 'left', padding: '12px 14px', background: 'transparent', border: 'none', borderBottom: '1px solid #E7D7B0', color: '#C8521A', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                  Admin Panel
-                </button>}
                 <button onClick={onLogout} style={{ width: '100%', textAlign: 'left', padding: '12px 14px', background: 'transparent', border: 'none', color: '#2C1810', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   Log out
                 </button>
@@ -212,9 +201,6 @@ function TopNav({
         )}
 
         {/* Cart */}
-        {loggedIn && <button onClick={onHolds} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 12px', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: '#FAF3E4', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer' }}>
-          Holds
-        </button>}
         <button
           onClick={onCart}
           style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 16px', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: '#FAF3E4', background: cartCount > 0 ? '#C8521A' : 'rgba(255,255,255,0.06)', border: `1px solid ${cartCount > 0 ? '#C8521A' : 'rgba(255,255,255,0.15)'}`, cursor: 'pointer', transition: 'all 0.2s' }}
@@ -572,227 +558,6 @@ function ProfilePage({
       </div>
     </div>
   )
-}
-
-function StaffDashboardPage() {
-  const [dashboard, setDashboard] = useState<StaffDashboard | null>(null)
-  const [inventory, setInventory] = useState<StaffDashboard['inventory']>([])
-  const [analytics, setAnalytics] = useState<StaffAnalytics | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [refreshing, setRefreshing] = useState(false)
-
-  async function loadDashboard() {
-    try {
-      setLoading(true)
-      setError('')
-      const [nextDashboard, nextInventory, nextAnalytics] = await Promise.all([fetchStaffDashboard(), fetchStaffInventory(), fetchStaffAnalytics()])
-      setDashboard(nextDashboard)
-      setInventory(nextInventory)
-      setAnalytics(nextAnalytics)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'We could not load the staff dashboard.')
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
-    }
-  }
-
-  async function handleRefresh() {
-    setRefreshing(true)
-    await loadDashboard()
-  }
-
-  useEffect(() => { void loadDashboard() }, [])
-
-  if (loading) return <div style={{ padding: '120px 40px', textAlign: 'center', color: '#9B7B6A' }}>Loading staff dashboard…</div>
-  if (error) return <div style={{ maxWidth: 700, margin: '120px auto', padding: 24, color: '#A52A2A' }}>{error}</div>
-  if (!dashboard || !analytics) return null
-
-  return (
-    <div style={{ maxWidth: 1180, margin: '100px auto 80px', padding: '0 28px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', borderBottom: '1px solid #D4B896', paddingBottom: 16, marginBottom: 24 }}>
-        <div><p style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#C8521A', letterSpacing: '0.16em', textTransform: 'uppercase' }}>Staff only</p><h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, color: '#2C1810' }}>Library operations</h1></div>
-        <button onClick={handleRefresh} disabled={loading || refreshing} style={{ padding: '9px 14px', background: loading || refreshing ? '#A56A44' : '#C8521A', color: '#FAF3E4', border: 0, cursor: loading || refreshing ? 'not-allowed' : 'pointer' }}>
-          {refreshing ? 'Refreshing…' : 'Refresh'}
-        </button>
-      </div>
-      <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: '#2C1810', marginBottom: 14 }}>Quick Stats</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-          <StatCard label="Open checkouts" value={dashboard.openCheckouts.length} icon="📚" />
-          <StatCard label="Active holds" value={dashboard.activeHolds.length} icon="⏳" />
-          <StatCard label="Checkouts (30d)" value={dashboard.traffic.reduce((sum, day) => sum + day.checkouts, 0)} icon="✅" />
-          <StatCard label="Visitors (30d)" value={analytics.visitorTraffic.reduce((sum, day) => sum + day.visitors, 0)} icon="👥" />
-          <StatCard label="Page views (30d)" value={analytics.visitorTraffic.reduce((sum, day) => sum + day.pageViews, 0)} icon="📄" />
-          <StatCard label="Copies in collection" value={analytics.inventoryTotals.total} icon="📦" />
-          <StatCard label="Available copies" value={analytics.inventoryTotals.available} icon="✅" />
-          <StatCard label="Held copies" value={analytics.inventoryTotals.held} icon="🔒" />
-          <StatCard label="Checked out copies" value={analytics.inventoryTotals.checkedOut} icon="📤" />
-          <StatCard label="Active sessions (5m)" value={analytics.activeSessions} icon="🟢" />
-        </div>
-      </section>
-      <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: '#2C1810', marginBottom: 14 }}>Circulation Analytics</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-          <DashboardList title="Most checked out" items={dashboard.popularBooks} />
-          <DashboardList title="Least checked out" items={dashboard.leastPopularBooks} />
-          <DashboardList title="Top authors by checkouts" items={analytics.topAuthors.map(item => ({ bookCode: item.author, title: item.author, checkouts: item.checkouts }))} />
-          <DashboardList title="Checkout categories" items={analytics.categories.map(item => ({ bookCode: item.category, title: `${item.category} · ${item.books} titles (${item.checkouts} checkouts)`, checkouts: item.checkouts }))} />
-          <DashboardList title="Daily checkouts (30d)" items={dashboard.traffic.map(day => ({ bookCode: day.date, title: day.date, checkouts: day.checkouts }))} />
-          <DashboardList title="Daily visitors (30d)" items={analytics.visitorTraffic.map(day => ({ bookCode: day.date, title: `${day.date} · ${day.pageViews} page views`, checkouts: day.visitors }))} />
-        </div>
-      </section>
-      <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: '#2C1810', marginBottom: 14 }}>Recent Activity (Last Hour)</h2>
-        {analytics.recentActivity.length === 0 ? (
-          <p style={{ color: '#9B7B6A' }}>No recent checkouts in the last hour.</p>
-        ) : (
-          <div style={{ display: 'grid', gap: 8 }}>
-            {analytics.recentActivity.map((activity, index) => (
-              <div key={index} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 16px', background: '#F4E9D0', border: '1px solid #D4B896', borderRadius: 4 }}>
-                <div style={{ flex: 1 }}>
-                  <strong style={{ color: '#2C1810', fontSize: 14 }}>{activity.title}</strong>
-                  <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: 12, color: '#9B7B6A' }}>
-                    <span>{activity.copy}</span>
-                    <span>{activity.patron || 'Unknown patron'}</span>
-                    <span>{new Date(activity.time).toLocaleString()}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-      <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: '#2C1810', marginBottom: 14 }}>Inventory by Title</h2>
-        <InventoryTable items={inventory} />
-      </section>
-      <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: '#2C1810', marginBottom: 14 }}>Active Holds</h2>
-        <DashboardLoans title="Current holds" items={dashboard.activeHolds} />
-      </section>
-      <section>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: '#2C1810', marginBottom: 14 }}>Open Checkouts</h2>
-        <DashboardLoans title="Open checkouts" items={dashboard.openCheckouts} />
-      </section>
-    </div>
-  )
-}
-
-function StatCard({ label, value, icon }: { label: string; value: number; icon: string }) {
-  return (
-    <div style={{ background: '#FAF3E4', border: '1px solid #D4B896', padding: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 24 }}>{icon}</span>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{label}</span>
-      </div>
-      <div style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 700, color: '#C8521A' }}>{value}</div>
-    </div>
-  )
-}
-
-function InventoryTable({ items }: { items: StaffDashboard['inventory'] }) {
-  return (
-    <section style={{ background: '#FAF3E4', border: '1px solid #D4B896', padding: 20, overflowX: 'auto' }}>
-      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: '#2C1810', marginBottom: 14 }}>Inventory by Title</h2>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-        <thead>
-          <tr>
-            {['Book', 'Total', 'Available', 'Held', 'Checked Out'].map(label => (
-              <th key={label} style={{ textAlign: 'left', padding: '8px 6px', borderBottom: '2px solid #D4B896', color: '#9B7B6A', fontWeight: 600 }}>
-                {label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {items.map(item => (
-            <tr key={item.bookCode} style={{ background: item.checkedOutCopies > 0 ? '#FFF8F0' : 'transparent' }}>
-              <td style={{ padding: '9px 6px', borderBottom: '1px solid #E7D7B0', color: '#2C1810', fontWeight: 500 }}>{item.title}</td>
-              <td style={{ padding: '9px 6px', borderBottom: '1px solid #E7D7B0', color: '#C8521A', fontWeight: 700 }}>{item.totalCopies}</td>
-              <td style={{ padding: '9px 6px', borderBottom: '1px solid #E7D7B0', color: '#4CAF50', fontWeight: 700 }}>{item.availableCopies}</td>
-              <td style={{ padding: '9px 6px', borderBottom: '1px solid #E7D7B0', color: '#FF9800', fontWeight: 700 }}>{item.heldCopies}</td>
-              <td style={{ padding: '9px 6px', borderBottom: '1px solid #E7D7B0', color: '#F44336', fontWeight: 700 }}>{item.checkedOutCopies}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </section>
-  )
-}
-
-function HoldsPage() {
-  const [holds, setHolds] = useState<ActiveHold[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-
-  async function loadHolds() {
-    try {
-      setLoading(true)
-      setError('')
-      setHolds(await fetchMyActiveHolds())
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'We could not load your holds.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => { void loadHolds() }, [])
-
-  return <div style={{ maxWidth: 820, margin: '110px auto 80px', padding: '0 28px' }}><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', borderBottom: '1px solid #D4B896', paddingBottom: 16, marginBottom: 24 }}><div><p style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Your account</p><h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, color: '#2C1810' }}>Active holds</h1></div><button onClick={() => void loadHolds()} style={{ padding: '9px 14px', background: '#C8521A', color: '#FAF3E4', border: 0, cursor: 'pointer' }}>Refresh</button></div>{loading ? <p style={{ color: '#9B7B6A' }}>Loading your holds…</p> : error ? <p style={{ color: '#A52A2A' }}>{error}</p> : holds.length === 0 ? <div style={{ background: '#FAF3E4', border: '1px solid #D4B896', padding: 28 }}><h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: '#2C1810' }}>No active holds</h2><p style={{ color: '#9B7B6A', marginTop: 8 }}>Books you place on hold will appear here with their expiry time.</p></div> : <div style={{ display: 'grid', gap: 12 }}>{holds.map(hold => <div key={hold.fullLabel} style={{ background: '#FAF3E4', border: '1px solid #D4B896', padding: 18, display: 'flex', justifyContent: 'space-between', gap: 18 }}><div><h2 style={{ fontFamily: 'var(--font-display)', fontSize: 19, color: '#2C1810' }}>{hold.title}</h2><p style={{ color: '#9B7B6A', fontSize: 12, marginTop: 4 }}>{hold.fullLabel}</p></div><div style={{ textAlign: 'right' }}><p style={{ color: '#C8521A', fontWeight: 700 }}>Held until</p><p style={{ color: '#5C3D2E', fontSize: 13, marginTop: 4 }}>{new Date(hold.reservedUntil).toLocaleString()}</p></div></div>)}</div>}</div>
-}
-
-function DashboardList({ title, items }: { title: string; items: Array<{ bookCode: string; title: string; checkouts: number }> }) {
-  return (
-    <section style={{ background: '#FAF3E4', border: '1px solid #D4B896', padding: 20 }}>
-      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: '#2C1810', marginBottom: 14 }}>{title}</h2>
-      {items.length === 0 ? (
-        <p style={{ color: '#9B7B6A', fontSize: 13 }}>No data yet.</p>
-      ) : (
-        <div style={{ display: 'grid', gap: 8 }}>
-          {items.map(item => (
-            <div key={item.bookCode} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '9px 12px', background: '#F4E9D0', border: '1px solid #D4B896', borderRadius: 4 }}>
-              <span style={{ fontSize: 13, color: '#2C1810' }}>{item.title}</span>
-              <strong style={{ color: '#C8521A', fontFamily: 'var(--font-mono)' }}>{item.checkouts}</strong>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-  )
-}
-
-function DashboardLoans({ title, items }: { title: string; items: Array<{ fullLabel: string; title: string; email: string; reservedUntil?: string; checkedOutAt?: string }> }) {
-  return (
-    <section style={{ background: '#FAF3E4', border: '1px solid #D4B896', padding: 20 }}>
-      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: '#2C1810', marginBottom: 14 }}>{title}</h2>
-      {items.length === 0 ? (
-        <p style={{ color: '#9B7B6A', fontSize: 13 }}>None right now.</p>
-      ) : (
-        <div style={{ display: 'grid', gap: 8 }}>
-          {items.map(item => (
-            <div key={item.fullLabel} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 16px', background: '#F4E9D0', border: '1px solid #D4B896', borderRadius: 4 }}>
-              <div style={{ flex: 1 }}>
-                <strong style={{ color: '#2C1810', fontSize: 14 }}>{item.title}</strong>
-                <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: 12, color: '#9B7B6A' }}>
-                  <span>{item.fullLabel}</span>
-                  <span>{item.email}</span>
-                  {item.reservedUntil && <span>Expires: {new Date(item.reservedUntil).toLocaleString()}</span>}
-                  {item.checkedOutAt && <span>Checked out: {new Date(item.checkedOutAt).toLocaleString()}</span>}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-  )
-}
-
-function StaffRoute() {
-  return <StaffDashboardPage />
 }
 
 // ── Book Detail Page (full screen) ────────────────────────────────────────────
@@ -1831,7 +1596,6 @@ export default function App() {
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
   const [viewingBook, setViewingBook] = useState<Book | null>(null)
   const [cartIds, setCartIds] = useState<string[]>([])
-  const [cartCopies, setCartCopies] = useState<Record<string, string>>({})
   const [showCart, setShowCart] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -1840,7 +1604,6 @@ export default function App() {
   const [loggedIn, setLoggedIn] = useState(false)
   const [userName, setUserName] = useState('')
   const [currentPatron, setCurrentPatron] = useState<Patron | null>(null)
-  const [isStaff, setIsStaff] = useState(false)
   const [authReady, setAuthReady] = useState(false)
   const [authLoading, setAuthLoading] = useState<{type: 'login' | 'logout'; message: string} | null>(null)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
@@ -1854,10 +1617,6 @@ export default function App() {
   // part-way down a new page after scrolling the previous one.
   useEffect(() => {
     window.scrollTo(0, 0)
-  }, [location.pathname])
-
-  useEffect(() => {
-    void recordPageView(location.pathname).catch(() => {})
   }, [location.pathname])
 
   useEffect(() => {
@@ -1913,17 +1672,6 @@ export default function App() {
   )
 
   useEffect(() => {
-    if (!currentPatron) {
-      setIsStaff(false)
-      return
-    }
-
-    isCurrentUserStaff()
-      .then(setIsStaff)
-      .catch(() => setIsStaff(false))
-  }, [currentPatron?.id])
-
-  useEffect(() => {
     if (!loggedIn || !currentPatron) return
 
     const magicLinkMode = authReturnMode
@@ -1961,46 +1709,18 @@ export default function App() {
     window.scrollTo(0, 0)
   }
 
-  async function addToCart(id: string) {
+  function addToCart(id: string) {
     if (!loggedIn) {
       setLoginMode('login')
       setShowLogin(true)
       return
     }
 
-    if (cartIds.includes(id)) return
-    const book = books.find(candidate => candidate.id === id)
-    const copy = book?.copies.find(candidate => candidate.status === 'available')
-    if (!copy) {
-      setCheckoutError('No copy is available for this book right now.')
-      return
-    }
-
-    try {
-      await reserveCopy(copy.fullLabel)
-      setCartIds(ids => ids.includes(id) ? ids : [...ids, id])
-      setCartCopies(copies => ({ ...copies, [id]: copy.fullLabel }))
-    } catch (err) {
-      setCheckoutError(err instanceof Error ? err.message : 'We could not place a hold on this book.')
-    }
+    setCartIds(ids => ids.includes(id) ? ids : [...ids, id])
   }
 
-  async function removeFromCart(id: string) {
-    const copyLabel = cartCopies[id]
-    if (copyLabel) {
-      try {
-        await releaseReservation(copyLabel)
-      } catch (err) {
-        setCheckoutError(err instanceof Error ? err.message : 'We could not release this hold.')
-        return
-      }
-    }
+  function removeFromCart(id: string) {
     setCartIds(ids => ids.filter(i => i !== id))
-    setCartCopies(copies => {
-      const next = { ...copies }
-      delete next[id]
-      return next
-    })
   }
 
   function toggleCart(id: string) {
@@ -2010,11 +1730,7 @@ export default function App() {
       return
     }
 
-    if (cartIds.includes(id)) {
-      void removeFromCart(id)
-    } else {
-      void addToCart(id)
-    }
+    setCartIds(ids => ids.includes(id) ? ids.filter(i => i !== id) : [...ids, id])
   }
 
   function getStoredProfile(email: string | null | undefined) {
@@ -2077,7 +1793,6 @@ export default function App() {
     // drop books the patron never got.
     const failedIds = cartIds.filter(id => failed.includes(books.find(b => b.id === id)?.title ?? id))
     setCartIds(failedIds)
-    setCartCopies(copies => Object.fromEntries(Object.entries(copies).filter(([id]) => failedIds.includes(id))))
     setShowProfileForm(false)
 
     if (failed.length) {
@@ -2120,19 +1835,14 @@ export default function App() {
             // keep UI state consistent even if sign-out fails from a stale session
           }
           setCurrentPatron(null)
-          setIsStaff(false)
           setLoggedIn(false)
           setUserName('')
           setShowUserMenu(false)
           setCartIds([])
-          setCartCopies({})
           window.setTimeout(() => setAuthLoading(null), 500)
         }}
         onToggleUserMenu={() => setShowUserMenu(v => !v)}
         onCloseUserMenu={() => setShowUserMenu(false)}
-        isStaff={isStaff}
-        onAdmin={() => { setShowUserMenu(false); navigate('/staff') }}
-        onHolds={() => { setShowUserMenu(false); navigate('/holds') }}
         loggedIn={loggedIn}
         userName={userName}
         showUserMenu={showUserMenu}
@@ -2164,8 +1874,6 @@ export default function App() {
             <Route path={PAGE_PATHS.catalog} element={<CatalogPage books={books} filters={filters} setFilters={setFilters} onViewBook={handleViewBook} cartIds={cartIds} onAddToCart={toggleCart} />} />
             <Route path={PAGE_PATHS.thought} element={<ThoughtPage />} />
             <Route path={PAGE_PATHS.about} element={<AboutPage />} />
-            <Route path="/staff" element={<StaffRoute />} />
-            <Route path="/holds" element={loggedIn ? <HoldsPage /> : <Navigate to={PAGE_PATHS.home} replace />} />
             <Route
               path={AUTH_REDIRECT_PATH}
               element={authReturnMode === 'login' || !authReady ? (
