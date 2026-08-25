@@ -1,23 +1,5 @@
 import { supabase } from './supabaseClient'
 
-export type ActiveHold = {
-  fullLabel: string
-  bookCode: string
-  title: string
-  reservedUntil: string
-}
-
-export async function fetchMyActiveHolds(): Promise<ActiveHold[]> {
-  const { data, error } = await supabase.rpc('my_active_holds')
-  if (error) throw error
-  return (data ?? []).map(row => ({
-    fullLabel: row.full_label,
-    bookCode: row.book_code,
-    title: row.title,
-    reservedUntil: row.reserved_until,
-  }))
-}
-
 // TODO(team): wire these into the cart / checkout flow in App.tsx.
 //
 // The cart currently tracks `book.id` (book_code) in local state
