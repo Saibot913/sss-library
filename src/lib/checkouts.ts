@@ -142,19 +142,19 @@ export async function checkoutBookByCode(bookCode: string): Promise<string> {
 
 export async function fetchMyActiveReservations(): Promise<ActiveReservation[]> {
   const { data, error } = await supabase.rpc('my_active_reservations')
-  if (error) throw error
+  if (error) throw new Error(`my_active_reservations: ${error.message}`)
   return (data ?? []).map(toActiveReservation)
 }
 
 export async function fetchMyActiveCheckouts(): Promise<ActiveCheckout[]> {
   const { data, error } = await supabase.rpc('my_active_checkouts')
-  if (error) throw error
+  if (error) throw new Error(`my_active_checkouts: ${error.message}`)
   return (data ?? []).map(toActiveCheckout)
 }
 
 export async function fetchMyCheckoutHistory(limit = 50): Promise<CheckoutHistoryRow[]> {
   const { data, error } = await supabase.rpc('my_checkout_history', { limit_count: limit })
-  if (error) throw error
+  if (error) throw new Error(`my_checkout_history: ${error.message}`)
   return (data ?? []).map(toCheckoutHistoryRow)
 }
 

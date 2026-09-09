@@ -8,9 +8,15 @@ import { REVIEW_FORM_URL } from './lib/reviews'
 import { SITE_PASSWORD, hasSiteAccess, grantSiteAccess } from './lib/siteAccess'
 import { AUTH_REDIRECT_PATH, deleteAccount, getCurrentPatron, onAuthChange, requestSignInCode, signOut, updatePatronProfile, type Patron } from './lib/auth'
 import {
-  checkoutBookByCode,
+  checkoutBook,
+  fetchMyActiveReservations,
+  fetchMyActiveCheckouts,
+  fetchMyCheckoutHistory,
   releaseReservation,
   reserveCopy,
+  type ActiveReservation,
+  type ActiveCheckout,
+  type CheckoutHistoryRow,
 } from './lib/checkouts'
 import { SITE_NAME, SITE_ADDRESS, MEETING_ROOM } from './lib/siteInfo'
 import { invalidateBooksCache } from './lib/books'
@@ -101,6 +107,7 @@ function TopNav({
   userName,
   showUserMenu,
   onCloseUserMenu,
+  onHolds,
 }: {
   active: Page
   onNav: (p: Page) => void
@@ -114,6 +121,7 @@ function TopNav({
   userName: string
   showUserMenu: boolean
   onCloseUserMenu: () => void
+  onHolds: () => void
 }) {
   const accountRef = useRef<HTMLDivElement>(null)
 
@@ -172,14 +180,15 @@ function TopNav({
           <div ref={accountRef} style={{ position: 'relative' }}>
             <button
               onClick={onToggleUserMenu}
+              title={userName ? `Settings for ${userName}` : 'Settings'}
               aria-haspopup="menu"
               aria-expanded={showUserMenu}
               style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 16px', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, letterSpacing: '0.06em', color: '#FAF3E4', background: 'rgba(200,82,26,0.25)', border: '1px solid rgba(200,82,26,0.5)', cursor: 'pointer', transition: 'all 0.2s' }}
               onMouseEnter={e => (e.currentTarget.style.borderColor = '#C8521A')}
               onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(200,82,26,0.5)')}
             >
-              <span style={{ fontSize: 14 }}>👤</span>
-              <span>{userName}</span>
+              <span style={{ fontSize: 14 }}>⚙</span>
+              <span>Settings</span>
             </button>
             {showUserMenu && (
               <div style={{ position: 'absolute', right: 0, top: 'calc(100% + 8px)', background: '#FAF3E4', border: '1px solid #D4B896', boxShadow: '0 10px 30px rgba(44,24,16,0.15)', minWidth: 180, zIndex: 50 }}>
@@ -204,7 +213,15 @@ function TopNav({
           </button>
         )}
 
-        {/* Cart */}
+        {/* Holds and cart */}
+        {loggedIn && (
+          <button
+            onClick={onHolds}
+            style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 12px', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: '#FAF3E4', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer' }}
+          >
+            Holds
+          </button>
+        )}
         <button
           onClick={onCart}
           style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 16px', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: '#FAF3E4', background: cartCount > 0 ? '#C8521A' : 'rgba(255,255,255,0.06)', border: `1px solid ${cartCount > 0 ? '#C8521A' : 'rgba(255,255,255,0.15)'}`, cursor: 'pointer', transition: 'all 0.2s' }}
@@ -447,6 +464,66 @@ function CartOverlay({
   )
 }
 
+function AccountActivityPage() {
+  const [reservations, setReservations] = useState<ActiveReservation[]>([])
+  const [checkouts, setCheckouts] = useState<ActiveCheckout[]>([])
+  const [history, setHistory] = useState<CheckoutHistoryRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  async function loadActivity() {
+    try {
+      setLoading(true)
+      setError('')
+      const results = await Promise.allSettled([
+        fetchMyActiveReservations(),
+        fetchMyActiveCheckouts(),
+        fetchMyCheckoutHistory(),
+      ])
+      const [reservationResult, checkoutResult, historyResult] = results
+      setReservations(reservationResult.status === 'fulfilled' ? reservationResult.value : [])
+      setCheckouts(checkoutResult.status === 'fulfilled' ? checkoutResult.value : [])
+      setHistory(historyResult.status === 'fulfilled' ? historyResult.value : [])
+
+      const failures = results
+        .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+        .map(result => result.reason instanceof Error ? result.reason.message : 'Unknown account activity error')
+      if (failures.length > 0) setError(failures.join(' | '))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'We could not load your library activity.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { void loadActivity() }, [])
+
+  return (
+    <div style={{ maxWidth: 920, margin: '110px auto 80px', padding: '0 28px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', borderBottom: '1px solid #D4B896', paddingBottom: 16, marginBottom: 24 }}>
+        <div>
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Your account</p>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, color: '#2C1810' }}>Library activity</h1>
+        </div>
+        <button onClick={() => void loadActivity()} disabled={loading} style={{ padding: '9px 14px', background: loading ? '#A56A44' : '#C8521A', color: '#FAF3E4', border: 0, cursor: loading ? 'not-allowed' : 'pointer' }}>{loading ? 'Loading…' : 'Refresh'}</button>
+      </div>
+      {error && <p style={{ color: '#A52A2A', marginBottom: 18 }}>{error}</p>}
+      <ActivitySection title={`Active holds (${reservations.length})`} empty="No active holds. Add a book to your cart to reserve a copy." items={reservations.map(item => ({ key: item.fullLabel, title: item.bookTitle ?? item.bookCode, detail: `${item.fullLabel} · Held until ${new Date(item.reservedUntil).toLocaleString()}` }))} />
+      <ActivitySection title={`Currently checked out (${checkouts.length})`} empty="You do not have any currently checked-out books." items={checkouts.map(item => ({ key: item.checkoutId, title: item.bookTitle ?? item.bookCode, detail: `${item.fullLabel} · Checked out ${new Date(item.checkedOutAt).toLocaleDateString()}` }))} />
+      <ActivitySection title={`Checkout history (${history.length})`} empty="No checkout history yet." items={history.map(item => ({ key: item.checkoutId, title: item.bookTitle ?? item.bookCode, detail: `${item.fullLabel} · ${new Date(item.checkedOutAt).toLocaleDateString()}${item.returnedAt ? ` · Returned ${new Date(item.returnedAt).toLocaleDateString()}` : ' · Open'}` }))} />
+    </div>
+  )
+}
+
+function ActivitySection({ title, empty, items }: { title: string; empty: string; items: Array<{ key: string; title: string; detail: string }> }) {
+  return (
+    <section style={{ marginBottom: 22, background: '#FAF3E4', border: '1px solid #D4B896', padding: 20 }}>
+      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 21, color: '#2C1810', marginBottom: 14 }}>{title}</h2>
+      {items.length === 0 ? <p style={{ color: '#9B7B6A', fontSize: 13 }}>{empty}</p> : <div style={{ display: 'grid', gap: 8 }}>{items.map(item => <div key={item.key} style={{ padding: '12px 14px', background: '#F4E9D0', border: '1px solid #D4B896' }}><strong style={{ color: '#2C1810' }}>{item.title}</strong><p style={{ color: '#9B7B6A', fontSize: 12, marginTop: 4 }}>{item.detail}</p></div>)}</div>}
+    </section>
+  )
+}
+
 function ProfilePage({
   patron,
   onSaved,
@@ -549,6 +626,9 @@ function ProfilePage({
             <button type="button" onClick={() => navigate(PAGE_PATHS.catalog)} style={{ padding: '12px 18px', background: '#E9DCC3', color: '#2C1810', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', cursor: 'pointer' }}>
               Continue to catalog
             </button>
+            {!onboarding && <button type="button" onClick={() => navigate('/account')} style={{ padding: '12px 18px', background: '#E9DCC3', color: '#2C1810', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', cursor: 'pointer' }}>
+              My holds & checkouts
+            </button>}
           </div>
           {!onboarding && (
             <div style={{ marginTop: 20, paddingTop: 18, borderTop: '1px solid #D4B896' }}>
@@ -1001,12 +1081,15 @@ function CatalogPage({
                     </div>
                     <div style={{ borderTop: '1px solid #D4B896', paddingTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span style={{ fontFamily: 'var(--font-body)', fontSize: 10, color: '#9B7B6A' }}>{book.category}</span>
-                      <button
-                        onClick={() => onAddToCart(book.id)}
-                        style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.06em', padding: '4px 10px', background: inCart ? '#2C1810' : '#C8521A', color: '#FAF3E4', border: 'none', cursor: 'pointer', transition: 'background 0.15s' }}
-                      >
-                        {inCart ? '✓ Added' : '+ Cart'}
-                      </button>
+                      {avail === 0 ? (
+                        <button disabled style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.06em', padding: '4px 10px', background: '#E9DCC3', color: '#9B7B6A', border: '1px solid #D4B896', cursor: 'not-allowed' }}>
+                          Not available
+                        </button>
+                      ) : (
+                        <button onClick={() => onAddToCart(book.id)} style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.06em', padding: '4px 10px', background: inCart ? '#2C1810' : '#C8521A', color: '#FAF3E4', border: 'none', cursor: 'pointer', transition: 'background 0.15s' }}>
+                          {inCart ? '✓ Added' : '+ Cart'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 )
@@ -1172,9 +1255,15 @@ function HomePage({ books, onSearch, onViewBook, cartIds, onAddToCart }: {
                   </div>
                 </div>
                 <div style={{ padding: '0 18px 16px' }}>
-                  <button onClick={() => onAddToCart(book.id)} style={{ width: '100%', padding: '8px', background: inCart ? '#2C1810' : '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 12, letterSpacing: '0.06em', border: 'none', cursor: 'pointer' }}>
-                    {inCart ? '✓ Added to Cart' : '+ Add to Cart'}
-                  </button>
+                  {avail === 0 ? (
+                    <button disabled style={{ width: '100%', padding: '8px', background: '#E9DCC3', color: '#9B7B6A', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 12, letterSpacing: '0.06em', border: '1px solid #D4B896', cursor: 'not-allowed' }}>
+                      Not available
+                    </button>
+                  ) : (
+                    <button onClick={() => onAddToCart(book.id)} style={{ width: '100%', padding: '8px', background: inCart ? '#2C1810' : '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 12, letterSpacing: '0.06em', border: 'none', cursor: 'pointer' }}>
+                      {inCart ? '✓ Added to Cart' : '+ Add to Cart'}
+                    </button>
+                  )}
                 </div>
               </div>
             )
@@ -1809,19 +1898,16 @@ export default function App() {
     const succeeded: string[] = []
     const failed: string[] = []
 
-    // checkoutBookByCode() looks the copy up in the database rather than in
-    // `book.copies`, which comes from a cache up to five minutes old and can't
-    // see holds at all — a copy in someone else's cart still reads as
-    // 'available' because the hold lives in reserved_until, which column
-    // grants hide from the client. It also tries a second copy if the first is
-    // taken mid-checkout, turning a lost race into a retry.
+    // Convert each cart reservation into a checkout using the exact reserved
+    // copy. This prevents the original hold from being left behind while a
+    // different available copy is checked out.
     //
     // Sequential rather than parallel: these contend for copies, so firing
     // them together just makes them race each other.
-    for (const bookId of cartIds) {
+    for (const [bookId, reservedCopy] of cart.entries()) {
       const title = books.find(book => book.id === bookId)?.title ?? bookId
       try {
-        await checkoutBookByCode(bookId)
+        await checkoutBook(reservedCopy)
         succeeded.push(title)
       } catch {
         failed.push(title)
@@ -1890,6 +1976,7 @@ export default function App() {
         }}
         onToggleUserMenu={() => setShowUserMenu(v => !v)}
         onCloseUserMenu={() => setShowUserMenu(false)}
+        onHolds={() => { setShowUserMenu(false); navigate('/account') }}
         loggedIn={loggedIn}
         userName={userName}
         showUserMenu={showUserMenu}
@@ -1921,6 +2008,7 @@ export default function App() {
             <Route path={PAGE_PATHS.catalog} element={<CatalogPage books={books} filters={filters} setFilters={setFilters} onViewBook={handleViewBook} cartIds={cartIds} onAddToCart={toggleCart} />} />
             <Route path={PAGE_PATHS.thought} element={<ThoughtPage />} />
             <Route path={PAGE_PATHS.about} element={<AboutPage />} />
+            <Route path="/account" element={currentPatron ? <AccountActivityPage /> : <Navigate to={PAGE_PATHS.home} replace />} />
             <Route
               path={AUTH_REDIRECT_PATH}
               element={authReturnMode === 'login' || !authReady ? (
