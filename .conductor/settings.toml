@@ -2,7 +2,7 @@
 
 [scripts]
 setup = """
-pnpm install
+npx --yes pnpm@10.34.3 install
 cat > .env << 'EOF'
 VITE_SUPABASE_URL=https://gpekfosbyobdffavrumi.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_QSlyIMSQPW-5LJRdJ3FW8A_infUl-db
