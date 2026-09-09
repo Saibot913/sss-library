@@ -18,6 +18,12 @@ Not auto-started outside the Figma Make platform. Run `pnpm dev` to start it (se
 - `vite.config.ts` - Vite configuration
 - `.mise.toml` - Toolchain versions (Node.js, pnpm)
 - `supabase/migrations/` - SQL run against the Supabase project (tables, RLS policies, functions)
+- `tests/` - Playwright E2E tests — see [tests/README.md](tests/README.md) for setup, conventions, and a known gap in the auth fixture
+- `playwright.config.ts` - Playwright configuration
+
+## Testing
+
+`pnpm test:e2e` runs the Playwright suite (`pnpm test:e2e:headed` / `:debug` for interactive runs). See [tests/README.md](tests/README.md) before adding tests — it covers the fixture conventions (always import `test`/`expect` from `tests/support/merged-fixtures`, never `@playwright/test` directly) and the one open gap (auth-session token minting isn't implemented yet, since this app uses magic-link email with no password grant).
 
 ## Styling
 
