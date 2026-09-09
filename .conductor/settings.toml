@@ -1,0 +1,26 @@
+"$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
+
+[scripts]
+setup = """
+pnpm install
+cat > .env << 'EOF'
+VITE_SUPABASE_URL=https://gpekfosbyobdffavrumi.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_QSlyIMSQPW-5LJRdJ3FW8A_infUl-db
+EOF
+
+# BMAD Method is gitignored (personal tooling), so copy it in from the
+# original checkout instead of relying on git to bring it into this worktree.
+if [ -d "$CONDUCTOR_ROOT_PATH/_bmad" ]; then
+  cp -R "$CONDUCTOR_ROOT_PATH/_bmad" ./_bmad
+fi
+if [ -d "$CONDUCTOR_ROOT_PATH/.claude/skills" ]; then
+  mkdir -p .claude/skills
+  cp -R "$CONDUCTOR_ROOT_PATH"/.claude/skills/bmad-* .claude/skills/
+fi
+"""
+run_mode = "concurrent"
+
+[scripts.run.dev]
+command = "PORT=$CONDUCTOR_PORT pnpm dev"
+default = true
+icon = "play"
