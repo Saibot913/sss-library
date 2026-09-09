@@ -16,6 +16,7 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 ## [Unreleased]
 
 ### Fixed
+- Fixed the checkout cart refactor so the typed cart state, reservation/release calls, and checkout flow agree again; `pnpm typecheck` now passes.
 - **Restored work that was reverted by accident.** `4c3f933` was committed from a copy of `App.tsx` predating PR #8, so committing it removed everything that PR added — the checkout wiring, the derived category filter, the real contact footer, the empty book-club section, and the copy boxes all came back to their placeholder state. Git recorded it as intentional because a commit built from a stale file is indistinguishable from a deliberate deletion. All of it is re-applied here **on top of** the newer profile work, which is kept.
 - Catalog cache key bumped to `v2`. `copies` was added to `Book` and `App.tsx` now calls `book.copies.find(...)` during checkout, but entries written by the previous build have no `copies` field and `readCache()` only checks that `books` is an array — so a surviving old entry made that call throw on `undefined`. Bumping the key discards them.
 - Removed the `ponytail` dependency. Unrelated to this project ("Rethinking maintenance of multiple sites"), imported nowhere, and added incidentally — an unused third-party package in an app that handles auth is surface area for nothing.

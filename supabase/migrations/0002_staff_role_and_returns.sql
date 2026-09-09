@@ -9,6 +9,11 @@
 --
 --   insert into staff (user_id)
 --   select id from auth.users where email = 'someone@example.com';
+--
+-- Important: signup does NOT add the new user to `staff`. The 0004
+-- `on_auth_user_created` trigger creates a `profiles` row, and that's the
+-- only side effect of a new auth.users row. Without an explicit row in this
+-- table, is_staff() returns false and the user is just a regular patron.
 
 create table if not exists staff (
   user_id uuid primary key references auth.users(id)

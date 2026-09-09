@@ -1,23 +1,75 @@
 import { supabase } from './supabaseClient'
 
-// TODO(team): wire these into the cart / checkout flow in App.tsx.
-//
-// The cart currently tracks `book.id` (book_code) in local state
-// (addToCart/removeFromCart, App.tsx ~line 1290), but reservations and
-// checkouts operate on a specific *copy* (full_label) — a book can have
-// several copies. Adding a book to cart needs to pick one available
-// copy (e.g. the first with status 'available' from `book.copies`) and
-// call reserveCopy() with its full_label; removing from cart should
-// call releaseReservation(). "Complete checkout" should call
-// checkoutBook() for each reserved copy.
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+export type ActiveReservation = {
+  fullLabel: string
+  bookCode: string
+  bookTitle: string | null
+  reservedUntil: string
+}
+
+export type ActiveCheckout = {
+  checkoutId: string
+  fullLabel: string
+  bookCode: string
+  bookTitle: string | null
+  checkedOutAt: string
+}
+
+export type CheckoutHistoryRow = {
+  checkoutId: string
+  fullLabel: string
+  bookCode: string
+  bookTitle: string | null
+  checkedOutAt: string
+  returnedAt: string
+}
+
+export type StaffReservation = ActiveReservation & {
+  reservedBy: string
+  reservedByEmail: string | null
+  reservedByName: string
+  secondsRemaining: number
+}
+
+export type StaffCheckout = ActiveCheckout & {
+  patronId: string
+  patronEmail: string | null
+  patronName: string
+  daysOut: number
+}
+
+export type DashboardTraffic = {
+  day: string
+  checkouts: number
+}
+
+export type DashboardBookCount = {
+  book_code: string
+  title: string
+  checkout_count: number
+}
+
+export type DashboardStats = {
+  windowStart: string
+  windowEnd: string
+  totalCheckouts: number
+  activeLoans: number
+  traffic: DashboardTraffic[]
+  topBooks: DashboardBookCount[]
+  bottomBooks: DashboardBookCount[]
+}
+
+// ─── Reservation + checkout primitives ──────────────────────────────────────
 //
 // All three map directly to the Postgres functions in
-// supabase/migrations/0001_checkouts_and_reservations.sql — they
-// enforce availability and the 5-minute hold in the database, so no
-// extra client-side locking is needed.
+// supabase/migrations/0001_checkouts_and_reservations.sql. They enforce
+// availability and the 5-minute hold in the database, so no extra
+// client-side locking is needed.
 //
-// The caller must be signed in (see src/lib/auth.ts) — these all run
-// as the current Supabase Auth user via auth.uid() on the database side.
+// The caller must be signed in (see src/lib/auth.ts) — these all run as the
+// current Supabase Auth user via auth.uid() on the database side.
 
 export async function reserveCopy(fullLabel: string): Promise<void> {
   const { error } = await supabase.rpc('reserve_copy', { p_full_label: fullLabel })
@@ -78,4 +130,157 @@ export async function checkoutBookByCode(bookCode: string): Promise<string> {
   throw lastError instanceof Error
     ? lastError
     : new Error('Someone else took the last copy while you were checking out.')
+}
+
+// ─── Patron-side reads ─────────────────────────────────────────────────────
+//
+// These wrap the SECURITY DEFINER RPCs in 0008_patron_holds_and_loans.sql.
+// A direct SELECT on copies is impossible for a patron because column-level
+// grants (migration 0001 step 8) hide reserved_by/reserved_until; a direct
+// SELECT on checkouts is allowed by RLS but the function keeps the join in
+// one round trip and is resilient to RLS-shape changes.
+
+export async function fetchMyActiveReservations(): Promise<ActiveReservation[]> {
+  const { data, error } = await supabase.rpc('my_active_reservations')
+  if (error) throw error
+  return (data ?? []).map(toActiveReservation)
+}
+
+export async function fetchMyActiveCheckouts(): Promise<ActiveCheckout[]> {
+  const { data, error } = await supabase.rpc('my_active_checkouts')
+  if (error) throw error
+  return (data ?? []).map(toActiveCheckout)
+}
+
+export async function fetchMyCheckoutHistory(limit = 50): Promise<CheckoutHistoryRow[]> {
+  const { data, error } = await supabase.rpc('my_checkout_history', { limit_count: limit })
+  if (error) throw error
+  return (data ?? []).map(toCheckoutHistoryRow)
+}
+
+// ─── Staff detection ──────────────────────────────────────────────────────
+
+/**
+ * Calls the `is_staff()` Postgres function. Cached per call only — onAuthChange
+ * re-runs this from the dashboard when the user signs in or out, so caching
+ * across auth changes would be a bug.
+ */
+export async function fetchIsStaff(): Promise<boolean> {
+  const { data, error } = await supabase.rpc('is_staff')
+  if (error) {
+    // is_staff() should never error for a signed-in user. If it does, the
+    // safe default is "not staff" — the staff dashboard won't render, which
+    // is correct.
+    return false
+  }
+  return data === true
+}
+
+// ─── Staff-side reads + writes ─────────────────────────────────────────────
+
+export async function fetchStaffReservations(): Promise<StaffReservation[]> {
+  const { data, error } = await supabase.rpc('staff_list_reservations')
+  if (error) throw error
+  return (data ?? []).map((row: Record<string, unknown>) => ({
+    fullLabel: row.full_label as string,
+    bookCode: row.book_code as string,
+    bookTitle: (row.book_title as string | null) ?? null,
+    reservedBy: row.reserved_by as string,
+    reservedByEmail: (row.reserved_by_email as string | null) ?? null,
+    reservedByName: ((row.reserved_by_name as string | null) ?? '').trim() || 'Anonymous',
+    reservedUntil: row.reserved_until as string,
+    secondsRemaining: (row.seconds_remaining as number) ?? 0,
+  }))
+}
+
+export async function fetchStaffCheckouts(): Promise<StaffCheckout[]> {
+  const { data, error } = await supabase.rpc('staff_list_checkouts')
+  if (error) throw error
+  return (data ?? []).map((row: Record<string, unknown>) => ({
+    checkoutId: row.checkout_id as string,
+    fullLabel: row.full_label as string,
+    bookCode: row.book_code as string,
+    bookTitle: (row.book_title as string | null) ?? null,
+    checkedOutAt: row.checked_out_at as string,
+    patronId: row.patron_id as string,
+    patronEmail: (row.patron_email as string | null) ?? null,
+    patronName: ((row.patron_name as string | null) ?? '').trim() || 'Anonymous',
+    daysOut: (row.days_out as number) ?? 0,
+  }))
+}
+
+export async function fetchStaffDashboardStats(): Promise<DashboardStats> {
+  const { data, error } = await supabase.rpc('staff_dashboard_stats')
+  if (error) throw error
+  const row = (data ?? {}) as Record<string, unknown>
+  return {
+    windowStart: (row.windowStart as string) ?? new Date().toISOString(),
+    windowEnd: (row.windowEnd as string) ?? new Date().toISOString(),
+    totalCheckouts: (row.totalCheckouts as number) ?? 0,
+    activeLoans: (row.activeLoans as number) ?? 0,
+    traffic: (row.traffic as DashboardTraffic[]) ?? [],
+    topBooks: (row.topBooks as DashboardBookCount[]) ?? [],
+    bottomBooks: (row.bottomBooks as DashboardBookCount[]) ?? [],
+  }
+}
+
+export async function staffReturnBook(fullLabel: string): Promise<{ checkoutId: string; returnedAt: string }> {
+  const { data, error } = await supabase.rpc('staff_return_book', { p_full_label: fullLabel })
+  if (error) throw error
+  const arr = data as Array<{ checkout_id: string; returned_at: string }> | null
+  const row = Array.isArray(arr) ? arr[0] : null
+  if (!row) throw new Error('Return failed: no row returned.')
+  return { checkoutId: row.checkout_id, returnedAt: row.returned_at }
+}
+
+export async function staffForceReleaseReservation(fullLabel: string): Promise<void> {
+  const { error } = await supabase.rpc('staff_release_reservation', { p_full_label: fullLabel })
+  if (error) throw error
+}
+
+// ─── Row mappers ───────────────────────────────────────────────────────────
+
+type RawReservation = {
+  full_label: string
+  book_code: string
+  book_title: string | null
+  reserved_until: string
+}
+
+function toActiveReservation(row: RawReservation): ActiveReservation {
+  return {
+    fullLabel: row.full_label,
+    bookCode: row.book_code,
+    bookTitle: row.book_title,
+    reservedUntil: row.reserved_until,
+  }
+}
+
+type RawCheckout = {
+  checkout_id: string
+  full_label: string
+  book_code: string
+  book_title: string | null
+  checked_out_at: string
+}
+
+function toActiveCheckout(row: RawCheckout): ActiveCheckout {
+  return {
+    checkoutId: row.checkout_id,
+    fullLabel: row.full_label,
+    bookCode: row.book_code,
+    bookTitle: row.book_title,
+    checkedOutAt: row.checked_out_at,
+  }
+}
+
+function toCheckoutHistoryRow(row: RawCheckout & { returned_at: string }): CheckoutHistoryRow {
+  return {
+    checkoutId: row.checkout_id,
+    fullLabel: row.full_label,
+    bookCode: row.book_code,
+    bookTitle: row.book_title,
+    checkedOutAt: row.checked_out_at,
+    returnedAt: row.returned_at,
+  }
 }
