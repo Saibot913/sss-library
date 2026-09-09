@@ -48,6 +48,11 @@ Deno.serve(async request => {
     if (!email || email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !mode) return response({ error: 'Enter a valid email address.' }, 400)
 
     if (mode === 'signup') {
+      // inviteUserByEmail creates the auth.users row and sends the invite.
+      // The 0004 handle_new_user_profile trigger then creates a matching
+      // `profiles` row, and nothing else — staff membership is a separate,
+      // admin-managed table (see migration 0002), and is intentionally not
+      // granted on signup. A new account is just a regular patron.
       const admin = createClient(supabaseUrl, serviceRoleKey, {
         auth: { autoRefreshToken: false, persistSession: false },
       })

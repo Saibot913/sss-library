@@ -7,7 +7,11 @@ import { VOLUNTEER_FORM_URL } from './lib/volunteers'
 import { REVIEW_FORM_URL } from './lib/reviews'
 import { SITE_PASSWORD, hasSiteAccess, grantSiteAccess } from './lib/siteAccess'
 import { AUTH_REDIRECT_PATH, deleteAccount, getCurrentPatron, onAuthChange, requestSignInCode, signOut, updatePatronProfile, type Patron } from './lib/auth'
-import { checkoutBookByCode } from './lib/checkouts'
+import {
+  checkoutBookByCode,
+  releaseReservation,
+  reserveCopy,
+} from './lib/checkouts'
 import { SITE_NAME, SITE_ADDRESS, MEETING_ROOM } from './lib/siteInfo'
 import { invalidateBooksCache } from './lib/books'
 
@@ -1595,7 +1599,20 @@ export default function App() {
   const [booksError, setBooksError] = useState<string | null>(null)
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
   const [viewingBook, setViewingBook] = useState<Book | null>(null)
-  const [cartIds, setCartIds] = useState<string[]>([])
+  // Cart = map from book_code -> full_label of the copy on hold. The full
+  // label is what reserve_copy() / release_reservation() need; the book_code
+  // is what the catalog UI uses to look the book up. Storing both means
+  // we can release a hold on remove-from-cart without re-querying for the
+  // copy, and we can show the patron the actual copy in their cart.
+  const [cart, setCart] = useState<Map<string, string>>(new Map())
+  const cartIds = [...cart.keys()]
+
+  function setCartIds(next: string[] | ((ids: string[]) => string[])) {
+    setCart(previous => {
+      const nextIds = typeof next === 'function' ? next([...previous.keys()]) : next
+      return new Map(nextIds.map(id => [id, previous.get(id) ?? '']))
+    })
+  }
   const [showCart, setShowCart] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -1709,18 +1726,44 @@ export default function App() {
     window.scrollTo(0, 0)
   }
 
-  function addToCart(id: string) {
+  async function addToCart(id: string) {
     if (!loggedIn) {
       setLoginMode('login')
       setShowLogin(true)
       return
     }
 
-    setCartIds(ids => ids.includes(id) ? ids : [...ids, id])
+    if (cart.has(id)) return
+    const book = books.find(candidate => candidate.id === id)
+    const copy = book?.copies.find(candidate => candidate.status === 'available')
+    if (!copy) {
+      setCheckoutError('No copy is available for this book right now.')
+      return
+    }
+
+    try {
+      await reserveCopy(copy.fullLabel)
+      setCart(previous => new Map(previous).set(id, copy.fullLabel))
+    } catch (err) {
+      setCheckoutError(err instanceof Error ? err.message : 'We could not place a hold on this book.')
+    }
   }
 
-  function removeFromCart(id: string) {
-    setCartIds(ids => ids.filter(i => i !== id))
+  async function removeFromCart(id: string) {
+    const fullLabel = cart.get(id)
+    if (fullLabel) {
+      try {
+        await releaseReservation(fullLabel)
+      } catch (err) {
+        setCheckoutError(err instanceof Error ? err.message : 'We could not release this hold.')
+        return
+      }
+    }
+    setCart(previous => {
+      const next = new Map(previous)
+      next.delete(id)
+      return next
+    })
   }
 
   function toggleCart(id: string) {
@@ -1730,7 +1773,11 @@ export default function App() {
       return
     }
 
-    setCartIds(ids => ids.includes(id) ? ids.filter(i => i !== id) : [...ids, id])
+    if (cart.has(id)) {
+      void removeFromCart(id)
+    } else {
+      void addToCart(id)
+    }
   }
 
   function getStoredProfile(email: string | null | undefined) {
