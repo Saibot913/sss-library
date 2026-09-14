@@ -18,3 +18,13 @@ graphify-out/
 
 .cursor/
 .aider*
+
+# BMAD Method (personal tooling, not part of the project)
+_bmad/
+_bmad-output/
+.claude/skills/bmad-*/
+
+# Playwright
+/test-results/
+/playwright-report/
+/.auth/
