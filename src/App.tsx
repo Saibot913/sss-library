@@ -71,6 +71,47 @@ const EVENTS = [
   { date: 'Aug 10', title: 'Genealogy Research Workshop', time: '2:00 PM', room: 'Archive Room' },
 ]
 
+// Quotes from Sathya Sai Baba's discourses, specifically on the practice of reading —
+// distinct from the separately-imported "Thought for the Day" feature (see lib/thoughtForTheDay.ts).
+const SWAMI_QUOTES = [
+  {
+    quote: "What I insist upon is putting the things read into practice—at least, a thing or two. Moreover, you must always remember that the book is only a pointer, a guide, a signpost. Reading is not completion of the journey. It is only the first step. Read for the sake of practicing; not for reading's sake.",
+    attribution: 'Sathya Sai Baba, Divine Discourse, 18 May 1968',
+  },
+  {
+    quote: 'A large number of books have been written on Swami. But, are you putting into practice even one principle contained in them? … What is the use of reading books if you do not put anything into practice? If you read ten teachings in a book, put at least one of them into practice. Only then will you derive the necessary strength and capability from your reading.',
+    attribution: 'Sathya Sai Baba, Divine Discourse, 24 August 2007',
+  },
+  {
+    quote: 'Whatever books you read or whatever you write should be pure. This is the Sadhana relating to study—Sahitya Satwika. If you read or write that which is not pure, it warps your mind. A good book makes for a good mind.',
+    attribution: 'Sathya Sai Baba, Divine Discourse, 29 December 1985',
+  },
+  {
+    quote: 'Not information, but transformation; not instruction, but construction should be the aim. Theoretical knowledge is a burden, unless it is practiced, when it can be lightened into Wisdom, and assimilated into daily life.',
+    attribution: 'Sathya Sai Baba, Divine Discourse, 3 March 1974',
+  },
+  {
+    quote: 'Cultivate the habit of holy study, develop humility and reverence, adore and serve your parents and be examples and ideals for others. I bless that this goal may be realized by you.',
+    attribution: 'Sathya Sai Baba, Divine Discourse, 22 November 1980',
+  },
+  {
+    quote: 'Study with faith and devotion. Delve into the significance and the meaning of what you read; and, always have before you the goal of putting what you read into practice.',
+    attribution: 'Sathya Sai Baba, Divine Discourse, 3 March 1974',
+  },
+  {
+    quote: 'This is the proper plan of study—reading, reflection and regular application in life. Study is WORK. Inquiry into the value and applicability of what is studied is WORSHIP; the experience of the validity and value of the practice is WISDOM.',
+    attribution: 'Sathya Sai Baba, Divine Discourse, 3 March 1974',
+  },
+  {
+    quote: 'Only those who, by means of discrimination, select the books they read and practice what they read can realize truth and enjoy everlasting bliss. Only those people live worthwhile lives. Therefore, those who seek the highest path and who revel in thoughts of God should strive to read only the life histories of saints and sages and books that help the contemplation of the Divine. Aimless reading of books all and sundry, whatever comes to hand, will make confusion only worse confounded. It gives no profit; it confers no peace.',
+    attribution: 'Sathya Sai Baba, Prema Vahini',
+  },
+  {
+    quote: 'You must be humble, but yet strong to resist temptation... I want you also to read such books as will prompt you to ask and answer questions about your Self. Read good, elevating literature.',
+    attribution: 'Sathya Sai Baba, Divine Discourse, 13 March 1964',
+  },
+]
+
 // ── Book cover ────────────────────────────────────────────────────────────────
 // Cover art isn't stored in Supabase yet, so it's resolved client-side via the
 // Google Books API (see lib/bookCovers.ts) and cached. Falls back to a plain
@@ -1158,6 +1199,12 @@ function HomePage({ books, onSearch, onViewBook, cartIds, onAddToCart }: {
 }) {
   const [heroQuery, setHeroQuery] = useState('')
 
+  // Same quote all day, changes daily — day-of-year picks the index into SWAMI_QUOTES.
+  const swamiQuote = useMemo(() => {
+    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000)
+    return SWAMI_QUOTES[dayOfYear % SWAMI_QUOTES.length]
+  }, [])
+
   // The four categories with the most books, so the shortcuts under the search
   // box point at real shelves rather than invented ones.
   const topCategories = useMemo(() => {
@@ -1291,9 +1338,9 @@ function HomePage({ books, onSearch, onViewBook, cartIds, onAddToCart }: {
 
       <section style={{ background: '#C8521A', padding: '44px 64px' }}>
         <blockquote style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px,3vw,32px)', fontStyle: 'italic', color: '#FAF3E4', lineHeight: 1.4, maxWidth: 680 }}>
-          "A library is not a luxury but one of the necessities of life."
+          "{swamiQuote.quote}"
         </blockquote>
-        <cite style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#F0C9A8', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginTop: 14 }}>— Henry Ward Beecher</cite>
+        <cite style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#F0C9A8', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginTop: 14 }}>— {swamiQuote.attribution}</cite>
       </section>
     </div>
   )

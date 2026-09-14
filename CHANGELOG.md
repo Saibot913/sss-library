@@ -15,6 +15,9 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 
 ## [Unreleased]
 
+### Changed
+- Homepage quote banner now rotates through Swami's quotes on reading (one per day) instead of a single generic library quote. This is separate from the "Daily Thought" page/feature.
+
 ### Fixed
 - Fixed the checkout cart refactor so the typed cart state, reservation/release calls, and checkout flow agree again; `pnpm typecheck` now passes.
 - **Restored work that was reverted by accident.** `4c3f933` was committed from a copy of `App.tsx` predating PR #8, so committing it removed everything that PR added — the checkout wiring, the derived category filter, the real contact footer, the empty book-club section, and the copy boxes all came back to their placeholder state. Git recorded it as intentional because a commit built from a stale file is indistinguishable from a deliberate deletion. All of it is re-applied here **on top of** the newer profile work, which is kept.
