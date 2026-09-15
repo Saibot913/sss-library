@@ -21,6 +21,6 @@ fi
 run_mode = "concurrent"
 
 [scripts.run.dev]
-command = "PORT=$CONDUCTOR_PORT pnpm dev"
+command = "PORT=$CONDUCTOR_PORT npx --yes pnpm@10.34.3 dev"
 default = true
 icon = "play"
