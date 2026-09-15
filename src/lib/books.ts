@@ -234,3 +234,97 @@ async function fetchAllBooks(): Promise<Book[]> {
     `fetchBooks() stopped after ${MAX_PAGES} pages (${books.length} books) — the catalog query is not terminating.`,
   )
 }
+
+// ── Staff: add/edit books & copies ──────────────────────────────────────────
+// Thin wrappers around the security-definer RPCs in
+// 0015_staff_book_management_rpcs.sql. The server enforces is_staff() on
+// every one of these regardless of what the client does — hiding the UI
+// from non-staff is for their experience, not for security.
+//
+// Every function here invalidates the books cache on success: without
+// it, the page that just added/edited something would keep showing the
+// stale pre-edit catalog for up to CACHE_TTL_MS.
+
+export type NewBookInput = {
+  bookCode: string
+  title: string
+  author: string
+  yearPublished: string
+  publishedBy: string
+  category: string
+  tags: string
+  summary: string
+  fullLabel: string
+  location: string
+}
+
+/** Adds a brand new book plus its first copy. Use addCopy() instead if the book already exists. */
+export async function addBook(input: NewBookInput): Promise<void> {
+  const { error } = await supabase.rpc('add_book', {
+    p_book_code: input.bookCode,
+    p_title: input.title,
+    p_author: input.author,
+    p_year_published: input.yearPublished,
+    p_published_by: input.publishedBy,
+    p_category: input.category,
+    p_tags: input.tags,
+    p_summary: input.summary,
+    p_full_label: input.fullLabel,
+    p_location: input.location,
+  })
+  if (error) throw error
+  invalidateBooksCache()
+}
+
+/** Adds one more physical copy of a book that already exists. */
+export async function addCopy(bookCode: string, fullLabel: string, location: string): Promise<void> {
+  const { error } = await supabase.rpc('add_copy', {
+    p_book_code: bookCode,
+    p_full_label: fullLabel,
+    p_location: location,
+  })
+  if (error) throw error
+  invalidateBooksCache()
+}
+
+export type BookEditInput = {
+  bookCode: string
+  author: string
+  yearPublished: string
+  publishedBy: string
+  category: string
+  tags: string
+  summary: string
+}
+
+/** Edits every book-level field except title — title is intentionally not editable here, see ME/spec.md §1b. */
+export async function updateBook(input: BookEditInput): Promise<void> {
+  const { error } = await supabase.rpc('update_book', {
+    p_book_code: input.bookCode,
+    p_author: input.author,
+    p_year_published: input.yearPublished,
+    p_published_by: input.publishedBy,
+    p_category: input.category,
+    p_tags: input.tags,
+    p_summary: input.summary,
+  })
+  if (error) throw error
+  invalidateBooksCache()
+}
+
+export type CopyStatus = 'available' | 'lost' | 'damaged' | 'withdrawn'
+
+/**
+ * Edits a copy's location and/or retires it. The database rejects this
+ * with an error if the copy is currently 'checked_out' — process a
+ * return first (see src/lib/checkouts.ts staffReturnBook()).
+ */
+export async function updateCopy(fullLabel: string, location: string, status: CopyStatus): Promise<void> {
+  const { error } = await supabase.rpc('update_copy', {
+    p_full_label: fullLabel,
+    p_location: location,
+    p_status: status,
+  })
+  if (error) throw error
+  invalidateBooksCache()
+}
