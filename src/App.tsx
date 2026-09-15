@@ -123,8 +123,32 @@ const SWAMI_QUOTES = [
     attribution: 'Sathya Sai Baba, Prema Vahini',
   },
   {
-    quote: 'You must be humble, but yet strong to resist temptation... I want you also to read such books as will prompt you to ask and answer questions about your Self. Read good, elevating literature.',
+    quote: 'You must be humble, but yet strong to resist temptation. Do not yield like cowards to the sly insinuations of the senses. Your time in school has to be used not only in the task of collecting information and earning certain skills that will give you an income on which you can live; it must also be used to acquire the art of being content and calm, collected and courageous. You must also cultivate at school an ardent thirst for knowing the truth of the world and of your own self. Your words must be like honey; your hearts must be as soft as butter; your outlook must be like the lamp, illumining, not confusing. Be like the umpire on the football field, watching the game, judging the play according to the rules laid down, unaffected by success or reverse of this team or that. I want you also to read such books as will prompt you to ask and answer questions about your Self. Read good, elevating literature.',
     attribution: 'Sathya Sai Baba, Divine Discourse, 13 March 1964',
+  },
+  {
+    quote: 'This must be said of this book: It is the authentic Voice of the Divine Phenomenon, that is setting right the moral codes and behaviour of millions of men and women today. And, so, it merits careful and devoted study.',
+    attribution: 'N. Kasturi, Preface to Sri Sathya Sai Vahini',
+  },
+  {
+    quote: "This 'Stream of Supreme Peace' (Prasanthi Vahini) tells you what supreme peace is and makes you understand how to earn it, how it can be utilized, and what its attributes are. Every single aspirant has the legitimate right to earn this supreme peace but must learn the path by which it can be earned.",
+    attribution: 'N. Kasturi, Preface to Prashanti Vahini',
+  },
+  {
+    quote: 'Dear Reader, this is not just another book on the nature of soul and the technique by which it discovers its Reality. When you turn over the pages, you are actually sitting at the feet of Bhagavan Sri Sathya Sai Baba, the Avatar of the age, come in answer to prayers of all virtuous people and spiritual aspirant to guide them and grant them peace and perfection.',
+    attribution: 'N. Kasturi, Preface to Jnana Vahini',
+  },
+  {
+    quote: "This must be said of this book: It is the authentic Voice of the Divine Phenomenon, that is setting right the moral codes and behaviour of millions of men and women today. So, it merits careful and devoted study. The Lord has declared that when ethical standards fall and man forgets or ignores His glorious destiny, He will Himself come down among men and guide humanity along the straight and sacred path. The Lord has come; He is guiding those who accept the guidance; He is calling on all who have strayed away to retrace their steps. Baba's love and wisdom know no bounds, His grace knows no obstacle. He is no hard taskmaster; His solicitude for our welfare and real progress is overwhelming. May this book reveal to you the Mother's love that has made Baba write it, the Father's authority that backs every injunction therein, the Teacher's illumination that lights up every statement, and the Lord's sublime Universality, which invites you to expand your personality into a great Instrument of service.",
+    attribution: 'N. Kasturi, Preface to Dharma Vahini',
+  },
+  {
+    quote: 'Bhagavan has announced Himself as the Divine Teacher of Truth, Beauty, and Goodness. By precept and example, through His writings and discourses, letters and conversations, He has been instilling the supreme wisdom and instructing all mankind to translate it into righteous living, inner peace, and universal love.',
+    attribution: 'N. Kasturi, Preface to Sri Sathya Sai Vahini',
+  },
+  {
+    quote: 'To sum up, Sathya Sai Vahini is the Gita given to us by the Person who, as the eternal charioteer (Sanathana Sarathi), is eager and ready to hold the reins of our senses, mind, consciousness, ego, and intellect and to guide us safely to the Abode of Supreme Peace (Prasanthi Nilayam), the goal of all mankind.',
+    attribution: 'N. Kasturi, Preface to Sri Sathya Sai Vahini',
   },
 ]
 
@@ -1662,11 +1686,16 @@ function HomePage({ books, onSearch, onViewBook, cartIds, onAddToCart }: {
 }) {
   const [heroQuery, setHeroQuery] = useState('')
 
-  // Same quote all day, changes daily — day-of-year picks the index into SWAMI_QUOTES.
-  const swamiQuote = useMemo(() => {
-    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000)
-    return SWAMI_QUOTES[dayOfYear % SWAMI_QUOTES.length]
-  }, [])
+  // Quote changes every hour on the hour — hours-since-epoch picks the index into
+  // SWAMI_QUOTES, and a timer re-renders right as each new hour begins so the
+  // page doesn't need a manual refresh to pick it up.
+  const [hoursSinceEpoch, setHoursSinceEpoch] = useState(() => Math.floor(Date.now() / 3600000))
+  useEffect(() => {
+    const msUntilNextHour = 3600000 - (Date.now() % 3600000)
+    const timeout = setTimeout(() => setHoursSinceEpoch(Math.floor(Date.now() / 3600000)), msUntilNextHour + 50)
+    return () => clearTimeout(timeout)
+  }, [hoursSinceEpoch])
+  const swamiQuote = useMemo(() => SWAMI_QUOTES[hoursSinceEpoch % SWAMI_QUOTES.length], [hoursSinceEpoch])
 
   // The four categories with the most books, so the shortcuts under the search
   // box point at real shelves rather than invented ones.
