@@ -24,6 +24,9 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 ### Changed
 - Homepage quote banner now rotates through Swami's quotes on reading (one per day) instead of a single generic library quote. This is separate from the "Daily Thought" page/feature.
 
+### Removed
+- Dropped `staff_dashboard()`, `staff_inventory()`, and the `page_views` table — a superseded, never-wired-up staff dashboard attempt. `page_views` was never created by any migration in the first place (drifted onto production directly, like the old `staff` schema did) and nothing in the app ever wrote to it, so its stats could never reflect real traffic. `staff_dashboard_stats()` is the real version (built on `checkouts`, not `page_views`) and is kept — it just has no UI page yet.
+
 ### Fixed
 - Reconciled `supabase/migrations/0002_staff_role_and_returns.sql` with reality: the live `staff` table and `is_staff()` had been changed directly against production at some point (not via a migration) to key staff membership off `email` instead of `user_id`. A fresh database built from the old migrations would have shipped a broken `is_staff()`. New migration `0013_reconcile_staff_email_schema.sql` brings the file history in line with what's actually live; it's a no-op against a database that's already drifted this way. Also surfaced, not fixed: production `staff` currently has no `select` policy at all (even staff can't read the table via the client), stricter than 0002 intended — left as an open decision.
 - Fixed the checkout cart refactor so the typed cart state, reservation/release calls, and checkout flow agree again; `pnpm typecheck` now passes.
