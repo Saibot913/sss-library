@@ -28,6 +28,7 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 
 ### Changed
 - Homepage quote banner now rotates through Swami's quotes on reading (one per day) instead of a single generic library quote. This is separate from the "Daily Thought" page/feature.
+- Quote banner now rotates hourly on the hour (was daily): added the missing quotes so `SWAMI_QUOTES` has 15 instead of 9, and switched the rotation to an hours-since-epoch index with a timer that re-renders right at each hour boundary.
 
 ### Removed
 - Dropped `staff_dashboard()`, `staff_inventory()`, and the `page_views` table — a superseded, never-wired-up staff dashboard attempt. `page_views` was never created by any migration in the first place (drifted onto production directly, like the old `staff` schema did) and nothing in the app ever wrote to it, so its stats could never reflect real traffic. `staff_dashboard_stats()` is the real version (built on `checkouts`, not `page_views`) and is kept — it just has no UI page yet.
