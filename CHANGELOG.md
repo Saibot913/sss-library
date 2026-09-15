@@ -16,6 +16,7 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 ## [Unreleased]
 
 ### Added
+- Staff "Manage Staff" page (`/staff/manage`, in the account menu), plus `list_staff`/`add_staff`/`remove_staff` RPCs (`supabase/migrations/0016_staff_self_service_management.sql`) and TypeScript wrappers in `src/lib/staff.ts`. Any staff member can now add or remove other staff directly from the site instead of requiring Supabase dashboard access — a deliberate tradeoff (previously only the project owner could grant staff via the Table Editor). Two guardrails: a staff member can't remove their own access, and the last remaining staff member can't be removed, so the library can't lock itself out of its own staff system.
 - Staff book-management RPCs (`supabase/migrations/0015_staff_book_management_rpcs.sql`): `add_book`, `add_copy`, `update_book`, `update_copy`, plus TypeScript wrappers in `src/lib/books.ts`. Follows the existing security-definer-function pattern (`checkout_book`, `reserve_copy`, `return_book`) rather than adding raw insert/update RLS policies on `books`/`copies` — keeps their public-read-only RLS posture untouched. No UI yet; this is the shared backend the "Add a Book" and "Edit a Book" staff pages will build on. Two things enforced server-side: `update_copy` refuses to change a `checked_out` copy's status (must go through a return first), and retiring a copy (`lost`/`damaged`/`withdrawn`) clears any active hold on it.
 
 ### Changed

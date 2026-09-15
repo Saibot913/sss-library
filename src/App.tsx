@@ -14,16 +14,18 @@ import {
   fetchMyCheckoutHistory,
   releaseReservation,
   reserveCopy,
+  fetchIsStaff,
   type ActiveReservation,
   type ActiveCheckout,
   type CheckoutHistoryRow,
 } from './lib/checkouts'
+import { fetchStaffList, addStaff, removeStaff } from './lib/staff'
 import { SITE_NAME, SITE_ADDRESS, MEETING_ROOM } from './lib/siteInfo'
 import { invalidateBooksCache } from './lib/books'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Page = 'home' | 'catalog' | 'thought' | 'about'
+type Page = 'home' | 'catalog' | 'thought' | 'about' | 'staffManage'
 
 // Each page has a real URL, so pages can be linked to, bookmarked, and
 // refreshed, and the back button moves between them instead of leaving the
@@ -37,6 +39,7 @@ const PAGE_PATHS: Record<Page, string> = {
   catalog: '/catalog',
   thought: '/thought',
   about: '/community',
+  staffManage: '/staff/manage',
 }
 
 function pageFromPath(pathname: string): Page {
@@ -149,6 +152,8 @@ function TopNav({
   showUserMenu,
   onCloseUserMenu,
   onHolds,
+  isStaff,
+  onStaffManage,
 }: {
   active: Page
   onNav: (p: Page) => void
@@ -163,6 +168,8 @@ function TopNav({
   showUserMenu: boolean
   onCloseUserMenu: () => void
   onHolds: () => void
+  isStaff: boolean
+  onStaffManage: () => void
 }) {
   const accountRef = useRef<HTMLDivElement>(null)
 
@@ -236,6 +243,11 @@ function TopNav({
                 <button onClick={onProfile} style={{ width: '100%', textAlign: 'left', padding: '12px 14px', background: 'transparent', border: 'none', borderBottom: '1px solid #E7D7B0', color: '#2C1810', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   Profile
                 </button>
+                {isStaff && (
+                  <button onClick={onStaffManage} style={{ width: '100%', textAlign: 'left', padding: '12px 14px', background: 'transparent', border: 'none', borderBottom: '1px solid #E7D7B0', color: '#2C1810', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                    Manage Staff
+                  </button>
+                )}
                 <button onClick={onLogout} style={{ width: '100%', textAlign: 'left', padding: '12px 14px', background: 'transparent', border: 'none', color: '#2C1810', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   Log out
                 </button>
@@ -562,6 +574,125 @@ function ActivitySection({ title, empty, items }: { title: string; empty: string
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 21, color: '#2C1810', marginBottom: 14 }}>{title}</h2>
       {items.length === 0 ? <p style={{ color: '#9B7B6A', fontSize: 13 }}>{empty}</p> : <div style={{ display: 'grid', gap: 8 }}>{items.map(item => <div key={item.key} style={{ padding: '12px 14px', background: '#F4E9D0', border: '1px solid #D4B896' }}><strong style={{ color: '#2C1810' }}>{item.title}</strong><p style={{ color: '#9B7B6A', fontSize: 12, marginTop: 4 }}>{item.detail}</p></div>)}</div>}
     </section>
+  )
+}
+
+function StaffManagePage({ currentEmail }: { currentEmail: string }) {
+  const [staffList, setStaffList] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [newEmail, setNewEmail] = useState('')
+  const [message, setMessage] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [busyEmail, setBusyEmail] = useState<string | null>(null)
+
+  async function load() {
+    try {
+      setLoading(true)
+      setLoadError('')
+      setStaffList(await fetchStaffList())
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Could not load the staff list.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { void load() }, [])
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault()
+    const email = newEmail.trim()
+    if (!email) return
+    try {
+      setBusy(true)
+      setMessage('')
+      await addStaff(email)
+      setMessage(`Added ${email} as staff.`)
+      setNewEmail('')
+      await load()
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : `Could not add ${email} as staff.`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleRemove(email: string) {
+    try {
+      setBusyEmail(email)
+      setMessage('')
+      await removeStaff(email)
+      setMessage(`Removed staff access for ${email}.`)
+      await load()
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : `Could not remove ${email}.`)
+    } finally {
+      setBusyEmail(null)
+    }
+  }
+
+  return (
+    <div style={{ maxWidth: 640, margin: '0 auto', padding: '48px 24px' }}>
+      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: '#2C1810', marginBottom: 8 }}>Manage Staff</h1>
+      <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#9B7B6A', marginBottom: 24 }}>
+        Any staff member can add or remove other staff here. You can't remove yourself, and the last remaining staff member can't be removed.
+      </p>
+
+      <section style={{ marginBottom: 22, background: '#FAF3E4', border: '1px solid #D4B896', padding: 20 }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: '#2C1810', marginBottom: 14 }}>Add Staff</h2>
+        <form onSubmit={handleAdd} style={{ display: 'flex', gap: 10 }}>
+          <input
+            type="email"
+            required
+            value={newEmail}
+            onChange={e => setNewEmail(e.target.value)}
+            placeholder="someone@example.com"
+            style={{ flex: 1, padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 13, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none' }}
+          />
+          <button
+            type="submit"
+            disabled={busy}
+            style={{ padding: '10px 18px', background: busy ? '#A56A44' : '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, border: 'none', cursor: busy ? 'not-allowed' : 'pointer' }}
+          >
+            Add
+          </button>
+        </form>
+        {message && <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#C8521A', marginTop: 12 }}>{message}</p>}
+      </section>
+
+      <section style={{ background: '#FAF3E4', border: '1px solid #D4B896', padding: 20 }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: '#2C1810', marginBottom: 14 }}>Current Staff</h2>
+        {loading ? (
+          <p style={{ color: '#9B7B6A', fontSize: 13 }}>Loading…</p>
+        ) : loadError ? (
+          <p style={{ color: '#C8521A', fontSize: 13 }}>{loadError}</p>
+        ) : staffList.length === 0 ? (
+          <p style={{ color: '#9B7B6A', fontSize: 13 }}>No staff found.</p>
+        ) : (
+          <div style={{ display: 'grid', gap: 8 }}>
+            {staffList.map(email => {
+              const isSelf = email.toLowerCase() === currentEmail.toLowerCase()
+              return (
+                <div key={email} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#F4E9D0', border: '1px solid #D4B896' }}>
+                  <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#2C1810' }}>
+                    {email}{isSelf && <span style={{ color: '#9B7B6A' }}> (you)</span>}
+                  </span>
+                  <button
+                    onClick={() => handleRemove(email)}
+                    disabled={isSelf || busyEmail === email || staffList.length <= 1}
+                    title={isSelf ? "You can't remove your own staff access" : staffList.length <= 1 ? 'Cannot remove the last remaining staff member' : 'Remove staff access'}
+                    style={{ padding: '6px 12px', background: 'transparent', color: isSelf || staffList.length <= 1 ? '#D4B896' : '#C8521A', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, border: `1px solid ${isSelf || staffList.length <= 1 ? '#D4B896' : '#C8521A'}`, cursor: isSelf || busyEmail === email || staffList.length <= 1 ? 'not-allowed' : 'pointer' }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </section>
+    </div>
   )
 }
 
@@ -1757,6 +1888,7 @@ export default function App() {
   const [loggedIn, setLoggedIn] = useState(false)
   const [userName, setUserName] = useState('')
   const [currentPatron, setCurrentPatron] = useState<Patron | null>(null)
+  const [isStaff, setIsStaff] = useState(false)
   const [authReady, setAuthReady] = useState(false)
   const [authLoading, setAuthLoading] = useState<{type: 'login' | 'logout'; message: string} | null>(null)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
@@ -1816,6 +1948,16 @@ export default function App() {
 
     return () => unsub()
   }, [])
+
+  useEffect(() => {
+    if (!currentPatron) {
+      setIsStaff(false)
+      return
+    }
+    let cancelled = false
+    fetchIsStaff().then(result => { if (!cancelled) setIsStaff(result) })
+    return () => { cancelled = true }
+  }, [currentPatron])
 
   const hasProfile = Boolean(
     currentPatron &&
@@ -2027,6 +2169,8 @@ export default function App() {
         loggedIn={loggedIn}
         userName={userName}
         showUserMenu={showUserMenu}
+        isStaff={Boolean(currentPatron) && isStaff}
+        onStaffManage={() => { setShowUserMenu(false); navigate(PAGE_PATHS.staffManage) }}
       />
 
       <main style={{ paddingTop: 60 }}>
@@ -2056,6 +2200,7 @@ export default function App() {
             <Route path={PAGE_PATHS.thought} element={<ThoughtPage />} />
             <Route path={PAGE_PATHS.about} element={<AboutPage />} />
             <Route path="/account" element={currentPatron ? <AccountActivityPage /> : <Navigate to={PAGE_PATHS.home} replace />} />
+            <Route path={PAGE_PATHS.staffManage} element={currentPatron && isStaff ? <StaffManagePage currentEmail={currentPatron.email} /> : <Navigate to={PAGE_PATHS.home} replace />} />
             <Route
               path={AUTH_REDIRECT_PATH}
               element={authReturnMode === 'login' || !authReady ? (
