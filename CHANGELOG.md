@@ -15,6 +15,9 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 
 ## [Unreleased]
 
+### Added
+- Staff book-management RPCs (`supabase/migrations/0015_staff_book_management_rpcs.sql`): `add_book`, `add_copy`, `update_book`, `update_copy`, plus TypeScript wrappers in `src/lib/books.ts`. Follows the existing security-definer-function pattern (`checkout_book`, `reserve_copy`, `return_book`) rather than adding raw insert/update RLS policies on `books`/`copies` — keeps their public-read-only RLS posture untouched. No UI yet; this is the shared backend the "Add a Book" and "Edit a Book" staff pages will build on. Two things enforced server-side: `update_copy` refuses to change a `checked_out` copy's status (must go through a return first), and retiring a copy (`lost`/`damaged`/`withdrawn`) clears any active hold on it.
+
 ### Changed
 - Homepage quote banner now rotates through Swami's quotes on reading (one per day) instead of a single generic library quote. This is separate from the "Daily Thought" page/feature.
 
