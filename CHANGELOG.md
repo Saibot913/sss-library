@@ -20,6 +20,7 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 
 ### Changed
 - Homepage quote banner now rotates through Swami's quotes on reading (one per day) instead of a single generic library quote. This is separate from the "Daily Thought" page/feature.
+- Quote banner now rotates hourly on the hour (was daily): added the missing quotes so `SWAMI_QUOTES` has 15 instead of 9, and switched the rotation to an hours-since-epoch index with a timer that re-renders right at each hour boundary.
 
 ### Fixed
 - Reconciled `supabase/migrations/0002_staff_role_and_returns.sql` with reality: the live `staff` table and `is_staff()` had been changed directly against production at some point (not via a migration) to key staff membership off `email` instead of `user_id`. A fresh database built from the old migrations would have shipped a broken `is_staff()`. New migration `0013_reconcile_staff_email_schema.sql` brings the file history in line with what's actually live; it's a no-op against a database that's already drifted this way. Also surfaced, not fixed: production `staff` currently has no `select` policy at all (even staff can't read the table via the client), stricter than 0002 intended — left as an open decision.
