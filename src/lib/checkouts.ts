@@ -61,6 +61,35 @@ export type DashboardStats = {
   bottomBooks: DashboardBookCount[]
 }
 
+export type DashboardCategoryCount = {
+  category: string
+  checkout_count: number
+}
+
+export type DashboardLongOutstanding = {
+  fullLabel: string
+  bookCode: string
+  bookTitle: string | null
+  patronEmail: string | null
+  patronName: string
+  checkedOutAt: string
+  daysOut: number
+}
+
+export type DashboardNeverCheckedOut = {
+  book_code: string
+  title: string
+}
+
+export type DashboardExtraStats = {
+  avgCheckoutDays: number | null
+  categoryBreakdown: DashboardCategoryCount[]
+  longOutstanding: DashboardLongOutstanding[]
+  activeHoldsCount: number
+  uniquePatrons: number
+  neverCheckedOut: DashboardNeverCheckedOut[]
+}
+
 // ─── Reservation + checkout primitives ──────────────────────────────────────
 //
 // All three map directly to the Postgres functions in
@@ -221,6 +250,29 @@ export async function fetchStaffDashboardStats(): Promise<DashboardStats> {
     traffic: (row.traffic as DashboardTraffic[]) ?? [],
     topBooks: (row.topBooks as DashboardBookCount[]) ?? [],
     bottomBooks: (row.bottomBooks as DashboardBookCount[]) ?? [],
+  }
+}
+
+export async function fetchStaffDashboardExtraStats(): Promise<DashboardExtraStats> {
+  const { data, error } = await supabase.rpc('staff_dashboard_extra')
+  if (error) throw error
+  const row = (data ?? {}) as Record<string, unknown>
+  const longOutstanding = ((row.longOutstanding as Array<Record<string, unknown>>) ?? []).map(item => ({
+    fullLabel: item.full_label as string,
+    bookCode: item.book_code as string,
+    bookTitle: (item.book_title as string | null) ?? null,
+    patronEmail: (item.patron_email as string | null) ?? null,
+    patronName: ((item.patron_name as string | null) ?? '').trim() || 'Anonymous',
+    checkedOutAt: item.checked_out_at as string,
+    daysOut: (item.days_out as number) ?? 0,
+  }))
+  return {
+    avgCheckoutDays: (row.avgCheckoutDays as number | null) ?? null,
+    categoryBreakdown: (row.categoryBreakdown as DashboardCategoryCount[]) ?? [],
+    longOutstanding,
+    activeHoldsCount: (row.activeHoldsCount as number) ?? 0,
+    uniquePatrons: (row.uniquePatrons as number) ?? 0,
+    neverCheckedOut: (row.neverCheckedOut as DashboardNeverCheckedOut[]) ?? [],
   }
 }
 
