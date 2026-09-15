@@ -1,7 +1,7 @@
 import { supabase } from './supabaseClient'
 
 // Thin wrappers around the security-definer RPCs in
-// 0016_staff_self_service_management.sql. Any staff member can add or
+// 0017_staff_self_service_management.sql. Any staff member can add or
 // remove any other staff member through these — a deliberate tradeoff,
 // see that migration's comment for the two guardrails (can't remove
 // yourself, can't remove the last remaining staff member) that guard

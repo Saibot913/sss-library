@@ -12,12 +12,23 @@ import {
   fetchMyActiveReservations,
   fetchMyActiveCheckouts,
   fetchMyCheckoutHistory,
+  fetchIsStaff,
+  fetchStaffDashboardStats,
+  fetchStaffDashboardExtraStats,
   releaseReservation,
   reserveCopy,
-  fetchIsStaff,
+  fetchStaffCheckouts,
+  fetchStaffReservations,
+  staffReturnBook,
+  staffForceReleaseReservation,
   type ActiveReservation,
   type ActiveCheckout,
   type CheckoutHistoryRow,
+  type DashboardStats,
+  type DashboardExtraStats,
+  type DashboardBookCount,
+  type StaffCheckout,
+  type StaffReservation,
 } from './lib/checkouts'
 import { fetchStaffList, addStaff, removeStaff } from './lib/staff'
 import { SITE_NAME, SITE_ADDRESS, MEETING_ROOM } from './lib/siteInfo'
@@ -25,7 +36,7 @@ import { invalidateBooksCache } from './lib/books'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Page = 'home' | 'catalog' | 'thought' | 'about' | 'staffManage'
+type Page = 'home' | 'catalog' | 'thought' | 'about' | 'dashboard' | 'staffReturns' | 'staffManage'
 
 // Each page has a real URL, so pages can be linked to, bookmarked, and
 // refreshed, and the back button moves between them instead of leaving the
@@ -39,6 +50,8 @@ const PAGE_PATHS: Record<Page, string> = {
   catalog: '/catalog',
   thought: '/thought',
   about: '/community',
+  dashboard: '/staff/dashboard',
+  staffReturns: '/staff/returns',
   staffManage: '/staff/manage',
 }
 
@@ -154,6 +167,7 @@ function TopNav({
   onHolds,
   isStaff,
   onStaffManage,
+  onStaffReturns,
 }: {
   active: Page
   onNav: (p: Page) => void
@@ -170,6 +184,7 @@ function TopNav({
   onHolds: () => void
   isStaff: boolean
   onStaffManage: () => void
+  onStaffReturns: () => void
 }) {
   const accountRef = useRef<HTMLDivElement>(null)
 
@@ -207,7 +222,13 @@ function TopNav({
 
       {/* Page links */}
       <nav style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1 }}>
-        {([['home', '01', 'Home'], ['catalog', '02', 'Catalog'], ['thought', '03', 'Daily Thought'], ['about', '04', 'Community']] as const).map(([id, num, label]) => (
+        {([
+          ['home', '01', 'Home'],
+          ['catalog', '02', 'Catalog'],
+          ['thought', '03', 'Daily Thought'],
+          ['about', '04', 'Community'],
+          ...(isStaff ? [['dashboard', '05', 'Dashboard'] as const] : []),
+        ] as const).map(([id, num, label]) => (
           <button
             key={id}
             onClick={() => onNav(id)}
@@ -244,9 +265,14 @@ function TopNav({
                   Profile
                 </button>
                 {isStaff && (
-                  <button onClick={onStaffManage} style={{ width: '100%', textAlign: 'left', padding: '12px 14px', background: 'transparent', border: 'none', borderBottom: '1px solid #E7D7B0', color: '#2C1810', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                    Manage Staff
-                  </button>
+                  <>
+                    <button onClick={onStaffReturns} style={{ width: '100%', textAlign: 'left', padding: '12px 14px', background: 'transparent', border: 'none', borderBottom: '1px solid #E7D7B0', color: '#2C1810', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                      Returns & Holds
+                    </button>
+                    <button onClick={onStaffManage} style={{ width: '100%', textAlign: 'left', padding: '12px 14px', background: 'transparent', border: 'none', borderBottom: '1px solid #E7D7B0', color: '#2C1810', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                      Manage Staff
+                    </button>
+                  </>
                 )}
                 <button onClick={onLogout} style={{ width: '100%', textAlign: 'left', padding: '12px 14px', background: 'transparent', border: 'none', color: '#2C1810', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   Log out
@@ -574,6 +600,312 @@ function ActivitySection({ title, empty, items }: { title: string; empty: string
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 21, color: '#2C1810', marginBottom: 14 }}>{title}</h2>
       {items.length === 0 ? <p style={{ color: '#9B7B6A', fontSize: 13 }}>{empty}</p> : <div style={{ display: 'grid', gap: 8 }}>{items.map(item => <div key={item.key} style={{ padding: '12px 14px', background: '#F4E9D0', border: '1px solid #D4B896' }}><strong style={{ color: '#2C1810' }}>{item.title}</strong><p style={{ color: '#9B7B6A', fontSize: 12, marginTop: 4 }}>{item.detail}</p></div>)}</div>}
     </section>
+  )
+}
+
+// ── Staff dashboard ──────────────────────────────────────────────────────────
+
+function StatTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ flex: '1 1 160px', background: '#FAF3E4', border: '1px solid #D4B896', padding: '16px 18px' }}>
+      <p style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>{label}</p>
+      <p style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: '#2C1810', fontWeight: 700 }}>{value}</p>
+    </div>
+  )
+}
+
+function TrafficChart({ traffic }: { traffic: DashboardStats['traffic'] }) {
+  const max = Math.max(1, ...traffic.map(t => t.checkouts))
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 120, padding: '0 4px' }}>
+      {traffic.map(t => (
+        <div
+          key={t.day}
+          title={`${new Date(t.day).toLocaleDateString()}: ${t.checkouts} checkout${t.checkouts === 1 ? '' : 's'}`}
+          style={{
+            flex: 1,
+            height: `${Math.max(2, (t.checkouts / max) * 100)}%`,
+            background: t.checkouts > 0 ? '#C8521A' : '#E7D7B0',
+            minWidth: 3,
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
+function BookCountList({ title, books, emptyMessage }: { title: string; books: DashboardBookCount[]; emptyMessage: string }) {
+  return (
+    <div style={{ flex: '1 1 320px', background: '#FAF3E4', border: '1px solid #D4B896', padding: 20 }}>
+      <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 17, color: '#2C1810', marginBottom: 12 }}>{title}</h3>
+      {books.length === 0 ? (
+        <p style={{ color: '#9B7B6A', fontSize: 13 }}>{emptyMessage}</p>
+      ) : (
+        <div style={{ display: 'grid', gap: 6 }}>
+          {books.map(b => (
+            <div key={b.book_code} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '8px 10px', background: '#F4E9D0', border: '1px solid #D4B896' }}>
+              <span style={{ color: '#2C1810', fontSize: 13 }}>{b.title}</span>
+              <span style={{ color: '#9B7B6A', fontSize: 12, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{b.checkout_count}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DashboardPage() {
+  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [extra, setExtra] = useState<DashboardExtraStats | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  async function loadStats() {
+    try {
+      setLoading(true)
+      setError('')
+      const results = await Promise.allSettled([fetchStaffDashboardStats(), fetchStaffDashboardExtraStats()])
+      const [statsResult, extraResult] = results
+      setStats(statsResult.status === 'fulfilled' ? statsResult.value : null)
+      setExtra(extraResult.status === 'fulfilled' ? extraResult.value : null)
+
+      const failures = results
+        .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+        .map(result => result.reason instanceof Error ? result.reason.message : 'Unknown dashboard error')
+      if (failures.length > 0) setError(failures.join(' | '))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'We could not load the dashboard.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { void loadStats() }, [])
+
+  return (
+    <div style={{ maxWidth: 1100, margin: '110px auto 80px', padding: '0 28px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', borderBottom: '1px solid #D4B896', paddingBottom: 16, marginBottom: 24 }}>
+        <div>
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Staff only</p>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, color: '#2C1810' }}>Dashboard</h1>
+        </div>
+        <button onClick={() => void loadStats()} disabled={loading} style={{ padding: '9px 14px', background: loading ? '#A56A44' : '#C8521A', color: '#FAF3E4', border: 0, cursor: loading ? 'not-allowed' : 'pointer' }}>{loading ? 'Loading…' : 'Refresh'}</button>
+      </div>
+      {error && <p style={{ color: '#A52A2A', marginBottom: 18 }}>{error}</p>}
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
+        <StatTile label="Checkouts (30d)" value={String(stats?.totalCheckouts ?? '—')} />
+        <StatTile label="Active loans" value={String(stats?.activeLoans ?? '—')} />
+        <StatTile label="Avg checkout length" value={extra?.avgCheckoutDays != null ? `${extra.avgCheckoutDays}d` : '—'} />
+        <StatTile label="Active holds" value={String(extra?.activeHoldsCount ?? '—')} />
+        <StatTile label="Unique patrons ever" value={String(extra?.uniquePatrons ?? '—')} />
+      </div>
+
+      <section style={{ marginBottom: 22, background: '#FAF3E4', border: '1px solid #D4B896', padding: 20 }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 21, color: '#2C1810', marginBottom: 14 }}>Checkout traffic, last 30 days</h2>
+        {stats && stats.traffic.length > 0 ? <TrafficChart traffic={stats.traffic} /> : <p style={{ color: '#9B7B6A', fontSize: 13 }}>No traffic data yet.</p>}
+      </section>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 22 }}>
+        <BookCountList title="Top 10 books (30d)" books={stats?.topBooks ?? []} emptyMessage="No checkouts in this window yet." />
+        <BookCountList title="Bottom 10 books (30d)" books={stats?.bottomBooks ?? []} emptyMessage="No checkouts in this window yet." />
+      </div>
+
+      <section style={{ marginBottom: 22, background: '#FAF3E4', border: '1px solid #D4B896', padding: 20 }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 21, color: '#2C1810', marginBottom: 14 }}>Checkouts by category</h2>
+        {extra && extra.categoryBreakdown.length > 0 ? (
+          <div style={{ display: 'grid', gap: 6 }}>
+            {extra.categoryBreakdown.map(c => (
+              <div key={c.category} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '8px 10px', background: '#F4E9D0', border: '1px solid #D4B896' }}>
+                <span style={{ color: '#2C1810', fontSize: 13 }}>{c.category}</span>
+                <span style={{ color: '#9B7B6A', fontSize: 12, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{c.checkout_count}</span>
+              </div>
+            ))}
+          </div>
+        ) : <p style={{ color: '#9B7B6A', fontSize: 13 }}>No category data yet.</p>}
+      </section>
+
+      <section style={{ marginBottom: 22, background: '#FAF3E4', border: '1px solid #D4B896', padding: 20 }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 21, color: '#2C1810', marginBottom: 6 }}>Might want to follow up</h2>
+        <p style={{ color: '#9B7B6A', fontSize: 12, marginBottom: 14 }}>Open checkouts out for more than 30 days. This is an honor-system library — no fines or due dates, just informational.</p>
+        {extra && extra.longOutstanding.length > 0 ? (
+          <div style={{ display: 'grid', gap: 8 }}>
+            {extra.longOutstanding.map(item => (
+              <div key={item.fullLabel} style={{ padding: '12px 14px', background: '#F4E9D0', border: '1px solid #D4B896' }}>
+                <strong style={{ color: '#2C1810' }}>{item.bookTitle ?? item.bookCode}</strong>
+                <p style={{ color: '#9B7B6A', fontSize: 12, marginTop: 4 }}>{item.fullLabel} · {item.patronName}{item.patronEmail ? ` (${item.patronEmail})` : ''} · out {item.daysOut} days since {new Date(item.checkedOutAt).toLocaleDateString()}</p>
+              </div>
+            ))}
+          </div>
+        ) : <p style={{ color: '#9B7B6A', fontSize: 13 }}>Nothing has been out longer than 30 days.</p>}
+      </section>
+
+      <section style={{ background: '#FAF3E4', border: '1px solid #D4B896', padding: 20 }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 21, color: '#2C1810', marginBottom: 6 }}>Never checked out</h2>
+        <p style={{ color: '#9B7B6A', fontSize: 12, marginBottom: 14 }}>Books with zero checkouts ever — useful for weeding decisions or giving a title a push.</p>
+        {extra && extra.neverCheckedOut.length > 0 ? (
+          <div style={{ display: 'grid', gap: 6 }}>
+            {extra.neverCheckedOut.map(b => (
+              <div key={b.book_code} style={{ padding: '8px 10px', background: '#F4E9D0', border: '1px solid #D4B896', color: '#2C1810', fontSize: 13 }}>{b.title}</div>
+            ))}
+          </div>
+        ) : <p style={{ color: '#9B7B6A', fontSize: 13 }}>Every book has been checked out at least once.</p>}
+      </section>
+    </div>
+  )
+}
+
+function StaffReturnsPage() {
+  const [checkouts, setCheckouts] = useState<StaffCheckout[]>([])
+  const [reservations, setReservations] = useState<StaffReservation[]>([])
+  const [checkoutsLoading, setCheckoutsLoading] = useState(true)
+  const [reservationsLoading, setReservationsLoading] = useState(true)
+  const [checkoutsError, setCheckoutsError] = useState('')
+  const [reservationsError, setReservationsError] = useState('')
+  const [message, setMessage] = useState('')
+  const [busyLabel, setBusyLabel] = useState<string | null>(null)
+
+  async function loadCheckouts() {
+    try {
+      setCheckoutsLoading(true)
+      setCheckoutsError('')
+      setCheckouts(await fetchStaffCheckouts())
+    } catch (err) {
+      setCheckoutsError(err instanceof Error ? err.message : 'Could not load open checkouts.')
+    } finally {
+      setCheckoutsLoading(false)
+    }
+  }
+
+  async function loadReservations() {
+    try {
+      setReservationsLoading(true)
+      setReservationsError('')
+      setReservations(await fetchStaffReservations())
+    } catch (err) {
+      setReservationsError(err instanceof Error ? err.message : 'Could not load active holds.')
+    } finally {
+      setReservationsLoading(false)
+    }
+  }
+
+  useEffect(() => { void loadCheckouts(); void loadReservations() }, [])
+
+  async function handleReturn(fullLabel: string, bookTitle: string | null) {
+    try {
+      setBusyLabel(fullLabel)
+      setMessage('')
+      await staffReturnBook(fullLabel)
+      setMessage(`Marked "${bookTitle ?? fullLabel}" (${fullLabel}) as returned.`)
+      await loadCheckouts()
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : `Could not mark ${fullLabel} as returned.`)
+    } finally {
+      setBusyLabel(null)
+    }
+  }
+
+  async function handleRelease(fullLabel: string, bookTitle: string | null) {
+    try {
+      setBusyLabel(fullLabel)
+      setMessage('')
+      await staffForceReleaseReservation(fullLabel)
+      setMessage(`Released hold on "${bookTitle ?? fullLabel}" (${fullLabel}).`)
+      await loadReservations()
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : `Could not release the hold on ${fullLabel}.`)
+    } finally {
+      setBusyLabel(null)
+    }
+  }
+
+  const thStyle: React.CSSProperties = { textAlign: 'left', padding: '10px 12px', fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.1em', textTransform: 'uppercase', borderBottom: '1px solid #D4B896' }
+  const tdStyle: React.CSSProperties = { padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 13, color: '#2C1810', borderBottom: '1px solid #E7D7B0' }
+  const actionButtonStyle = (disabled: boolean): React.CSSProperties => ({ padding: '7px 12px', background: disabled ? '#A56A44' : '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, border: 'none', cursor: disabled ? 'not-allowed' : 'pointer' })
+
+  return (
+    <div style={{ maxWidth: 1000, margin: '110px auto 80px', padding: '0 28px' }}>
+      <div style={{ borderBottom: '1px solid #D4B896', paddingBottom: 16, marginBottom: 24 }}>
+        <p style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Staff</p>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, color: '#2C1810' }}>Returns & Holds</h1>
+      </div>
+
+      {message && <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', padding: '10px 14px', marginBottom: 18 }}>{message}</p>}
+
+      <section style={{ marginBottom: 32, background: '#FAF3E4', border: '1px solid #D4B896', padding: 20 }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 21, color: '#2C1810', marginBottom: 14 }}>Open Checkouts</h2>
+        {checkoutsLoading ? (
+          <p style={{ color: '#9B7B6A', fontSize: 13 }}>Loading open checkouts…</p>
+        ) : checkoutsError ? (
+          <p style={{ color: '#A52A2A', fontSize: 13 }}>{checkoutsError}</p>
+        ) : checkouts.length === 0 ? (
+          <p style={{ color: '#9B7B6A', fontSize: 13 }}>No open checkouts.</p>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Book</th>
+                <th style={thStyle}>Patron</th>
+                <th style={thStyle}>Checked Out</th>
+                <th style={thStyle}>Days Out</th>
+                <th style={thStyle}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {checkouts.map(item => (
+                <tr key={item.checkoutId}>
+                  <td style={tdStyle}>{item.bookTitle ?? item.bookCode}<br /><span style={{ fontSize: 11, color: '#9B7B6A' }}>{item.fullLabel}</span></td>
+                  <td style={tdStyle}>{item.patronName}<br /><span style={{ fontSize: 11, color: '#9B7B6A' }}>{item.patronEmail}</span></td>
+                  <td style={tdStyle}>{new Date(item.checkedOutAt).toLocaleDateString()}</td>
+                  <td style={tdStyle}>{item.daysOut}</td>
+                  <td style={tdStyle}>
+                    <button onClick={() => handleReturn(item.fullLabel, item.bookTitle)} disabled={busyLabel === item.fullLabel} style={actionButtonStyle(busyLabel === item.fullLabel)}>
+                      {busyLabel === item.fullLabel ? 'Working…' : 'Mark Returned'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      <section style={{ background: '#FAF3E4', border: '1px solid #D4B896', padding: 20 }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 21, color: '#2C1810', marginBottom: 14 }}>Active Holds</h2>
+        {reservationsLoading ? (
+          <p style={{ color: '#9B7B6A', fontSize: 13 }}>Loading active holds…</p>
+        ) : reservationsError ? (
+          <p style={{ color: '#A52A2A', fontSize: 13 }}>{reservationsError}</p>
+        ) : reservations.length === 0 ? (
+          <p style={{ color: '#9B7B6A', fontSize: 13 }}>No active holds.</p>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Book</th>
+                <th style={thStyle}>Reserved By</th>
+                <th style={thStyle}>Expires</th>
+                <th style={thStyle}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {reservations.map(item => (
+                <tr key={item.fullLabel}>
+                  <td style={tdStyle}>{item.bookTitle ?? item.bookCode}<br /><span style={{ fontSize: 11, color: '#9B7B6A' }}>{item.fullLabel}</span></td>
+                  <td style={tdStyle}>{item.reservedByName}<br /><span style={{ fontSize: 11, color: '#9B7B6A' }}>{item.reservedByEmail}</span></td>
+                  <td style={tdStyle}>{new Date(item.reservedUntil).toLocaleString()}</td>
+                  <td style={tdStyle}>
+                    <button onClick={() => handleRelease(item.fullLabel, item.bookTitle)} disabled={busyLabel === item.fullLabel} style={actionButtonStyle(busyLabel === item.fullLabel)}>
+                      {busyLabel === item.fullLabel ? 'Working…' : 'Release Hold'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+    </div>
   )
 }
 
@@ -2159,6 +2491,7 @@ export default function App() {
           setCurrentPatron(null)
           setLoggedIn(false)
           setUserName('')
+          setIsStaff(false)
           setShowUserMenu(false)
           setCartIds([])
           window.setTimeout(() => setAuthLoading(null), 500)
@@ -2166,11 +2499,12 @@ export default function App() {
         onToggleUserMenu={() => setShowUserMenu(v => !v)}
         onCloseUserMenu={() => setShowUserMenu(false)}
         onHolds={() => { setShowUserMenu(false); navigate('/account') }}
+        isStaff={Boolean(currentPatron) && isStaff}
+        onStaffReturns={() => { setShowUserMenu(false); navigate(PAGE_PATHS.staffReturns) }}
+        onStaffManage={() => { setShowUserMenu(false); navigate(PAGE_PATHS.staffManage) }}
         loggedIn={loggedIn}
         userName={userName}
         showUserMenu={showUserMenu}
-        isStaff={Boolean(currentPatron) && isStaff}
-        onStaffManage={() => { setShowUserMenu(false); navigate(PAGE_PATHS.staffManage) }}
       />
 
       <main style={{ paddingTop: 60 }}>
@@ -2200,6 +2534,8 @@ export default function App() {
             <Route path={PAGE_PATHS.thought} element={<ThoughtPage />} />
             <Route path={PAGE_PATHS.about} element={<AboutPage />} />
             <Route path="/account" element={currentPatron ? <AccountActivityPage /> : <Navigate to={PAGE_PATHS.home} replace />} />
+            <Route path={PAGE_PATHS.dashboard} element={currentPatron && isStaff ? <DashboardPage /> : <Navigate to={PAGE_PATHS.home} replace />} />
+            <Route path={PAGE_PATHS.staffReturns} element={currentPatron && isStaff ? <StaffReturnsPage /> : <Navigate to={PAGE_PATHS.home} replace />} />
             <Route path={PAGE_PATHS.staffManage} element={currentPatron && isStaff ? <StaffManagePage currentEmail={currentPatron.email} /> : <Navigate to={PAGE_PATHS.home} replace />} />
             <Route
               path={AUTH_REDIRECT_PATH}
