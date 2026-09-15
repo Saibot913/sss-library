@@ -1,20 +1,46 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const appOrigin = Deno.env.get('APP_ORIGIN') ?? 'http://localhost:3000'
-const corsHeaders = {
-  'Access-Control-Allow-Origin': appOrigin,
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+// Same origin-handling fix as auth-email/index.ts: a single fixed
+// APP_ORIGIN can't represent every dev environment this runs against
+// (Conductor assigns a different port per workspace), so CORS was
+// silently rejecting every dev origin except whichever one happened to
+// match — the browser blocks the response before app code ever runs,
+// which surfaces as a bare "Load failed", not a real error message.
+// Accept any localhost/127.0.0.1 origin regardless of port, plus the
+// exact configured APP_ORIGIN (the real production URL, once one
+// exists).
+const configuredOrigin = Deno.env.get('APP_ORIGIN') ?? 'http://localhost:3000'
+
+function isDevOrigin(origin: string): boolean {
+  try {
+    const { hostname } = new URL(origin)
+    return hostname === 'localhost' || hostname === '127.0.0.1'
+  } catch {
+    return false
+  }
 }
 
-function response(body: Record<string, unknown>, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  })
+function resolveOrigin(requestOrigin: string | null): string {
+  if (!requestOrigin) return configuredOrigin
+  if (requestOrigin === configuredOrigin || isDevOrigin(requestOrigin)) return requestOrigin
+  return configuredOrigin
 }
 
 Deno.serve(async request => {
+  const allowedOrigin = resolveOrigin(request.headers.get('Origin'))
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  }
+
+  function response(body: Record<string, unknown>, status = 200) {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (request.method !== 'POST') return response({ error: 'Method not allowed.' }, 405)
 

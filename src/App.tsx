@@ -17,19 +17,25 @@ import {
   fetchStaffDashboardExtraStats,
   releaseReservation,
   reserveCopy,
+  fetchStaffCheckouts,
+  fetchStaffReservations,
+  staffReturnBook,
+  staffForceReleaseReservation,
   type ActiveReservation,
   type ActiveCheckout,
   type CheckoutHistoryRow,
   type DashboardStats,
   type DashboardExtraStats,
   type DashboardBookCount,
+  type StaffCheckout,
+  type StaffReservation,
 } from './lib/checkouts'
 import { SITE_NAME, SITE_ADDRESS, MEETING_ROOM } from './lib/siteInfo'
 import { invalidateBooksCache } from './lib/books'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Page = 'home' | 'catalog' | 'thought' | 'about' | 'dashboard'
+type Page = 'home' | 'catalog' | 'thought' | 'about' | 'dashboard' | 'staffReturns'
 
 // Each page has a real URL, so pages can be linked to, bookmarked, and
 // refreshed, and the back button moves between them instead of leaving the
@@ -44,6 +50,7 @@ const PAGE_PATHS: Record<Page, string> = {
   thought: '/thought',
   about: '/community',
   dashboard: '/staff/dashboard',
+  staffReturns: '/staff/returns',
 }
 
 function pageFromPath(pathname: string): Page {
@@ -157,6 +164,7 @@ function TopNav({
   onCloseUserMenu,
   onHolds,
   isStaff,
+  onStaffReturns,
 }: {
   active: Page
   onNav: (p: Page) => void
@@ -172,6 +180,7 @@ function TopNav({
   onCloseUserMenu: () => void
   onHolds: () => void
   isStaff: boolean
+  onStaffReturns: () => void
 }) {
   const accountRef = useRef<HTMLDivElement>(null)
 
@@ -251,6 +260,11 @@ function TopNav({
                 <button onClick={onProfile} style={{ width: '100%', textAlign: 'left', padding: '12px 14px', background: 'transparent', border: 'none', borderBottom: '1px solid #E7D7B0', color: '#2C1810', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   Profile
                 </button>
+                {isStaff && (
+                  <button onClick={onStaffReturns} style={{ width: '100%', textAlign: 'left', padding: '12px 14px', background: 'transparent', border: 'none', borderBottom: '1px solid #E7D7B0', color: '#2C1810', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                    Returns & Holds
+                  </button>
+                )}
                 <button onClick={onLogout} style={{ width: '100%', textAlign: 'left', padding: '12px 14px', background: 'transparent', border: 'none', color: '#2C1810', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   Log out
                 </button>
@@ -727,6 +741,160 @@ function DashboardPage() {
             ))}
           </div>
         ) : <p style={{ color: '#9B7B6A', fontSize: 13 }}>Every book has been checked out at least once.</p>}
+      </section>
+    </div>
+  )
+}
+
+function StaffReturnsPage() {
+  const [checkouts, setCheckouts] = useState<StaffCheckout[]>([])
+  const [reservations, setReservations] = useState<StaffReservation[]>([])
+  const [checkoutsLoading, setCheckoutsLoading] = useState(true)
+  const [reservationsLoading, setReservationsLoading] = useState(true)
+  const [checkoutsError, setCheckoutsError] = useState('')
+  const [reservationsError, setReservationsError] = useState('')
+  const [message, setMessage] = useState('')
+  const [busyLabel, setBusyLabel] = useState<string | null>(null)
+
+  async function loadCheckouts() {
+    try {
+      setCheckoutsLoading(true)
+      setCheckoutsError('')
+      setCheckouts(await fetchStaffCheckouts())
+    } catch (err) {
+      setCheckoutsError(err instanceof Error ? err.message : 'Could not load open checkouts.')
+    } finally {
+      setCheckoutsLoading(false)
+    }
+  }
+
+  async function loadReservations() {
+    try {
+      setReservationsLoading(true)
+      setReservationsError('')
+      setReservations(await fetchStaffReservations())
+    } catch (err) {
+      setReservationsError(err instanceof Error ? err.message : 'Could not load active holds.')
+    } finally {
+      setReservationsLoading(false)
+    }
+  }
+
+  useEffect(() => { void loadCheckouts(); void loadReservations() }, [])
+
+  async function handleReturn(fullLabel: string, bookTitle: string | null) {
+    try {
+      setBusyLabel(fullLabel)
+      setMessage('')
+      await staffReturnBook(fullLabel)
+      setMessage(`Marked "${bookTitle ?? fullLabel}" (${fullLabel}) as returned.`)
+      await loadCheckouts()
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : `Could not mark ${fullLabel} as returned.`)
+    } finally {
+      setBusyLabel(null)
+    }
+  }
+
+  async function handleRelease(fullLabel: string, bookTitle: string | null) {
+    try {
+      setBusyLabel(fullLabel)
+      setMessage('')
+      await staffForceReleaseReservation(fullLabel)
+      setMessage(`Released hold on "${bookTitle ?? fullLabel}" (${fullLabel}).`)
+      await loadReservations()
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : `Could not release the hold on ${fullLabel}.`)
+    } finally {
+      setBusyLabel(null)
+    }
+  }
+
+  const thStyle: React.CSSProperties = { textAlign: 'left', padding: '10px 12px', fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.1em', textTransform: 'uppercase', borderBottom: '1px solid #D4B896' }
+  const tdStyle: React.CSSProperties = { padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 13, color: '#2C1810', borderBottom: '1px solid #E7D7B0' }
+  const actionButtonStyle = (disabled: boolean): React.CSSProperties => ({ padding: '7px 12px', background: disabled ? '#A56A44' : '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, border: 'none', cursor: disabled ? 'not-allowed' : 'pointer' })
+
+  return (
+    <div style={{ maxWidth: 1000, margin: '110px auto 80px', padding: '0 28px' }}>
+      <div style={{ borderBottom: '1px solid #D4B896', paddingBottom: 16, marginBottom: 24 }}>
+        <p style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Staff</p>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, color: '#2C1810' }}>Returns & Holds</h1>
+      </div>
+
+      {message && <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', padding: '10px 14px', marginBottom: 18 }}>{message}</p>}
+
+      <section style={{ marginBottom: 32, background: '#FAF3E4', border: '1px solid #D4B896', padding: 20 }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 21, color: '#2C1810', marginBottom: 14 }}>Open Checkouts</h2>
+        {checkoutsLoading ? (
+          <p style={{ color: '#9B7B6A', fontSize: 13 }}>Loading open checkouts…</p>
+        ) : checkoutsError ? (
+          <p style={{ color: '#A52A2A', fontSize: 13 }}>{checkoutsError}</p>
+        ) : checkouts.length === 0 ? (
+          <p style={{ color: '#9B7B6A', fontSize: 13 }}>No open checkouts.</p>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Book</th>
+                <th style={thStyle}>Patron</th>
+                <th style={thStyle}>Checked Out</th>
+                <th style={thStyle}>Days Out</th>
+                <th style={thStyle}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {checkouts.map(item => (
+                <tr key={item.checkoutId}>
+                  <td style={tdStyle}>{item.bookTitle ?? item.bookCode}<br /><span style={{ fontSize: 11, color: '#9B7B6A' }}>{item.fullLabel}</span></td>
+                  <td style={tdStyle}>{item.patronName}<br /><span style={{ fontSize: 11, color: '#9B7B6A' }}>{item.patronEmail}</span></td>
+                  <td style={tdStyle}>{new Date(item.checkedOutAt).toLocaleDateString()}</td>
+                  <td style={tdStyle}>{item.daysOut}</td>
+                  <td style={tdStyle}>
+                    <button onClick={() => handleReturn(item.fullLabel, item.bookTitle)} disabled={busyLabel === item.fullLabel} style={actionButtonStyle(busyLabel === item.fullLabel)}>
+                      {busyLabel === item.fullLabel ? 'Working…' : 'Mark Returned'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      <section style={{ background: '#FAF3E4', border: '1px solid #D4B896', padding: 20 }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 21, color: '#2C1810', marginBottom: 14 }}>Active Holds</h2>
+        {reservationsLoading ? (
+          <p style={{ color: '#9B7B6A', fontSize: 13 }}>Loading active holds…</p>
+        ) : reservationsError ? (
+          <p style={{ color: '#A52A2A', fontSize: 13 }}>{reservationsError}</p>
+        ) : reservations.length === 0 ? (
+          <p style={{ color: '#9B7B6A', fontSize: 13 }}>No active holds.</p>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Book</th>
+                <th style={thStyle}>Reserved By</th>
+                <th style={thStyle}>Expires</th>
+                <th style={thStyle}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {reservations.map(item => (
+                <tr key={item.fullLabel}>
+                  <td style={tdStyle}>{item.bookTitle ?? item.bookCode}<br /><span style={{ fontSize: 11, color: '#9B7B6A' }}>{item.fullLabel}</span></td>
+                  <td style={tdStyle}>{item.reservedByName}<br /><span style={{ fontSize: 11, color: '#9B7B6A' }}>{item.reservedByEmail}</span></td>
+                  <td style={tdStyle}>{new Date(item.reservedUntil).toLocaleString()}</td>
+                  <td style={tdStyle}>
+                    <button onClick={() => handleRelease(item.fullLabel, item.bookTitle)} disabled={busyLabel === item.fullLabel} style={actionButtonStyle(busyLabel === item.fullLabel)}>
+                      {busyLabel === item.fullLabel ? 'Working…' : 'Release Hold'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </section>
     </div>
   )
@@ -1986,14 +2154,14 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (!loggedIn) {
+    if (!currentPatron) {
       setIsStaff(false)
       return
     }
     let cancelled = false
-    fetchIsStaff().then(value => { if (!cancelled) setIsStaff(value) })
+    fetchIsStaff().then(result => { if (!cancelled) setIsStaff(result) })
     return () => { cancelled = true }
-  }, [loggedIn])
+  }, [currentPatron])
 
   const hasProfile = Boolean(
     currentPatron &&
@@ -2195,6 +2363,7 @@ export default function App() {
           setCurrentPatron(null)
           setLoggedIn(false)
           setUserName('')
+          setIsStaff(false)
           setShowUserMenu(false)
           setCartIds([])
           window.setTimeout(() => setAuthLoading(null), 500)
@@ -2202,10 +2371,11 @@ export default function App() {
         onToggleUserMenu={() => setShowUserMenu(v => !v)}
         onCloseUserMenu={() => setShowUserMenu(false)}
         onHolds={() => { setShowUserMenu(false); navigate('/account') }}
+        isStaff={Boolean(currentPatron) && isStaff}
+        onStaffReturns={() => { setShowUserMenu(false); navigate(PAGE_PATHS.staffReturns) }}
         loggedIn={loggedIn}
         userName={userName}
         showUserMenu={showUserMenu}
-        isStaff={isStaff}
       />
 
       <main style={{ paddingTop: 60 }}>
@@ -2235,7 +2405,8 @@ export default function App() {
             <Route path={PAGE_PATHS.thought} element={<ThoughtPage />} />
             <Route path={PAGE_PATHS.about} element={<AboutPage />} />
             <Route path="/account" element={currentPatron ? <AccountActivityPage /> : <Navigate to={PAGE_PATHS.home} replace />} />
-            <Route path={PAGE_PATHS.dashboard} element={isStaff ? <DashboardPage /> : <Navigate to={PAGE_PATHS.home} replace />} />
+            <Route path={PAGE_PATHS.dashboard} element={currentPatron && isStaff ? <DashboardPage /> : <Navigate to={PAGE_PATHS.home} replace />} />
+            <Route path={PAGE_PATHS.staffReturns} element={currentPatron && isStaff ? <StaffReturnsPage /> : <Navigate to={PAGE_PATHS.home} replace />} />
             <Route
               path={AUTH_REDIRECT_PATH}
               element={authReturnMode === 'login' || !authReady ? (
