@@ -16,6 +16,7 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 ## [Unreleased]
 
 ### Added
+- Staff Dashboard page (`/staff/dashboard`), gated on `is_staff()` same as `/account` is gated on `currentPatron`, with a nav link that only staff see. Renders the existing `staff_dashboard_stats()` data (30-day traffic as a plain-div bar chart, top/bottom 10 books) plus a new RPC, `staff_dashboard_extra()` (`supabase/migrations/0016_staff_dashboard_extra_stats.sql`), covering avg checkout length, category breakdown, active holds count, unique-patron count, a "might want to follow up" list of loans open >30 days, and books never checked out. Everything is framed informationally — this library is honor-system, no fines or due dates. **Needs `supabase db push` after merge** for the new migration to take effect.
 - Staff book-management RPCs (`supabase/migrations/0015_staff_book_management_rpcs.sql`): `add_book`, `add_copy`, `update_book`, `update_copy`, plus TypeScript wrappers in `src/lib/books.ts`. Follows the existing security-definer-function pattern (`checkout_book`, `reserve_copy`, `return_book`) rather than adding raw insert/update RLS policies on `books`/`copies` — keeps their public-read-only RLS posture untouched. No UI yet; this is the shared backend the "Add a Book" and "Edit a Book" staff pages will build on. Two things enforced server-side: `update_copy` refuses to change a `checked_out` copy's status (must go through a return first), and retiring a copy (`lost`/`damaged`/`withdrawn`) clears any active hold on it.
 
 ### Changed
