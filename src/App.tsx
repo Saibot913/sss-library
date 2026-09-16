@@ -58,9 +58,8 @@ const PAGE_PATHS: Record<Page, string> = {
   staffReviews: '/staff/reviews',
 }
 
-function pageFromPath(pathname: string): Page {
-  const match = (Object.keys(PAGE_PATHS) as Page[]).find(p => PAGE_PATHS[p] === pathname)
-  return match ?? 'home'
+function pageFromPath(pathname: string): Page | null {
+  return (Object.keys(PAGE_PATHS) as Page[]).find(p => PAGE_PATHS[p] === pathname) ?? null
 }
 
 type Filters = {
@@ -195,7 +194,7 @@ function TopNav({
   isStaff,
   onStaff,
 }: {
-  active: Page
+  active: Page | null
   onNav: (p: Page) => void
   cartCount: number
   onCart: () => void
@@ -252,7 +251,7 @@ function TopNav({
           ['catalog', '02', 'Catalog'],
           ['thought', '03', 'Thought for the Day'],
           ['about', '04', 'Community'],
-          ...(isStaff ? [['dashboard', '05', 'Dashboard'] as const] : []),
+          ...(isStaff ? [['staff', '05', 'Staff'] as const, ['dashboard', '06', 'Dashboard'] as const] : []),
         ] as const).map(([id, num, label]) => (
           <button
             key={id}
@@ -1681,11 +1680,13 @@ function ProfilePage({
   onSaved,
   onDeleted,
   onboarding = false,
+  compact = false,
 }: {
   patron: Patron | null
   onSaved: (updatedPatron: Patron) => void
   onDeleted: () => void
   onboarding?: boolean
+  compact?: boolean
 }) {
   const navigate = useNavigate()
   const [firstName, setFirstName] = useState(patron?.firstName ?? '')
@@ -1743,7 +1744,7 @@ function ProfilePage({
   }
 
   return (
-    <div style={{ maxWidth: 640, margin: '120px auto 80px', padding: '0 20px' }}>
+    <div style={{ maxWidth: 640, margin: compact ? '0 auto' : '120px auto 80px', padding: compact ? 0 : '0 20px' }}>
       <div style={{ background: '#FAF3E4', border: '1px solid #D4B896', padding: '32px 28px', boxShadow: '0 20px 50px rgba(44,24,16,0.08)' }}>
         <p style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 8 }}>{onboarding ? 'Finish sign up' : 'Profile'}</p>
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: '#2C1810', margin: '0 0 16px' }}>{onboarding ? 'Create your library profile' : 'Your contact details'}</h1>
@@ -3086,6 +3087,12 @@ export default function App() {
 
   async function submitHoldRequests() {
     if (!loggedIn || !currentPatron) {
+      // LoginModal and ProfilePage both render in normal flow / their own
+      // fixed overlay, but the cart drawer is itself a full-screen fixed
+      // overlay (zIndex 200) that stays open unless told otherwise — left
+      // open here, either one would render trapped behind it, invisible,
+      // which looks like clicking "Check Out" simply does nothing.
+      setShowCart(false)
       setLoginMode('login')
       setShowLogin(true)
       return
@@ -3094,6 +3101,7 @@ export default function App() {
     const storedProfile = getStoredProfile(currentPatron.email)
     const hasProfile = Boolean(currentPatron.firstName && currentPatron.lastName && currentPatron.phone) || Boolean(storedProfile && storedProfile.firstName && storedProfile.lastName && storedProfile.phone)
     if (!hasProfile) {
+      setShowCart(false)
       setShowProfileForm(true)
       return
     }
@@ -3113,7 +3121,8 @@ export default function App() {
       try {
         await checkoutBook(reservedCopy)
         succeeded.push(title)
-      } catch {
+      } catch (err) {
+        console.error(`checkout failed for "${title}" (${reservedCopy}):`, err)
         failed.push(title)
       }
     }
@@ -3258,16 +3267,35 @@ export default function App() {
       )}
 
       {showProfileForm && currentPatron && (
-        <ProfilePage
-          patron={currentPatron}
-          onSaved={updatedPatron => {
-            setCurrentPatron(updatedPatron)
-            setUserName(updatedPatron.name)
-            setShowProfileForm(false)
-            setShowUserMenu(false)
-          }}
-          onDeleted={() => { setCurrentPatron(null); setLoggedIn(false); setUserName(''); setShowProfileForm(false); navigate(PAGE_PATHS.home, { replace: true }) }}
-        />
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 210, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', padding: '60px 20px', background: 'rgba(44,24,16,0.7)' }}
+          onClick={() => setShowProfileForm(false)}
+        >
+          <div style={{ position: 'relative', width: '100%', maxWidth: 640, background: '#FAF3E4', border: '1px solid #D4B896', padding: '32px 28px', boxShadow: '0 24px 64px rgba(44,24,16,0.35)' }} onClick={e => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setShowProfileForm(false)}
+              aria-label="Close"
+              style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: '#9B7B6A', cursor: 'pointer', fontSize: 20 }}
+            >
+              ✕
+            </button>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#5C3D2E', marginBottom: 16 }}>
+              We just need your name before you can check out. You can close this and keep browsing — your cart hold is still there.
+            </p>
+            <ProfilePage
+              compact
+              patron={currentPatron}
+              onSaved={updatedPatron => {
+                setCurrentPatron(updatedPatron)
+                setUserName(updatedPatron.name)
+                setShowProfileForm(false)
+                setShowUserMenu(false)
+              }}
+              onDeleted={() => { setCurrentPatron(null); setLoggedIn(false); setUserName(''); setShowProfileForm(false); navigate(PAGE_PATHS.home, { replace: true }) }}
+            />
+          </div>
+        </div>
       )}
 
       {checkoutError && (
