@@ -53,7 +53,7 @@ This needs a new migration (RPC functions + `grant execute ... to authenticated`
 - **Clear any active hold when marking a copy `lost`/`damaged`/`withdrawn`.** If `reserved_by`/`reserved_until` is set (someone has it on hold) and staff retires the copy, null out both — otherwise the Holds table (§1c) keeps showing a hold on a copy that no longer circulates.
 
 **1b. Edit an existing Book:**
-- Editable at the book level: everything **except `title`** — `author`, `year_published`, `published_by`, `category`, `tags`, `summary`. (Locking `title` is a deliberate choice — a title typo can only be fixed via the Supabase Table Editor. Revisit if that turns out to be annoying in practice.)
+- Editable at the book level: `title`, `author`, `year_published`, `published_by`, `category`, `tags`, `summary`. (`title` was originally locked — see git history / migration `0015` — but that turned out to be annoying in practice, so migration `0023` unlocked it.)
 - Editable per copy (nested under the book): `location`, `status` (`available`/`checked_out`/`lost`/`damaged`/`withdrawn`).
 - **Still needs:** an `update` RLS policy on `books`/`copies` restricted to staff — doesn't exist yet, needs a new migration (can likely be the same migration as 1a's `insert` policy).
 
