@@ -4,7 +4,7 @@ import { fetchBooks, addBook, addCopy, updateBook, updateCopy, type Book, type C
 import { fetchThoughtForTheDay, type ThoughtForTheDay } from './lib/thoughtForTheDay'
 import { useBookCover } from './lib/bookCovers'
 import { VOLUNTEER_FORM_URL } from './lib/volunteers'
-import { REVIEW_FORM_URL } from './lib/reviews'
+import { REVIEW_FORM_URL, fetchReviewsForBook, fetchLibraryReviews, fetchAllReviewsForStaff, addReview, deleteReview, type Review } from './lib/reviews'
 import { SITE_PASSWORD, hasSiteAccess, grantSiteAccess } from './lib/siteAccess'
 import { AUTH_REDIRECT_PATH, deleteAccount, getCurrentPatron, onAuthChange, requestSignInCode, signOut, updatePatronProfile, type Patron } from './lib/auth'
 import {
@@ -36,7 +36,7 @@ import { invalidateBooksCache } from './lib/books'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Page = 'home' | 'catalog' | 'thought' | 'about' | 'dashboard' | 'staffReturns' | 'staffManage' | 'staffBooks'
+type Page = 'home' | 'catalog' | 'thought' | 'about' | 'staff' | 'dashboard' | 'staffReturns' | 'staffManage' | 'staffBooks' | 'staffReviews'
 
 // Each page has a real URL, so pages can be linked to, bookmarked, and
 // refreshed, and the back button moves between them instead of leaving the
@@ -53,7 +53,9 @@ const PAGE_PATHS: Record<Page, string> = {
   dashboard: '/staff/dashboard',
   staffReturns: '/staff/returns',
   staffManage: '/staff/manage',
+  staff: '/staff',
   staffBooks: '/staff/books',
+  staffReviews: '/staff/reviews',
 }
 
 function pageFromPath(pathname: string): Page {
@@ -191,9 +193,7 @@ function TopNav({
   onCloseUserMenu,
   onHolds,
   isStaff,
-  onStaffManage,
-  onStaffReturns,
-  onStaffBooks,
+  onStaff,
 }: {
   active: Page
   onNav: (p: Page) => void
@@ -209,9 +209,7 @@ function TopNav({
   onCloseUserMenu: () => void
   onHolds: () => void
   isStaff: boolean
-  onStaffManage: () => void
-  onStaffReturns: () => void
-  onStaffBooks: () => void
+  onStaff: () => void
 }) {
   const accountRef = useRef<HTMLDivElement>(null)
 
@@ -292,17 +290,9 @@ function TopNav({
                   Profile
                 </button>
                 {isStaff && (
-                  <>
-                    <button onClick={onStaffBooks} style={{ width: '100%', textAlign: 'left', padding: '12px 14px', background: 'transparent', border: 'none', borderBottom: '1px solid #E7D7B0', color: '#2C1810', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                      Manage Books
-                    </button>
-                    <button onClick={onStaffReturns} style={{ width: '100%', textAlign: 'left', padding: '12px 14px', background: 'transparent', border: 'none', borderBottom: '1px solid #E7D7B0', color: '#2C1810', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                      Returns & Holds
-                    </button>
-                    <button onClick={onStaffManage} style={{ width: '100%', textAlign: 'left', padding: '12px 14px', background: 'transparent', border: 'none', borderBottom: '1px solid #E7D7B0', color: '#2C1810', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                      Manage Staff
-                    </button>
-                  </>
+                  <button onClick={onStaff} style={{ width: '100%', textAlign: 'left', padding: '12px 14px', background: 'transparent', border: 'none', borderBottom: '1px solid #E7D7B0', color: '#2C1810', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                    Staff
+                  </button>
                 )}
                 <button onClick={onLogout} style={{ width: '100%', textAlign: 'left', padding: '12px 14px', background: 'transparent', border: 'none', color: '#2C1810', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   Log out
@@ -633,6 +623,54 @@ function ActivitySection({ title, empty, items }: { title: string; empty: string
   )
 }
 
+// ── Staff hub ────────────────────────────────────────────────────────────────
+// A single "Staff" entry in the account menu leads here instead of
+// cluttering that menu with one item per staff page — each page below is
+// a box on this one hub, and each of those pages links back here rather
+// than only having the site's regular Home link to fall back on.
+
+function StaffBackLink() {
+  const navigate = useNavigate()
+  return (
+    <button
+      onClick={() => navigate(PAGE_PATHS.staff)}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none', color: '#C8521A', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, letterSpacing: '0.04em', cursor: 'pointer', padding: 0, marginBottom: 20 }}
+    >
+      ← Staff Menu
+    </button>
+  )
+}
+
+function StaffHomePage() {
+  const navigate = useNavigate()
+  const tiles: Array<{ page: Page; title: string; description: string }> = [
+    { page: 'staffBooks', title: 'Manage Books', description: 'Add new books or copies, edit details, retire a copy.' },
+    { page: 'staffReturns', title: 'Returns & Holds', description: 'Process returns and release stale holds.' },
+    { page: 'dashboard', title: 'Dashboard', description: 'Checkout traffic, popular books, and other stats.' },
+    { page: 'staffReviews', title: 'Reviews', description: 'Publish curated book and library reviews.' },
+    { page: 'staffManage', title: 'Manage Staff', description: 'Add or remove staff access.' },
+  ]
+  return (
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: '48px 24px' }}>
+      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: '#2C1810', marginBottom: 24 }}>Staff</h1>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
+        {tiles.map(tile => (
+          <button
+            key={tile.page}
+            onClick={() => navigate(PAGE_PATHS[tile.page])}
+            style={{ textAlign: 'left', padding: 20, background: '#FAF3E4', border: '1px solid #D4B896', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 8 }}
+            onMouseEnter={e => (e.currentTarget.style.borderColor = '#C8521A')}
+            onMouseLeave={e => (e.currentTarget.style.borderColor = '#D4B896')}
+          >
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: '#2C1810' }}>{tile.title}</h2>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#9B7B6A', lineHeight: 1.5 }}>{tile.description}</p>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── Staff dashboard ──────────────────────────────────────────────────────────
 
 function StatTile({ label, value }: { label: string; value: string }) {
@@ -714,6 +752,7 @@ function DashboardPage() {
 
   return (
     <div style={{ maxWidth: 1100, margin: '110px auto 80px', padding: '0 28px' }}>
+      <StaffBackLink />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', borderBottom: '1px solid #D4B896', paddingBottom: 16, marginBottom: 24 }}>
         <div>
           <p style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Staff only</p>
@@ -855,6 +894,7 @@ function StaffReturnsPage() {
 
   return (
     <div style={{ maxWidth: 1000, margin: '110px auto 80px', padding: '0 28px' }}>
+      <StaffBackLink />
       <div style={{ borderBottom: '1px solid #D4B896', paddingBottom: 16, marginBottom: 24 }}>
         <p style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Staff</p>
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, color: '#2C1810' }}>Returns & Holds</h1>
@@ -996,6 +1036,7 @@ function StaffManagePage({ currentEmail }: { currentEmail: string }) {
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: '48px 24px' }}>
+      <StaffBackLink />
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: '#2C1810', marginBottom: 8 }}>Manage Staff</h1>
       <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#9B7B6A', marginBottom: 24 }}>
         Any staff member can add or remove other staff here. You can't remove yourself, and the last remaining staff member can't be removed.
@@ -1301,6 +1342,7 @@ function ManageBooksPage({ books, onBooksChanged }: { books: Book[]; onBooksChan
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '48px 24px' }}>
+      <StaffBackLink />
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: '#2C1810', marginBottom: 24 }}>Manage Books</h1>
 
       {/* ── Add a Book ── */}
@@ -1497,6 +1539,143 @@ function ManageBooksPage({ books, onBooksChanged }: { books: Book[]; onBooksChan
   )
 }
 
+function StaffReviewsPage({ books }: { books: Book[] }) {
+  const [kind, setKind] = useState<'book' | 'library'>('book')
+  const [bookSearch, setBookSearch] = useState('')
+  const [selectedBook, setSelectedBook] = useState<Book | null>(null)
+  const [reviewerName, setReviewerName] = useState('')
+  const [reviewText, setReviewText] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [formMessage, setFormMessage] = useState('')
+
+  const [reviews, setReviews] = useState<Review[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [busyId, setBusyId] = useState<string | null>(null)
+
+  const bookTitleByCode = useMemo(() => new Map(books.map(b => [b.id, b.title])), [books])
+
+  async function load() {
+    try {
+      setLoading(true)
+      setLoadError('')
+      setReviews(await fetchAllReviewsForStaff())
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Could not load reviews.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { void load() }, [])
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (kind === 'book' && !selectedBook) return
+    try {
+      setBusy(true)
+      setFormMessage('')
+      await addReview({
+        bookCode: kind === 'book' ? selectedBook!.id : null,
+        reviewerName: reviewerName.trim(),
+        reviewText: reviewText.trim(),
+      })
+      setFormMessage('Published.')
+      setReviewerName('')
+      setReviewText('')
+      setSelectedBook(null)
+      setBookSearch('')
+      await load()
+    } catch (err) {
+      setFormMessage(err instanceof Error ? err.message : 'Could not publish that review.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleDelete(id: string) {
+    try {
+      setBusyId(id)
+      await deleteReview(id)
+      await load()
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Could not delete that review.')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  return (
+    <div style={{ maxWidth: 720, margin: '0 auto', padding: '48px 24px' }}>
+      <StaffBackLink />
+      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: '#2C1810', marginBottom: 8 }}>Reviews</h1>
+      <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#9B7B6A', marginBottom: 24 }}>
+        Read submissions in the Reviews &amp; Feedback spreadsheet, then publish the ones worth featuring here. A book review shows up on that book's page; a library review shows up in the Community tab.
+      </p>
+
+      <section style={{ marginBottom: 32, background: '#FAF3E4', border: '1px solid #D4B896', padding: 20 }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: '#2C1810', marginBottom: 14 }}>Publish a Review</h2>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <button onClick={() => setKind('book')} style={{ padding: '8px 14px', background: kind === 'book' ? '#C8521A' : 'transparent', color: kind === 'book' ? '#FAF3E4' : '#2C1810', border: '1px solid #C8521A', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600 }}>Book Review</button>
+          <button onClick={() => setKind('library')} style={{ padding: '8px 14px', background: kind === 'library' ? '#C8521A' : 'transparent', color: kind === 'library' ? '#FAF3E4' : '#2C1810', border: '1px solid #C8521A', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600 }}>Library Review</button>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 12 }}>
+          {kind === 'book' && (
+            <div>
+              <label style={manageBooksLabelStyle}>Which book</label>
+              <BookSearchPicker books={books} query={bookSearch} setQuery={q => { setBookSearch(q); setSelectedBook(null) }} onPick={b => { setSelectedBook(b); setBookSearch(b.title) }} placeholder="Search by title…" />
+              {selectedBook && <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#9B7B6A', marginTop: 6 }}>Reviewing <strong style={{ color: '#2C1810' }}>{selectedBook.title}</strong></p>}
+            </div>
+          )}
+          <div>
+            <label style={manageBooksLabelStyle}>Reviewer name</label>
+            <input value={reviewerName} onChange={e => setReviewerName(e.target.value)} required style={manageBooksInputStyle} />
+          </div>
+          <div>
+            <label style={manageBooksLabelStyle}>Review</label>
+            <textarea value={reviewText} onChange={e => setReviewText(e.target.value)} required rows={4} style={{ ...manageBooksInputStyle, resize: 'vertical' }} />
+          </div>
+          <button type="submit" disabled={busy || (kind === 'book' && !selectedBook)} style={{ padding: '10px 18px', background: busy ? '#A56A44' : '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, border: 'none', cursor: busy ? 'not-allowed' : 'pointer', justifySelf: 'start' }}>Publish</button>
+          {formMessage && <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#C8521A' }}>{formMessage}</p>}
+        </form>
+      </section>
+
+      <section style={{ background: '#FAF3E4', border: '1px solid #D4B896', padding: 20 }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: '#2C1810', marginBottom: 14 }}>Published Reviews</h2>
+        {loading ? (
+          <p style={{ color: '#9B7B6A', fontSize: 13 }}>Loading…</p>
+        ) : loadError ? (
+          <p style={{ color: '#C8521A', fontSize: 13 }}>{loadError}</p>
+        ) : reviews.length === 0 ? (
+          <p style={{ color: '#9B7B6A', fontSize: 13 }}>No reviews published yet.</p>
+        ) : (
+          <div style={{ display: 'grid', gap: 10 }}>
+            {reviews.map(review => (
+              <div key={review.id} style={{ padding: '12px 14px', background: '#F4E9D0', border: '1px solid #D4B896', display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                <div>
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#C8521A', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+                    {review.bookCode ? (bookTitleByCode.get(review.bookCode) ?? review.bookCode) : 'Library Review'}
+                  </p>
+                  <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#2C1810', marginBottom: 4 }}>{review.reviewText}</p>
+                  <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#9B7B6A' }}>— {review.reviewerName}</p>
+                </div>
+                <button
+                  onClick={() => handleDelete(review.id)}
+                  disabled={busyId === review.id}
+                  style={{ padding: '6px 12px', background: 'transparent', color: '#C8521A', border: '1px solid #C8521A', cursor: busyId === review.id ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, alignSelf: 'start', flexShrink: 0 }}
+                >
+                  Delete
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  )
+}
+
 function ProfilePage({
   patron,
   onSaved,
@@ -1639,6 +1818,13 @@ function BookDetailPage({
   const avail = book.copiesAvailable
   const inCart = cartIds.includes(book.id)
 
+  const [reviews, setReviews] = useState<Review[]>([])
+  useEffect(() => {
+    let cancelled = false
+    fetchReviewsForBook(book.id).then(data => { if (!cancelled) setReviews(data) }).catch(() => { if (!cancelled) setReviews([]) })
+    return () => { cancelled = true }
+  }, [book.id])
+
   const similar = useMemo(() => {
     return allBooks
       .filter(b => b.id !== book.id)
@@ -1720,6 +1906,21 @@ function BookDetailPage({
               </div>
             </div>
           </section>
+
+          {/* Reader reviews — staff-curated, see the Staff Reviews page */}
+          {reviews.length > 0 && (
+            <section style={{ marginBottom: 48 }}>
+              <h2 style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#C8521A', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 16 }}>Reader Reviews</h2>
+              <div style={{ display: 'grid', gap: 12 }}>
+                {reviews.map(review => (
+                  <div key={review.id} style={{ padding: '16px 18px', background: '#FAF3E4', border: '1px solid #D4B896' }}>
+                    <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#2C1810', lineHeight: 1.6, marginBottom: 8 }}>{review.reviewText}</p>
+                    <p style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.06em', textTransform: 'uppercase' }}>— {review.reviewerName}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* Similar titles */}
           {similar.length > 0 && (
@@ -2468,6 +2669,17 @@ function ThoughtPage() {
 }
 
 function AboutPage() {
+  // Library/site reviews staff has chosen to publish (book_code is null) —
+  // see the Staff Reviews page. Most-recent-first, up to 15; a plain
+  // scrollable list rather than an auto-advancing carousel, so a visitor
+  // can read at their own pace instead of racing a timer.
+  const [libraryReviews, setLibraryReviews] = useState<Review[]>([])
+  useEffect(() => {
+    let cancelled = false
+    fetchLibraryReviews(15).then(data => { if (!cancelled) setLibraryReviews(data) }).catch(() => { if (!cancelled) setLibraryReviews([]) })
+    return () => { cancelled = true }
+  }, [])
+
   const sectionHead = (num: string, title: string) => (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 36, borderBottom: '1px solid #D4B896', paddingBottom: 12 }}>
       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase' }}>{num}</span>
@@ -2644,6 +2856,21 @@ function AboutPage() {
           </div>
         </div>
       </section>
+
+      {/* ── § 04 What People Are Saying — library/site reviews staff has published ── */}
+      {libraryReviews.length > 0 && (
+        <section style={{ padding: '0 64px 64px' }}>
+          {sectionHead('§ 04', 'What People Are Saying')}
+          <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 8 }}>
+            {libraryReviews.map(review => (
+              <div key={review.id} style={{ flex: '0 0 300px', padding: '20px 22px', background: '#FAF3E4', border: '1px solid #D4B896' }}>
+                <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#2C1810', lineHeight: 1.6, marginBottom: 12 }}>{review.reviewText}</p>
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.06em', textTransform: 'uppercase' }}>— {review.reviewerName}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Contact footer */}
       <div style={{ background: '#2C1810', padding: '36px 64px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 32 }}>
@@ -2980,9 +3207,7 @@ export default function App() {
         onCloseUserMenu={() => setShowUserMenu(false)}
         onHolds={() => { setShowUserMenu(false); navigate('/account') }}
         isStaff={Boolean(currentPatron) && isStaff}
-        onStaffReturns={() => { setShowUserMenu(false); navigate(PAGE_PATHS.staffReturns) }}
-        onStaffManage={() => { setShowUserMenu(false); navigate(PAGE_PATHS.staffManage) }}
-        onStaffBooks={() => { setShowUserMenu(false); navigate(PAGE_PATHS.staffBooks) }}
+        onStaff={() => { setShowUserMenu(false); navigate(PAGE_PATHS.staff) }}
         loggedIn={loggedIn}
         userName={userName}
         showUserMenu={showUserMenu}
@@ -3015,10 +3240,12 @@ export default function App() {
             <Route path={PAGE_PATHS.thought} element={<ThoughtPage />} />
             <Route path={PAGE_PATHS.about} element={<AboutPage />} />
             <Route path="/account" element={currentPatron ? <AccountActivityPage /> : <Navigate to={PAGE_PATHS.home} replace />} />
+            <Route path={PAGE_PATHS.staff} element={currentPatron && isStaff ? <StaffHomePage /> : <Navigate to={PAGE_PATHS.home} replace />} />
             <Route path={PAGE_PATHS.dashboard} element={currentPatron && isStaff ? <DashboardPage /> : <Navigate to={PAGE_PATHS.home} replace />} />
             <Route path={PAGE_PATHS.staffReturns} element={currentPatron && isStaff ? <StaffReturnsPage /> : <Navigate to={PAGE_PATHS.home} replace />} />
             <Route path={PAGE_PATHS.staffManage} element={currentPatron && isStaff ? <StaffManagePage currentEmail={currentPatron.email} /> : <Navigate to={PAGE_PATHS.home} replace />} />
             <Route path={PAGE_PATHS.staffBooks} element={currentPatron && isStaff ? <ManageBooksPage books={books} onBooksChanged={reloadBooks} /> : <Navigate to={PAGE_PATHS.home} replace />} />
+            <Route path={PAGE_PATHS.staffReviews} element={currentPatron && isStaff ? <StaffReviewsPage books={books} /> : <Navigate to={PAGE_PATHS.home} replace />} />
             <Route
               path={AUTH_REDIRECT_PATH}
               element={authReturnMode === 'login' || !authReady ? (

@@ -15,7 +15,11 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 
 ## [Unreleased]
 
+### Changed
+- Staff nav restructured into a hub: the account menu's separate Manage Books / Returns & Holds / Dashboard / Manage Staff buttons are now one "Staff" entry leading to `/staff`, a page showing every staff page as a clickable box. Each staff page now has a "← Staff Menu" link back to that hub, distinct from the site's real Home link — done to stop the account menu from growing one item per staff page as more get added.
+
 ### Added
+- Per-book and library reviews, staff-curated (`reviews` table, migration `0019_book_reviews.sql`; `add_review`/`delete_review` RPCs; new `/staff/reviews` page). One table for both: a review with a `book_code` shows up on that book's detail page under "Reader Reviews"; one without shows up in the Community tab under "§ 04 What People Are Saying" (most recent 15, horizontally scrollable — not an auto-advancing carousel, so a visitor reads at their own pace). Source is still the external Reviews & Feedback Google Form — staff reads the spreadsheet and types in the ones worth publishing; decided against a Google Sheets API integration for this to avoid new external credentials, revisit if manual entry becomes a bottleneck. Form setup instructions (`src/lib/reviews.ts`) updated to describe a Category dropdown (Book Review / Library Review) with Forms' branching so a Book Title field only shows for Book Review.
 - Staff "Manage Books" page (`/staff/books`, in the account menu) — combines Add and Edit into one page (Add on top, Edit below) rather than two separate nav items. Add has two modes: "add a copy of an existing book" (search by title, pick it, just enter a location — inserts one `copies` row) and "add a brand new book" (full form, live-suggests a `book_code` and steers toward "add a copy" instead if a similar title already exists). Edit lets staff change every book field except `title`, plus each copy's `location`/`status` — a `checked_out` copy can't be edited here, matching the existing "process a return first" rule enforced server-side by `update_copy`. Pure UI on the already-existing `add_book`/`add_copy`/`update_book`/`update_copy` RPCs (`0015`) — no new migration.
 
 ### Fixed
