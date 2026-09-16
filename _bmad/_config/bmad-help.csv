@@ -1,0 +1,5 @@
+module,skill,display-name,menu-code,description,action,args,phase,preceded-by,followed-by,required,output-location,outputs
+BMad Method,_meta,,,,,,,,,false,https://docs.bmad-method.org/,
+BMad Method,bmad-code-review,Code Review,CR,Ad hoc review of any code change. An optional extra check after Build's built-in review.,,,ship,bmad-build,,false,,
+Test Architecture Enterprise,bmad-testarch-test-review,Test Review,RV,Quality audit (0-100 scoring).,,,4-implementation,bmad-testarch-automate,,false,test_artifacts,review report
+Test Architecture Enterprise,bmad-testarch-nfr,NFR Evidence Audit,NR,Audit non-functional requirement evidence.,,,4-implementation,bmad-testarch-automate,,false,test_artifacts,nfr report
