@@ -242,7 +242,7 @@ function TopNav({
           <span style={{ fontFamily: 'var(--font-display)', color: '#C8521A', fontSize: 16, fontWeight: 700 }}>S</span>
         </div>
         <span style={{ fontFamily: 'var(--font-display)', color: '#FAF3E4', fontSize: 16, fontWeight: 700, letterSpacing: '0.02em' }}>Sai Library</span>
-        <span style={{ fontFamily: 'var(--font-mono)', color: '#9B7B6A', fontSize: 8, letterSpacing: '0.1em', marginLeft: 4 }}>Est. 1923</span>
+        <span style={{ fontFamily: 'var(--font-mono)', color: '#9B7B6A', fontSize: 10, letterSpacing: '0.1em', marginLeft: 4 }}>Est. 2026</span>
       </div>
 
       {/* Page links */}
@@ -250,7 +250,7 @@ function TopNav({
         {([
           ['home', '01', 'Home'],
           ['catalog', '02', 'Catalog'],
-          ['thought', '03', 'Daily Thought'],
+          ['thought', '03', 'Thought for the Day'],
           ['about', '04', 'Community'],
           ...(isStaff ? [['dashboard', '05', 'Dashboard'] as const] : []),
         ] as const).map(([id, num, label]) => (
@@ -261,8 +261,8 @@ function TopNav({
             onMouseEnter={e => { if (active !== id) e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
             onMouseLeave={e => { if (active !== id) e.currentTarget.style.background = 'transparent' }}
           >
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: active === id ? '#C8521A' : '#9B7B6A', letterSpacing: '0.1em' }}>{num}</span>
-            <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: active === id ? 600 : 400, color: active === id ? '#FAF3E4' : '#9B7B6A', letterSpacing: '0.06em' }}>{label}</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: active === id ? '#C8521A' : '#9B7B6A', letterSpacing: '0.1em' }}>{num}</span>
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: active === id ? 600 : 400, color: active === id ? '#FAF3E4' : '#9B7B6A', letterSpacing: '0.06em' }}>{label}</span>
           </button>
         ))}
       </nav>
@@ -2343,20 +2343,6 @@ function HomePage({ books, onSearch, onViewBook, cartIds, onAddToCart }: {
   }, [hoursSinceEpoch])
   const swamiQuote = useMemo(() => SWAMI_QUOTES[hoursSinceEpoch % SWAMI_QUOTES.length], [hoursSinceEpoch])
 
-  // The four categories with the most books, so the shortcuts under the search
-  // box point at real shelves rather than invented ones.
-  const topCategories = useMemo(() => {
-    const counts = new Map<string, number>()
-    for (const book of books) {
-      const name = book.category.trim()
-      if (name) counts.set(name, (counts.get(name) ?? 0) + 1)
-    }
-    return [...counts.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 4)
-      .map(([name]) => name)
-  }, [books])
-
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
     onSearch(heroQuery.trim())
@@ -2384,16 +2370,6 @@ function HomePage({ books, onSearch, onViewBook, cartIds, onAddToCart }: {
             </div>
             <button type="submit" style={{ padding: '13px 24px', background: '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', cursor: 'pointer' }}>Search</button>
           </form>
-
-          {/* The four biggest real categories, not the Figma placeholders
-              ('Fiction', 'Non-Fiction', 'Spiritual', 'History' — none of which
-              exist here). These also used to just dump you on the catalog with
-              no filter applied; they now search for the category. */}
-          <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-            {topCategories.map(cat => (
-              <button key={cat} onClick={() => onSearch(cat)} style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '5px 12px', background: 'rgba(250,243,228,0.1)', color: '#D4B896', border: '1px solid rgba(250,243,228,0.2)', cursor: 'pointer' }}>{cat}</button>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -2474,11 +2450,11 @@ function HomePage({ books, onSearch, onViewBook, cartIds, onAddToCart }: {
         ))}
       </section>
 
-      <section style={{ background: '#C8521A', padding: '44px 64px' }}>
+      <section style={{ background: '#2C1810', padding: '44px 64px' }}>
         <blockquote style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px,3vw,32px)', fontStyle: 'italic', color: '#FAF3E4', lineHeight: 1.4, maxWidth: 680 }}>
           "{swamiQuote.quote}"
         </blockquote>
-        <cite style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#F0C9A8', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginTop: 14 }}>— {swamiQuote.attribution}</cite>
+        <cite style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#E8A268', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginTop: 14 }}>— {swamiQuote.attribution}</cite>
       </section>
     </div>
   )
@@ -2586,7 +2562,7 @@ function ThoughtPage() {
     <div style={{ minHeight: '100vh' }}>
       {/* Header band */}
       <section style={{ background: '#2C1810', padding: '48px 64px 40px' }}>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.2em', color: '#C8521A', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.2em', color: '#C8521A', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
           Sai Inspires · From Prasanthi Nilayam
         </span>
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(30px,4.5vw,44px)', fontWeight: 700, color: '#FAF3E4', lineHeight: 1.1 }}>
@@ -2596,7 +2572,7 @@ function ThoughtPage() {
             India time, so from early afternoon the newest thought carries
             tomorrow's date. Showing the date plainly avoids contradicting it. */}
         {thought && (
-          <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#D4B896', marginTop: 10 }}>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: 16, color: '#D4B896', marginTop: 10 }}>
             {formatThoughtDate(thought.date)}
           </p>
         )}
