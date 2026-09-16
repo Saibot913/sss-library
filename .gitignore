@@ -19,10 +19,20 @@ graphify-out/
 .cursor/
 .aider*
 
-# BMAD Method (personal tooling, not part of the project)
-_bmad/
+# BMAD Method — only the skills project-instructions/GIT_WORKFLOW.md's
+# review config actually calls (bmad-code-review, bmad-testarch-test-review,
+# bmad-testarch-nfr, bmad-help) are tracked, trimmed down from a full
+# install so they work in any environment running that review, not just
+# whichever machine happened to install BMAD locally. Personal-scope config
+# (installer-managed *.user.toml) and generated output stay untracked.
+_bmad/config.user.toml
+_bmad/custom/config.user.toml
 _bmad-output/
 .claude/skills/bmad-*/
+!.claude/skills/bmad-code-review/
+!.claude/skills/bmad-testarch-test-review/
+!.claude/skills/bmad-testarch-nfr/
+!.claude/skills/bmad-help/
 
 # Playwright
 /test-results/
