@@ -2764,8 +2764,10 @@ function AboutPage() {
             </p>
           </div>
 
-          {/* Volunteer interest — hands off to an external Google Form,
-              see src/lib/volunteers.ts for why and how it's set up. */}
+          {/* Volunteer interest — will hand off to an external Google Form,
+              see src/lib/volunteers.ts for why and how it's set up. Fields
+              below mirror what that form will ask; submission isn't wired
+              up yet since the form itself doesn't exist. */}
           <div>
             <p style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 16 }}>Express your interest</p>
             <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#5C3D2E', lineHeight: 1.7, marginBottom: 20 }}>
@@ -2821,8 +2823,11 @@ function AboutPage() {
             </p>
           </div>
 
-          {/* Reviews/feedback — hands off to an external Google Form,
-              see src/lib/reviews.ts for why and how it's set up. */}
+          {/* Reviews/feedback — will hand off to an external Google Form,
+              see src/lib/reviews.ts for why and how it's set up. Fields
+              below mirror what that form will ask, including the
+              Book Review vs. Library Review branching; submission isn't
+              wired up yet since the form itself doesn't exist. */}
           <div>
             <p style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 16 }}>Share a review</p>
             <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#5C3D2E', lineHeight: 1.7, marginBottom: 20 }}>
