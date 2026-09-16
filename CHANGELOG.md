@@ -15,7 +15,11 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 
 ## [Unreleased]
 
+### Removed
+- The "top 4 categories" pill row under the homepage search box — cluttered and redundant with the catalog's own category filter.
+
 ### Changed
+- UI legibility pass: bumped several small header/nav/caption font sizes (nav labels, "Thought for the Day" page caption and date) that were hard to read up close, fixed the "Est. 1923" header tag to the correct year, renamed the "Daily Thought" nav link to "Thought for the Day" to match the page, and swapped the homepage quote banner's orange background for the dark brown used elsewhere (the light cream/peach text on orange had weak contrast).
 - Staff nav restructured into a hub: the account menu's separate Manage Books / Returns & Holds / Dashboard / Manage Staff buttons are now one "Staff" entry leading to `/staff`, a page showing every staff page as a clickable box. Each staff page now has a "← Staff Menu" link back to that hub, distinct from the site's real Home link — done to stop the account menu from growing one item per staff page as more get added.
 
 ### Added
