@@ -1,15 +1,96 @@
-// Same approach as volunteers.ts: an external Google Form instead of a
-// Supabase table. This is a general feedback/review form, not reviews
-// attached to individual book pages — no rating, no per-book display on
-// the site. Responses land in a Google Sheet the same way a Form always
-// does, so there's nothing to build to go read them.
+import { supabase } from './supabaseClient'
+
+// The external Reviews & Feedback Google Form is still the intake for raw
+// submissions — nothing here changes that. What's new (0019_book_reviews.sql)
+// is a staff-curated `reviews` table: staff reads the spreadsheet and, for
+// any submission worth publishing, types it in via the staff Reviews page.
+// No Sheets API, no "pending" queue — every row here is already published.
 //
 // TODO(owner): create the form under the org's Google account (same one
-// as the volunteer form — see src/lib/volunteers.ts) with four fields:
+// as the volunteer form — see src/lib/volunteers.ts) with:
 //   - Name (short answer, required)
 //   - Email or phone (short answer, required)
-//   - Type (dropdown, required) — options: "Book Review", "Website / Library Review"
-//   - Review (paragraph, required)
+//   - Category (dropdown, required) — options: "Book Review", "Library Review"
+//     — use Google Forms' "Go to section based on answer" branching so
+//     picking "Book Review" reveals a required "Book Title" short-answer
+//     field right before the review box, and "Library Review" skips
+//     straight to the review box (no title field shown at all).
+//   - Review (paragraph, required) — same field in both branches
 // Then: Send → the link (🔗) icon → copy the shareable link → paste it
 // below.
 export const REVIEW_FORM_URL = ''
+
+export type Review = {
+  id: string
+  /** null = a general library/site review, not tied to any specific book. */
+  bookCode: string | null
+  reviewerName: string
+  reviewText: string
+  createdAt: string
+}
+
+type ReviewRow = {
+  id: string
+  book_code: string | null
+  reviewer_name: string
+  review_text: string
+  created_at: string
+}
+
+function toReview(row: ReviewRow): Review {
+  return {
+    id: row.id,
+    bookCode: row.book_code,
+    reviewerName: row.reviewer_name,
+    reviewText: row.review_text,
+    createdAt: row.created_at,
+  }
+}
+
+const SELECT = 'id,book_code,reviewer_name,review_text,created_at'
+
+export async function fetchReviewsForBook(bookCode: string): Promise<Review[]> {
+  const { data, error } = await supabase
+    .from('reviews')
+    .select(SELECT)
+    .eq('book_code', bookCode)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data as ReviewRow[]).map(toReview)
+}
+
+/** General library/site reviews (book_code is null), most recent first. */
+export async function fetchLibraryReviews(limit = 15): Promise<Review[]> {
+  const { data, error } = await supabase
+    .from('reviews')
+    .select(SELECT)
+    .is('book_code', null)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error) throw error
+  return (data as ReviewRow[]).map(toReview)
+}
+
+/** Every review, both kinds — for the staff curation page's list. */
+export async function fetchAllReviewsForStaff(): Promise<Review[]> {
+  const { data, error } = await supabase
+    .from('reviews')
+    .select(SELECT)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data as ReviewRow[]).map(toReview)
+}
+
+export async function addReview(input: { bookCode: string | null; reviewerName: string; reviewText: string }): Promise<void> {
+  const { error } = await supabase.rpc('add_review', {
+    p_book_code: input.bookCode,
+    p_reviewer_name: input.reviewerName,
+    p_review_text: input.reviewText,
+  })
+  if (error) throw error
+}
+
+export async function deleteReview(id: string): Promise<void> {
+  const { error } = await supabase.rpc('delete_review', { p_review_id: id })
+  if (error) throw error
+}

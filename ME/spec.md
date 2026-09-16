@@ -144,4 +144,14 @@ Browser support: Chrome/Edge/Safari, and Firefox 126+ (older Firefox would silen
 
 **Status: idea only, nothing built.** Need to get Rucheet aunty's quotes list integrated into the site — she has a compiled list of quotes to source from. Not yet fleshed out: where it displays (its own section, folded into the existing `/thought` page alongside `thoughtForTheDay.ts`, or something separate), how the list itself gets into the app (one-time import into a table vs. an ongoing feed like the thought-of-the-day importer), and whether it needs attribution/formatting decisions the way the Sai Inspires quotes did. A Conductor workspace already exists for this on branch `surya-swami-reading-quotes` — flesh this out through conversation before building, same as everything else in this file.
 
+### 8. Staff hub restructure + per-book/library reviews — DONE (2026-09-16)
+
+**Status: executed.** Two changes, decided together through conversation.
+
+**Staff nav restructure:** the account menu previously had one button per staff page (Manage Books, Returns & Holds, Dashboard, Manage Staff) — decided this would clutter up as more staff pages get added. Replaced with a single "Staff" entry → `/staff`, a hub page (`StaffHomePage`) showing every staff page as a box/tile to click into. Each individual staff page now has a "← Staff Menu" link (`StaffBackLink`, a shared component using `useNavigate()` directly rather than prop-drilling) at its top, distinct from the site's actual Home link — clicking it returns to `/staff`, not the public homepage.
+
+**Reviews, two kinds in one table:** `reviews` (migration `0019_book_reviews.sql`) — `book_code` is nullable: non-null is a review of that specific book (shown on its book detail page under "Reader Reviews"), null is a general library/site review (shown in the Community tab under "§ 04 What People Are Saying", a horizontally-scrollable list of the most recent 15 — explicitly *not* an auto-advancing carousel, decided in conversation so a visitor can read at their own pace).
+- Source stays the existing external Reviews & Feedback Google Form (`REVIEW_FORM_URL`) — its setup instructions in `src/lib/reviews.ts` were updated to describe a Category dropdown (Book Review / Library Review) using Forms' native "Go to section based on answer" branching, so a Book Title field only appears for Book Review.
+- **Decided against a Sheets API integration** (would auto-pull pending submissions) **in favor of manual entry**: staff reads the spreadsheet themselves and types the reviewer name + text into the new `/staff/reviews` page. No external service account/credentials to set up, ships today. Revisit only if manual entry becomes a real bottleneck.
+- New RPCs `add_review`/`delete_review`, same security-definer pattern as everything else staff-gated — `reviews` itself is a public table (public `select`, no client insert/update/delete policy).
 
