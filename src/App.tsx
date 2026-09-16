@@ -3086,6 +3086,12 @@ export default function App() {
 
   async function submitHoldRequests() {
     if (!loggedIn || !currentPatron) {
+      // LoginModal and ProfilePage both render in normal flow / their own
+      // fixed overlay, but the cart drawer is itself a full-screen fixed
+      // overlay (zIndex 200) that stays open unless told otherwise — left
+      // open here, either one would render trapped behind it, invisible,
+      // which looks like clicking "Check Out" simply does nothing.
+      setShowCart(false)
       setLoginMode('login')
       setShowLogin(true)
       return
@@ -3094,6 +3100,7 @@ export default function App() {
     const storedProfile = getStoredProfile(currentPatron.email)
     const hasProfile = Boolean(currentPatron.firstName && currentPatron.lastName && currentPatron.phone) || Boolean(storedProfile && storedProfile.firstName && storedProfile.lastName && storedProfile.phone)
     if (!hasProfile) {
+      setShowCart(false)
       setShowProfileForm(true)
       return
     }
