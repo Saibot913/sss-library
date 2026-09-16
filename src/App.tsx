@@ -31,6 +31,7 @@ import {
   type StaffReservation,
 } from './lib/checkouts'
 import { fetchStaffList, addStaff, removeStaff } from './lib/staff'
+import { joinWaitlist, leaveWaitlist, checkIsOnWaitlist } from './lib/waitlist'
 import { SITE_NAME, SITE_ADDRESS, MEETING_ROOM } from './lib/siteInfo'
 import { invalidateBooksCache } from './lib/books'
 
@@ -1813,6 +1814,9 @@ function BookDetailPage({
   onAddToCart,
   onRemoveFromCart,
   onViewBook,
+  loggedIn,
+  onJoinWaitlist,
+  onLeaveWaitlist,
 }: {
   book: Book
   allBooks: Book[]
@@ -1821,6 +1825,9 @@ function BookDetailPage({
   onAddToCart: (id: string) => void
   onRemoveFromCart: (id: string) => void
   onViewBook: (book: Book) => void
+  loggedIn: boolean
+  onJoinWaitlist: (bookId: string) => Promise<boolean>
+  onLeaveWaitlist: (bookId: string) => Promise<boolean>
 }) {
   const avail = book.copiesAvailable
   const inCart = cartIds.includes(book.id)
@@ -1831,6 +1838,20 @@ function BookDetailPage({
     fetchReviewsForBook(book.id).then(data => { if (!cancelled) setReviews(data) }).catch(() => { if (!cancelled) setReviews([]) })
     return () => { cancelled = true }
   }, [book.id])
+
+  // Only relevant once every copy is on loan — no point checking waitlist
+  // membership for a book that's available to reserve outright.
+  const [onWaitlist, setOnWaitlist] = useState(false)
+  const [waitlistBusy, setWaitlistBusy] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    if (loggedIn && avail === 0) {
+      checkIsOnWaitlist(book.id).then(result => { if (!cancelled) setOnWaitlist(result) }).catch(() => { if (!cancelled) setOnWaitlist(false) })
+    } else {
+      setOnWaitlist(false)
+    }
+    return () => { cancelled = true }
+  }, [book.id, avail, loggedIn])
 
   const similar = useMemo(() => {
     return allBooks
@@ -1975,15 +1996,32 @@ function BookDetailPage({
                 </span>
               </div>
 
-              {/* Add to cart */}
-              <button
-                onClick={() => inCart ? onRemoveFromCart(book.id) : onAddToCart(book.id)}
-                style={{ width: '100%', padding: '13px', background: inCart ? '#2C1810' : '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', cursor: 'pointer', transition: 'background 0.2s', marginBottom: 10 }}
-                onMouseEnter={e => (e.currentTarget.style.background = inCart ? '#5C3D2E' : '#E8693A')}
-                onMouseLeave={e => (e.currentTarget.style.background = inCart ? '#2C1810' : '#C8521A')}
-              >
-                {inCart ? '✓ Added to Cart' : '+ Add to Cart'}
-              </button>
+              {/* Add to cart / join waitlist */}
+              {avail > 0 ? (
+                <button
+                  onClick={() => inCart ? onRemoveFromCart(book.id) : onAddToCart(book.id)}
+                  style={{ width: '100%', padding: '13px', background: inCart ? '#2C1810' : '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', cursor: 'pointer', transition: 'background 0.2s', marginBottom: 10 }}
+                  onMouseEnter={e => (e.currentTarget.style.background = inCart ? '#5C3D2E' : '#E8693A')}
+                  onMouseLeave={e => (e.currentTarget.style.background = inCart ? '#2C1810' : '#C8521A')}
+                >
+                  {inCart ? '✓ Added to Cart' : '+ Add to Cart'}
+                </button>
+              ) : (
+                <button
+                  disabled={waitlistBusy}
+                  onClick={async () => {
+                    setWaitlistBusy(true)
+                    const succeeded = onWaitlist ? await onLeaveWaitlist(book.id) : await onJoinWaitlist(book.id)
+                    if (succeeded) setOnWaitlist(!onWaitlist)
+                    setWaitlistBusy(false)
+                  }}
+                  style={{ width: '100%', padding: '13px', background: onWaitlist ? '#2C1810' : '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', cursor: waitlistBusy ? 'default' : 'pointer', opacity: waitlistBusy ? 0.7 : 1, transition: 'background 0.2s', marginBottom: 10 }}
+                  onMouseEnter={e => { if (!waitlistBusy) e.currentTarget.style.background = onWaitlist ? '#5C3D2E' : '#E8693A' }}
+                  onMouseLeave={e => { if (!waitlistBusy) e.currentTarget.style.background = onWaitlist ? '#2C1810' : '#C8521A' }}
+                >
+                  {onWaitlist ? "✓ You're on the Waitlist" : 'Join Waitlist'}
+                </button>
+              )}
 
               <p style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: '#9B7B6A', textAlign: 'center' }}>
                 {avail > 0 ? 'Reserve your copy for pickup.' : 'Join the waitlist — we\'ll notify you when available.'}
@@ -3161,6 +3199,44 @@ export default function App() {
     setShowCart(false)
   }
 
+  // Same gating as submitHoldRequests(): not-signed-in patrons go to
+  // LoginModal, signed-in patrons with an incomplete profile go to
+  // ProfilePage (join_waitlist requires first/last/phone on file).
+  // Returns whether the join actually happened, so BookDetailPage only
+  // flips to "on the waitlist" when it's true.
+  async function handleJoinWaitlist(bookId: string): Promise<boolean> {
+    if (!loggedIn || !currentPatron) {
+      setLoginMode('login')
+      setShowLogin(true)
+      return false
+    }
+
+    const storedProfile = getStoredProfile(currentPatron.email)
+    const hasCompleteProfile = Boolean(currentPatron.firstName && currentPatron.lastName && currentPatron.phone) || Boolean(storedProfile && storedProfile.firstName && storedProfile.lastName && storedProfile.phone)
+    if (!hasCompleteProfile) {
+      setShowProfileForm(true)
+      return false
+    }
+
+    try {
+      await joinWaitlist(bookId)
+      return true
+    } catch (err) {
+      setCheckoutError(err instanceof Error ? err.message : 'We could not add you to the waitlist.')
+      return false
+    }
+  }
+
+  async function handleLeaveWaitlist(bookId: string): Promise<boolean> {
+    try {
+      await leaveWaitlist(bookId)
+      return true
+    } catch (err) {
+      setCheckoutError(err instanceof Error ? err.message : 'We could not remove you from the waitlist.')
+      return false
+    }
+  }
+
   if (!siteUnlocked) {
     return <SiteGate onUnlock={() => { grantSiteAccess(); setSiteUnlocked(true) }} />
   }
@@ -3224,6 +3300,9 @@ export default function App() {
             onAddToCart={addToCart}
             onRemoveFromCart={removeFromCart}
             onViewBook={handleViewBook}
+            loggedIn={loggedIn}
+            onJoinWaitlist={handleJoinWaitlist}
+            onLeaveWaitlist={handleLeaveWaitlist}
           />
         ) : (
           <Routes>
