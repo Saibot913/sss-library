@@ -160,8 +160,8 @@ const SWAMI_QUOTES = [
 // Google Books API (see lib/bookCovers.ts) and cached. Falls back to a plain
 // placeholder box when no cover is found.
 
-function BookCover({ book, style, fallback }: { book: Book; style?: React.CSSProperties; fallback?: React.ReactNode }) {
-  const cover = useBookCover(book.title, book.author)
+function BookCover({ book, style, fallback, fetchCover = false }: { book: Book; style?: React.CSSProperties; fallback?: React.ReactNode; fetchCover?: boolean }) {
+  const cover = useBookCover(book.title, book.author, fetchCover)
   if (cover) {
     return <img src={cover} alt={book.title} style={{ objectFit: 'cover', display: 'block', width: '100%', height: '100%', ...style }} />
   }
@@ -1872,7 +1872,7 @@ function BookDetailPage({
     <div style={{ minHeight: '100vh', background: '#F4E9D0' }}>
       {/* Hero banner */}
       <div style={{ position: 'relative', height: 340, overflow: 'hidden' }}>
-        <BookCover book={book} fallback={<div style={{ position: 'absolute', inset: 0, background: '#2C1810' }} />} />
+        <BookCover book={book} fetchCover fallback={<div style={{ position: 'absolute', inset: 0, background: '#2C1810' }} />} />
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, rgba(44,24,16,0.92) 45%, rgba(44,24,16,0.4) 100%)' }} />
 
         {/* Back button */}
