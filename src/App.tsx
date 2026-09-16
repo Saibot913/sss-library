@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
-import { fetchBooks, type Book } from './lib/books'
+import { fetchBooks, addBook, addCopy, updateBook, updateCopy, type Book, type CopyStatus } from './lib/books'
 import { fetchThoughtForTheDay, type ThoughtForTheDay } from './lib/thoughtForTheDay'
 import { useBookCover } from './lib/bookCovers'
 import { VOLUNTEER_FORM_URL } from './lib/volunteers'
@@ -36,7 +36,7 @@ import { invalidateBooksCache } from './lib/books'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Page = 'home' | 'catalog' | 'thought' | 'about' | 'dashboard' | 'staffReturns' | 'staffManage'
+type Page = 'home' | 'catalog' | 'thought' | 'about' | 'dashboard' | 'staffReturns' | 'staffManage' | 'staffBooks'
 
 // Each page has a real URL, so pages can be linked to, bookmarked, and
 // refreshed, and the back button moves between them instead of leaving the
@@ -53,6 +53,7 @@ const PAGE_PATHS: Record<Page, string> = {
   dashboard: '/staff/dashboard',
   staffReturns: '/staff/returns',
   staffManage: '/staff/manage',
+  staffBooks: '/staff/books',
 }
 
 function pageFromPath(pathname: string): Page {
@@ -192,6 +193,7 @@ function TopNav({
   isStaff,
   onStaffManage,
   onStaffReturns,
+  onStaffBooks,
 }: {
   active: Page
   onNav: (p: Page) => void
@@ -209,6 +211,7 @@ function TopNav({
   isStaff: boolean
   onStaffManage: () => void
   onStaffReturns: () => void
+  onStaffBooks: () => void
 }) {
   const accountRef = useRef<HTMLDivElement>(null)
 
@@ -290,6 +293,9 @@ function TopNav({
                 </button>
                 {isStaff && (
                   <>
+                    <button onClick={onStaffBooks} style={{ width: '100%', textAlign: 'left', padding: '12px 14px', background: 'transparent', border: 'none', borderBottom: '1px solid #E7D7B0', color: '#2C1810', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                      Manage Books
+                    </button>
                     <button onClick={onStaffReturns} style={{ width: '100%', textAlign: 'left', padding: '12px 14px', background: 'transparent', border: 'none', borderBottom: '1px solid #E7D7B0', color: '#2C1810', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                       Returns & Holds
                     </button>
@@ -1046,6 +1052,445 @@ function StaffManagePage({ currentEmail }: { currentEmail: string }) {
               )
             })}
           </div>
+        )}
+      </section>
+    </div>
+  )
+}
+
+// Live convention (confirmed against real data, see ME/spec.md §1a): a
+// single copy's label is just the book_code (e.g. `BO01`); a second or
+// later copy is `book_code.NN`, zero-padded, but NOT necessarily
+// gapless (BV02 skips straight from .03 to .05 in the real catalog —
+// these look hand-assigned, not generated). So this only ever
+// *suggests* a next label; staff can freely overwrite it to match
+// whatever's physically written on the book.
+function suggestNextCopyLabel(book: Book): string {
+  const prefix = `${book.id}.`
+  const suffixes = book.copies
+    .map(c => (c.fullLabel.startsWith(prefix) ? parseInt(c.fullLabel.slice(prefix.length), 10) : NaN))
+    .filter(n => !Number.isNaN(n))
+  if (suffixes.length > 0) {
+    return `${book.id}.${String(Math.max(...suffixes) + 1).padStart(2, '0')}`
+  }
+  return book.copies.some(c => c.fullLabel === book.id) ? `${book.id}.02` : book.id
+}
+
+// Same "suggest, don't force" idea for book_code: append -2, -3, ... until
+// one isn't taken. Never auto-merges on a fuzzy title match — the catalog
+// deliberately keeps near-duplicate titles as separate real records (see
+// CHANGELOG.md), so only a suggestion is offered, never forced.
+function suggestBookCode(base: string, existingCodes: Set<string>): string {
+  if (!existingCodes.has(base)) return base
+  let n = 2
+  while (existingCodes.has(`${base}-${n}`)) n++
+  return `${base}-${n}`
+}
+
+const manageBooksInputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 13, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box' }
+const manageBooksLabelStyle: React.CSSProperties = { display: 'block', fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5 }
+
+function BookSearchPicker({ books, query, setQuery, onPick, placeholder }: { books: Book[]; query: string; setQuery: (q: string) => void; onPick: (book: Book) => void; placeholder: string }) {
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (q.length < 2) return []
+    return books.filter(b => b.title.toLowerCase().includes(q)).slice(0, 8)
+  }, [query, books])
+
+  return (
+    <div>
+      <input value={query} onChange={e => setQuery(e.target.value)} placeholder={placeholder} style={manageBooksInputStyle} />
+      {matches.length > 0 && (
+        <div style={{ marginTop: 8, display: 'grid', gap: 4 }}>
+          {matches.map(b => (
+            <button
+              key={b.id}
+              onClick={() => onPick(b)}
+              style={{ textAlign: 'left', padding: '8px 10px', background: '#F4E9D0', border: '1px solid #D4B896', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, color: '#2C1810' }}
+            >
+              {b.title} <span style={{ color: '#9B7B6A', fontSize: 11 }}>({b.id})</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ManageBooksPage({ books, onBooksChanged }: { books: Book[]; onBooksChanged: () => Promise<void> }) {
+  // ── Add: pick a mode, "copy" is the common case ──
+  const [addMode, setAddMode] = useState<'copy' | 'new'>('copy')
+
+  // Add a copy of an existing book
+  const [copySearch, setCopySearch] = useState('')
+  const [copyBook, setCopyBook] = useState<Book | null>(null)
+  const [copyLabel, setCopyLabel] = useState('')
+  const [copyLocation, setCopyLocation] = useState('')
+  const [copyBusy, setCopyBusy] = useState(false)
+  const [copyMessage, setCopyMessage] = useState('')
+
+  function pickCopyBook(book: Book) {
+    setCopyBook(book)
+    setCopySearch(book.title)
+    setCopyLabel(suggestNextCopyLabel(book))
+  }
+
+  async function handleAddCopy(e: React.FormEvent) {
+    e.preventDefault()
+    if (!copyBook) return
+    try {
+      setCopyBusy(true)
+      setCopyMessage('')
+      await addCopy(copyBook.id, copyLabel.trim(), copyLocation.trim())
+      setCopyMessage(`Added copy ${copyLabel.trim()} of "${copyBook.title}".`)
+      setCopyBook(null)
+      setCopySearch('')
+      setCopyLabel('')
+      setCopyLocation('')
+      await onBooksChanged()
+    } catch (err) {
+      setCopyMessage(err instanceof Error ? err.message : 'Could not add that copy.')
+    } finally {
+      setCopyBusy(false)
+    }
+  }
+
+  // Add a brand new book
+  const existingCodes = useMemo(() => new Set(books.map(b => b.id)), [books])
+  const [newTitle, setNewTitle] = useState('')
+  const [newAuthor, setNewAuthor] = useState('')
+  const [newYear, setNewYear] = useState('')
+  const [newPublisher, setNewPublisher] = useState('')
+  const [newCategory, setNewCategory] = useState('')
+  const [newTags, setNewTags] = useState('')
+  const [newSummary, setNewSummary] = useState('')
+  const [newBookCode, setNewBookCode] = useState('')
+  const [newBookCodeTouched, setNewBookCodeTouched] = useState(false)
+  const [newLabel, setNewLabel] = useState('')
+  const [newLabelTouched, setNewLabelTouched] = useState(false)
+  const [newLocation, setNewLocation] = useState('')
+  const [newBusy, setNewBusy] = useState(false)
+  const [newMessage, setNewMessage] = useState('')
+
+  const titleMatches = useMemo(() => {
+    const q = newTitle.trim().toLowerCase()
+    if (q.length < 3) return []
+    return books.filter(b => b.title.toLowerCase().includes(q)).slice(0, 5)
+  }, [newTitle, books])
+
+  function deriveCode(title: string) {
+    const base = title.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 8) || 'BOOK'
+    return suggestBookCode(base, existingCodes)
+  }
+
+  function handleNewTitleChange(value: string) {
+    setNewTitle(value)
+    if (!newBookCodeTouched) {
+      const suggested = deriveCode(value)
+      setNewBookCode(suggested)
+      if (!newLabelTouched) setNewLabel(suggested)
+    }
+  }
+
+  async function handleAddBook(e: React.FormEvent) {
+    e.preventDefault()
+    try {
+      setNewBusy(true)
+      setNewMessage('')
+      await addBook({
+        bookCode: newBookCode.trim(),
+        title: newTitle.trim(),
+        author: newAuthor.trim(),
+        yearPublished: newYear.trim(),
+        publishedBy: newPublisher.trim(),
+        category: newCategory.trim(),
+        tags: newTags.trim(),
+        summary: newSummary.trim(),
+        fullLabel: newLabel.trim(),
+        location: newLocation.trim(),
+      })
+      setNewMessage(`Added "${newTitle.trim()}" (${newBookCode.trim()}).`)
+      setNewTitle('')
+      setNewAuthor('')
+      setNewYear('')
+      setNewPublisher('')
+      setNewCategory('')
+      setNewTags('')
+      setNewSummary('')
+      setNewBookCode('')
+      setNewBookCodeTouched(false)
+      setNewLabel('')
+      setNewLabelTouched(false)
+      setNewLocation('')
+      await onBooksChanged()
+    } catch (err) {
+      setNewMessage(err instanceof Error ? err.message : 'Could not add that book.')
+    } finally {
+      setNewBusy(false)
+    }
+  }
+
+  // ── Edit an existing book ──
+  const [editSearch, setEditSearch] = useState('')
+  const [editBook, setEditBook] = useState<Book | null>(null)
+  const [editAuthor, setEditAuthor] = useState('')
+  const [editYear, setEditYear] = useState('')
+  const [editPublisher, setEditPublisher] = useState('')
+  const [editCategory, setEditCategory] = useState('')
+  const [editTags, setEditTags] = useState('')
+  const [editSummary, setEditSummary] = useState('')
+  const [editBusy, setEditBusy] = useState(false)
+  const [editMessage, setEditMessage] = useState('')
+  const [copyEdits, setCopyEdits] = useState<Record<string, { location: string; status: CopyStatus }>>({})
+  const [copyBusyLabel, setCopyBusyLabel] = useState<string | null>(null)
+
+  function pickEditBook(book: Book) {
+    setEditBook(book)
+    setEditSearch(book.title)
+    setEditAuthor(book.author)
+    setEditYear(book.year)
+    setEditPublisher(book.publisher)
+    setEditCategory(book.category)
+    setEditTags(book.keywords.join(', '))
+    setEditSummary(book.summary)
+    setEditMessage('')
+    setCopyEdits(Object.fromEntries(book.copies.map(c => [
+      c.fullLabel,
+      { location: '', status: (c.status === 'lost' || c.status === 'damaged' || c.status === 'withdrawn' ? c.status : 'available') as CopyStatus },
+    ])))
+  }
+
+  async function handleEditBook(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editBook) return
+    try {
+      setEditBusy(true)
+      setEditMessage('')
+      await updateBook({
+        bookCode: editBook.id,
+        author: editAuthor.trim(),
+        yearPublished: editYear.trim(),
+        publishedBy: editPublisher.trim(),
+        category: editCategory.trim(),
+        tags: editTags.trim(),
+        summary: editSummary.trim(),
+      })
+      setEditMessage('Saved.')
+      await onBooksChanged()
+    } catch (err) {
+      setEditMessage(err instanceof Error ? err.message : 'Could not save those changes.')
+    } finally {
+      setEditBusy(false)
+    }
+  }
+
+  async function handleSaveCopy(fullLabel: string) {
+    const edit = copyEdits[fullLabel]
+    if (!edit) return
+    try {
+      setCopyBusyLabel(fullLabel)
+      await updateCopy(fullLabel, edit.location.trim(), edit.status)
+      setEditMessage(`Saved ${fullLabel}.`)
+      await onBooksChanged()
+    } catch (err) {
+      setEditMessage(err instanceof Error ? err.message : `Could not save ${fullLabel}.`)
+    } finally {
+      setCopyBusyLabel(null)
+    }
+  }
+
+  return (
+    <div style={{ maxWidth: 720, margin: '0 auto', padding: '48px 24px' }}>
+      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: '#2C1810', marginBottom: 24 }}>Manage Books</h1>
+
+      {/* ── Add a Book ── */}
+      <section style={{ marginBottom: 32, background: '#FAF3E4', border: '1px solid #D4B896', padding: 20 }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: '#2C1810', marginBottom: 14 }}>Add a Book</h2>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <button onClick={() => setAddMode('copy')} style={{ padding: '8px 14px', background: addMode === 'copy' ? '#C8521A' : 'transparent', color: addMode === 'copy' ? '#FAF3E4' : '#2C1810', border: '1px solid #C8521A', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600 }}>Add a copy of an existing book</button>
+          <button onClick={() => setAddMode('new')} style={{ padding: '8px 14px', background: addMode === 'new' ? '#C8521A' : 'transparent', color: addMode === 'new' ? '#FAF3E4' : '#2C1810', border: '1px solid #C8521A', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600 }}>Add a brand new book</button>
+        </div>
+
+        {addMode === 'copy' ? (
+          <form onSubmit={handleAddCopy} style={{ display: 'grid', gap: 12 }}>
+            <div>
+              <label style={manageBooksLabelStyle}>Find the book</label>
+              <BookSearchPicker books={books} query={copySearch} setQuery={q => { setCopySearch(q); setCopyBook(null) }} onPick={pickCopyBook} placeholder="Search by title…" />
+            </div>
+            {copyBook && (
+              <>
+                <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#9B7B6A' }}>
+                  Adding a copy of <strong style={{ color: '#2C1810' }}>{copyBook.title}</strong> ({copyBook.id}). It already has {copyBook.copies.length} {copyBook.copies.length === 1 ? 'copy' : 'copies'}.
+                </p>
+                <div>
+                  <label style={manageBooksLabelStyle}>Copy label (edit if the physical book has a different number)</label>
+                  <input value={copyLabel} onChange={e => setCopyLabel(e.target.value)} required style={manageBooksInputStyle} />
+                </div>
+                <div>
+                  <label style={manageBooksLabelStyle}>Shelf location</label>
+                  <input value={copyLocation} onChange={e => setCopyLocation(e.target.value)} required style={manageBooksInputStyle} />
+                </div>
+                <button type="submit" disabled={copyBusy} style={{ padding: '10px 18px', background: copyBusy ? '#A56A44' : '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, border: 'none', cursor: copyBusy ? 'not-allowed' : 'pointer', justifySelf: 'start' }}>Add Copy</button>
+              </>
+            )}
+            {copyMessage && <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#C8521A' }}>{copyMessage}</p>}
+          </form>
+        ) : (
+          <form onSubmit={handleAddBook} style={{ display: 'grid', gap: 12 }}>
+            <div>
+              <label style={manageBooksLabelStyle}>Title</label>
+              <input value={newTitle} onChange={e => handleNewTitleChange(e.target.value)} required style={manageBooksInputStyle} />
+            </div>
+            {titleMatches.length > 0 && (
+              <div style={{ background: '#F4E9D0', border: '1px solid #D4B896', padding: 12 }}>
+                <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#5C3D2E', marginBottom: 8 }}>This looks similar to a book already in the catalog — add a copy instead?</p>
+                <div style={{ display: 'grid', gap: 4 }}>
+                  {titleMatches.map(b => (
+                    <button key={b.id} type="button" onClick={() => { setAddMode('copy'); pickCopyBook(b) }} style={{ textAlign: 'left', padding: '6px 8px', background: 'transparent', border: '1px solid #D4B896', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 12, color: '#2C1810' }}>
+                      {b.title} <span style={{ color: '#9B7B6A' }}>({b.id})</span> — add a copy of this
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div>
+              <label style={manageBooksLabelStyle}>Author</label>
+              <input value={newAuthor} onChange={e => setNewAuthor(e.target.value)} style={manageBooksInputStyle} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={manageBooksLabelStyle}>Year published</label>
+                <input value={newYear} onChange={e => setNewYear(e.target.value)} style={manageBooksInputStyle} />
+              </div>
+              <div>
+                <label style={manageBooksLabelStyle}>Publisher</label>
+                <input value={newPublisher} onChange={e => setNewPublisher(e.target.value)} style={manageBooksInputStyle} />
+              </div>
+            </div>
+            <div>
+              <label style={manageBooksLabelStyle}>Category</label>
+              <input value={newCategory} onChange={e => setNewCategory(e.target.value)} style={manageBooksInputStyle} />
+            </div>
+            <div>
+              <label style={manageBooksLabelStyle}>Tags (comma-separated)</label>
+              <input value={newTags} onChange={e => setNewTags(e.target.value)} style={manageBooksInputStyle} />
+            </div>
+            <div>
+              <label style={manageBooksLabelStyle}>Summary</label>
+              <textarea value={newSummary} onChange={e => setNewSummary(e.target.value)} rows={3} style={{ ...manageBooksInputStyle, resize: 'vertical' }} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={manageBooksLabelStyle}>Book code {existingCodes.has(newBookCode) && <span style={{ color: '#C8521A' }}>— already taken</span>}</label>
+                <input value={newBookCode} onChange={e => { setNewBookCode(e.target.value); setNewBookCodeTouched(true) }} required style={manageBooksInputStyle} />
+              </div>
+              <div>
+                <label style={manageBooksLabelStyle}>First copy's label</label>
+                <input value={newLabel} onChange={e => { setNewLabel(e.target.value); setNewLabelTouched(true) }} required style={manageBooksInputStyle} />
+              </div>
+            </div>
+            <div>
+              <label style={manageBooksLabelStyle}>Shelf location</label>
+              <input value={newLocation} onChange={e => setNewLocation(e.target.value)} required style={manageBooksInputStyle} />
+            </div>
+            <button type="submit" disabled={newBusy} style={{ padding: '10px 18px', background: newBusy ? '#A56A44' : '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, border: 'none', cursor: newBusy ? 'not-allowed' : 'pointer', justifySelf: 'start' }}>Add Book</button>
+            {newMessage && <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#C8521A' }}>{newMessage}</p>}
+          </form>
+        )}
+      </section>
+
+      {/* ── Edit a Book ── */}
+      <section style={{ background: '#FAF3E4', border: '1px solid #D4B896', padding: 20 }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: '#2C1810', marginBottom: 14 }}>Edit a Book</h2>
+        <div style={{ marginBottom: 16 }}>
+          <label style={manageBooksLabelStyle}>Find the book</label>
+          <BookSearchPicker books={books} query={editSearch} setQuery={q => { setEditSearch(q); setEditBook(null) }} onPick={pickEditBook} placeholder="Search by title…" />
+        </div>
+
+        {editBook && (
+          <>
+            <form onSubmit={handleEditBook} style={{ display: 'grid', gap: 12, marginBottom: 20 }}>
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#2C1810' }}>
+                <strong>{editBook.title}</strong> <span style={{ color: '#9B7B6A', fontSize: 12 }}>({editBook.id}) — title can't be changed here</span>
+              </p>
+              <div>
+                <label style={manageBooksLabelStyle}>Author</label>
+                <input value={editAuthor} onChange={e => setEditAuthor(e.target.value)} style={manageBooksInputStyle} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={manageBooksLabelStyle}>Year published</label>
+                  <input value={editYear} onChange={e => setEditYear(e.target.value)} style={manageBooksInputStyle} />
+                </div>
+                <div>
+                  <label style={manageBooksLabelStyle}>Publisher</label>
+                  <input value={editPublisher} onChange={e => setEditPublisher(e.target.value)} style={manageBooksInputStyle} />
+                </div>
+              </div>
+              <div>
+                <label style={manageBooksLabelStyle}>Category</label>
+                <input value={editCategory} onChange={e => setEditCategory(e.target.value)} style={manageBooksInputStyle} />
+              </div>
+              <div>
+                <label style={manageBooksLabelStyle}>Tags (comma-separated)</label>
+                <input value={editTags} onChange={e => setEditTags(e.target.value)} style={manageBooksInputStyle} />
+              </div>
+              <div>
+                <label style={manageBooksLabelStyle}>Summary</label>
+                <textarea value={editSummary} onChange={e => setEditSummary(e.target.value)} rows={3} style={{ ...manageBooksInputStyle, resize: 'vertical' }} />
+              </div>
+              <button type="submit" disabled={editBusy} style={{ padding: '10px 18px', background: editBusy ? '#A56A44' : '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, border: 'none', cursor: editBusy ? 'not-allowed' : 'pointer', justifySelf: 'start' }}>Save Book Details</button>
+            </form>
+
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 16, color: '#2C1810', marginBottom: 10 }}>Copies</h3>
+            <div style={{ display: 'grid', gap: 10 }}>
+              {editBook.copies.map(copy => {
+                const edit = copyEdits[copy.fullLabel] ?? { location: '', status: 'available' as CopyStatus }
+                const isCheckedOut = copy.status === 'checked_out'
+                return (
+                  <div key={copy.fullLabel} style={{ padding: '10px 12px', background: '#F4E9D0', border: '1px solid #D4B896', display: 'grid', gap: 8 }}>
+                    <strong style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: '#2C1810' }}>{copy.fullLabel}</strong>
+                    {isCheckedOut ? (
+                      <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#9B7B6A' }}>Checked out — process a return on the Returns & Holds page before editing this copy.</p>
+                    ) : (
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'end', flexWrap: 'wrap' }}>
+                        <div style={{ flex: '1 1 160px' }}>
+                          <label style={manageBooksLabelStyle}>Location</label>
+                          <input
+                            value={edit.location}
+                            onChange={e => setCopyEdits(prev => ({ ...prev, [copy.fullLabel]: { ...edit, location: e.target.value } }))}
+                            placeholder="e.g. shelf location"
+                            style={manageBooksInputStyle}
+                          />
+                        </div>
+                        <div>
+                          <label style={manageBooksLabelStyle}>Status</label>
+                          <select
+                            value={edit.status}
+                            onChange={e => setCopyEdits(prev => ({ ...prev, [copy.fullLabel]: { ...edit, status: e.target.value as CopyStatus } }))}
+                            style={{ ...manageBooksInputStyle, width: 'auto' }}
+                          >
+                            <option value="available">Available</option>
+                            <option value="lost">Lost</option>
+                            <option value="damaged">Damaged</option>
+                            <option value="withdrawn">Withdrawn</option>
+                          </select>
+                        </div>
+                        <button
+                          onClick={() => handleSaveCopy(copy.fullLabel)}
+                          disabled={copyBusyLabel === copy.fullLabel}
+                          style={{ padding: '9px 14px', background: copyBusyLabel === copy.fullLabel ? '#A56A44' : '#C8521A', color: '#FAF3E4', border: 'none', cursor: copyBusyLabel === copy.fullLabel ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600 }}
+                        >
+                          Save
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            {editMessage && <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#C8521A', marginTop: 12 }}>{editMessage}</p>}
+          </>
         )}
       </section>
     </div>
@@ -2223,6 +2668,12 @@ function AboutPage() {
 export default function App() {
   const [siteUnlocked, setSiteUnlocked] = useState(() => hasSiteAccess())
   const [books, setBooks] = useState<Book[]>([])
+  // Add/edit-book actions already invalidate the cache themselves (see
+  // src/lib/books.ts); this is what actually gets the App-level `books`
+  // state to reflect that afterwards.
+  async function reloadBooks() {
+    setBooks(await fetchBooks())
+  }
   const [booksLoading, setBooksLoading] = useState(true)
   const [booksError, setBooksError] = useState<string | null>(null)
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
@@ -2531,6 +2982,7 @@ export default function App() {
         isStaff={Boolean(currentPatron) && isStaff}
         onStaffReturns={() => { setShowUserMenu(false); navigate(PAGE_PATHS.staffReturns) }}
         onStaffManage={() => { setShowUserMenu(false); navigate(PAGE_PATHS.staffManage) }}
+        onStaffBooks={() => { setShowUserMenu(false); navigate(PAGE_PATHS.staffBooks) }}
         loggedIn={loggedIn}
         userName={userName}
         showUserMenu={showUserMenu}
@@ -2566,6 +3018,7 @@ export default function App() {
             <Route path={PAGE_PATHS.dashboard} element={currentPatron && isStaff ? <DashboardPage /> : <Navigate to={PAGE_PATHS.home} replace />} />
             <Route path={PAGE_PATHS.staffReturns} element={currentPatron && isStaff ? <StaffReturnsPage /> : <Navigate to={PAGE_PATHS.home} replace />} />
             <Route path={PAGE_PATHS.staffManage} element={currentPatron && isStaff ? <StaffManagePage currentEmail={currentPatron.email} /> : <Navigate to={PAGE_PATHS.home} replace />} />
+            <Route path={PAGE_PATHS.staffBooks} element={currentPatron && isStaff ? <ManageBooksPage books={books} onBooksChanged={reloadBooks} /> : <Navigate to={PAGE_PATHS.home} replace />} />
             <Route
               path={AUTH_REDIRECT_PATH}
               element={authReturnMode === 'login' || !authReady ? (
