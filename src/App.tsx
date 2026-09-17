@@ -3,8 +3,8 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import { fetchBooks, addBook, addCopy, updateBook, updateCopy, type Book, type CopyStatus } from './lib/books'
 import { fetchThoughtForTheDay, type ThoughtForTheDay } from './lib/thoughtForTheDay'
 import { useBookCover } from './lib/bookCovers'
-import { VOLUNTEER_FORM_URL } from './lib/volunteers'
-import { REVIEW_FORM_URL, fetchReviewsForBook, fetchLibraryReviews, fetchAllReviewsForStaff, addReview, deleteReview, type Review } from './lib/reviews'
+import { VOLUNTEER_FORM_URL, VOLUNTEER_RESPONSES_SHEET_URL } from './lib/volunteers'
+import { REVIEW_FORM_URL, REVIEW_RESPONSES_SHEET_URL, fetchReviewsForBook, fetchLibraryReviews, fetchAllReviewsForStaff, addReview, deleteReview, type Review } from './lib/reviews'
 import { SITE_PASSWORD, hasSiteAccess, grantSiteAccess } from './lib/siteAccess'
 import { AUTH_REDIRECT_PATH, deleteAccount, getCurrentPatron, onAuthChange, requestSignInCode, signOut, updatePatronProfile, type Patron } from './lib/auth'
 import {
@@ -38,7 +38,7 @@ import { invalidateBooksCache } from './lib/books'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Page = 'home' | 'catalog' | 'thought' | 'about' | 'staff' | 'dashboard' | 'staffReturns' | 'staffManage' | 'staffBooks' | 'staffReviews'
+type Page = 'home' | 'catalog' | 'thought' | 'about' | 'staff' | 'dashboard' | 'staffReturns' | 'staffManage' | 'staffBooks' | 'staffReviews' | 'staffVolunteers'
 
 // Each page has a real URL, so pages can be linked to, bookmarked, and
 // refreshed, and the back button moves between them instead of leaving the
@@ -58,6 +58,7 @@ const PAGE_PATHS: Record<Page, string> = {
   staff: '/staff',
   staffBooks: '/staff/books',
   staffReviews: '/staff/reviews',
+  staffVolunteers: '/staff/volunteers',
 }
 
 function pageFromPath(pathname: string): Page | null {
@@ -645,6 +646,7 @@ function StaffHomePage() {
     { page: 'staffReturns', title: 'Returns & Holds', description: 'Process returns and release stale holds.' },
     { page: 'dashboard', title: 'Metrics', description: 'Checkout traffic, popular books, and other stats.' },
     { page: 'staffReviews', title: 'Reviews', description: 'Publish curated book and library reviews.' },
+    { page: 'staffVolunteers', title: 'Volunteers', description: 'Check volunteer interest submissions.' },
     { page: 'staffManage', title: 'Manage Staff', description: 'Add or remove staff access.' },
   ]
   return (
@@ -664,6 +666,24 @@ function StaffHomePage() {
           </button>
         ))}
       </div>
+    </div>
+  )
+}
+
+function StaffVolunteersPage() {
+  return (
+    <div style={{ maxWidth: 720, margin: '0 auto', padding: '48px 24px' }}>
+      <StaffBackLink />
+      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: '#2C1810', marginBottom: 8 }}>Volunteers</h1>
+      <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#9B7B6A', marginBottom: 12 }}>
+        Volunteer interest is collected via an external Google Form — see submissions in the linked spreadsheet and follow up directly.
+      </p>
+      <a href={VOLUNTEER_RESPONSES_SHEET_URL} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: '#C8521A', marginBottom: 24 }}>
+        View Submissions ↗
+      </a>
+      <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#9B7B6A', fontStyle: 'italic' }}>
+        More to come on this page.
+      </p>
     </div>
   )
 }
@@ -1618,9 +1638,12 @@ function StaffReviewsPage({ books }: { books: Book[] }) {
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '48px 24px' }}>
       <StaffBackLink />
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: '#2C1810', marginBottom: 8 }}>Reviews</h1>
-      <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#9B7B6A', marginBottom: 24 }}>
+      <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#9B7B6A', marginBottom: 12 }}>
         Read submissions in the Reviews &amp; Feedback spreadsheet, then publish the ones worth featuring here. A book review shows up on that book's page; a library review shows up in the Community tab.
       </p>
+      <a href={REVIEW_RESPONSES_SHEET_URL} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: '#C8521A', marginBottom: 24 }}>
+        View Submissions ↗
+      </a>
 
       <section style={{ marginBottom: 32, background: '#FAF3E4', border: '1px solid #D4B896', padding: 20 }}>
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: '#2C1810', marginBottom: 14 }}>Publish a Review</h2>
@@ -2764,10 +2787,8 @@ function AboutPage() {
             </p>
           </div>
 
-          {/* Volunteer interest — will hand off to an external Google Form,
-              see src/lib/volunteers.ts for why and how it's set up. Fields
-              below mirror what that form will ask; submission isn't wired
-              up yet since the form itself doesn't exist. */}
+          {/* Volunteer interest — hands off to an external Google Form,
+              see src/lib/volunteers.ts for why and how it's set up. */}
           <div>
             <p style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 16 }}>Express your interest</p>
             <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#5C3D2E', lineHeight: 1.7, marginBottom: 20 }}>
@@ -2823,11 +2844,8 @@ function AboutPage() {
             </p>
           </div>
 
-          {/* Reviews/feedback — will hand off to an external Google Form,
-              see src/lib/reviews.ts for why and how it's set up. Fields
-              below mirror what that form will ask, including the
-              Book Review vs. Library Review branching; submission isn't
-              wired up yet since the form itself doesn't exist. */}
+          {/* Reviews/feedback — hands off to an external Google Form,
+              see src/lib/reviews.ts for why and how it's set up. */}
           <div>
             <p style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 16 }}>Share a review</p>
             <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#5C3D2E', lineHeight: 1.7, marginBottom: 20 }}>
@@ -3307,6 +3325,7 @@ export default function App() {
             <Route path={PAGE_PATHS.staffManage} element={currentPatron && isStaff ? <StaffManagePage currentEmail={currentPatron.email} /> : <Navigate to={PAGE_PATHS.home} replace />} />
             <Route path={PAGE_PATHS.staffBooks} element={currentPatron && isStaff ? <ManageBooksPage books={books} onBooksChanged={reloadBooks} /> : <Navigate to={PAGE_PATHS.home} replace />} />
             <Route path={PAGE_PATHS.staffReviews} element={currentPatron && isStaff ? <StaffReviewsPage books={books} /> : <Navigate to={PAGE_PATHS.home} replace />} />
+            <Route path={PAGE_PATHS.staffVolunteers} element={currentPatron && isStaff ? <StaffVolunteersPage /> : <Navigate to={PAGE_PATHS.home} replace />} />
             <Route
               path={AUTH_REDIRECT_PATH}
               element={authReturnMode === 'login' || !authReady ? (
