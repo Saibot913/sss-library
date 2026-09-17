@@ -44,6 +44,13 @@ function cacheKey(title: string, author: string): string {
   return `${CACHE_PREFIX}${title}::${author}`
 }
 
+// Thrown for failures that say nothing about whether the book actually has
+// cover art — a rate limit or a server hiccup, not "confirmed no cover".
+// The caller must not cache a negative result on this, or a transient burst
+// (e.g. scrolling fast through a big catalog) permanently marks books as
+// coverless in localStorage even though a retry later would have worked.
+class TransientCoverError extends Error {}
+
 async function fetchFromGoogleBooks(title: string, author: string): Promise<string | null> {
   const apiKey = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY
   if (!apiKey) return null
@@ -52,6 +59,9 @@ async function fetchFromGoogleBooks(title: string, author: string): Promise<stri
   const url = `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=1&key=${apiKey}`
 
   const response = await fetch(url)
+  if (response.status === 429 || response.status >= 500) {
+    throw new TransientCoverError(`Google Books returned ${response.status}`)
+  }
   if (!response.ok) return null
 
   const data = await response.json()
@@ -68,6 +78,9 @@ async function fetchFromOpenLibrary(title: string, author: string): Promise<stri
   const url = `https://openlibrary.org/search.json?q=${query}&fields=cover_i&limit=1`
 
   const response = await fetch(url)
+  if (response.status === 429 || response.status >= 500) {
+    throw new TransientCoverError(`Open Library returned ${response.status}`)
+  }
   if (!response.ok) return null
 
   const data = await response.json()
@@ -78,9 +91,31 @@ async function fetchFromOpenLibrary(title: string, author: string): Promise<stri
 }
 
 async function fetchCoverUrl(title: string, author: string): Promise<string | null> {
-  const fromGoogle = await fetchFromGoogleBooks(title, author)
-  if (fromGoogle) return fromGoogle
-  return fetchFromOpenLibrary(title, author)
+  let googleWasTransientFailure = false
+  try {
+    const fromGoogle = await fetchFromGoogleBooks(title, author)
+    if (fromGoogle) return fromGoogle
+  } catch (err) {
+    if (!(err instanceof TransientCoverError)) throw err
+    googleWasTransientFailure = true
+  }
+
+  try {
+    const fromOpenLibrary = await fetchFromOpenLibrary(title, author)
+    if (fromOpenLibrary) return fromOpenLibrary
+  } catch (err) {
+    if (!(err instanceof TransientCoverError)) throw err
+    // Both sources transiently failed (or Google did and Open Library also
+    // just failed) — propagate so the caller doesn't cache a false negative.
+    throw err
+  }
+
+  // Open Library resolved cleanly with nothing, but Google only failed
+  // transiently rather than confirming "no cover" — still not safe to
+  // cache as a final answer.
+  if (googleWasTransientFailure) throw new TransientCoverError('Google was rate-limited/erroring; Open Library had nothing either')
+
+  return null
 }
 
 // Fetches only fire once the element is actually scrolled into view (plus a
@@ -133,9 +168,15 @@ export function useBookCover(title: string, author: string, enabled: boolean = t
         localStorage.setItem(key, JSON.stringify(url))
         if (!cancelled) setCover(url)
       })
-      .catch(() => {
-        memoryCache.set(key, null)
-        localStorage.setItem(key, JSON.stringify(null))
+      .catch(err => {
+        // A transient failure (rate limit, server error) isn't "confirmed
+        // no cover" — don't poison the cache with it, or a burst of
+        // requests during fast scrolling permanently marks books as
+        // coverless even though a later retry would succeed.
+        if (!(err instanceof TransientCoverError)) {
+          memoryCache.set(key, null)
+          localStorage.setItem(key, JSON.stringify(null))
+        }
         if (!cancelled) setCover(null)
       })
     return () => { cancelled = true }
