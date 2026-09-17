@@ -17,6 +17,7 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 
 ### Removed
 - The "top 4 categories" pill row under the homepage search box — cluttered and redundant with the catalog's own category filter.
+- The Catalog page's top-bar "Filters" toggle button (and the duplicate Category/Availability/Year row it expanded) — every filter it controlled already lives in the sidebar, so it was a second, redundant way to set the same filters.
 
 ### Fixed
 - Thought for the Day text showed raw HTML entities (e.g. `&ldquo;`, `&rsquo;`) instead of curly quotes/dashes — the Apps Script importer's `decodeEntities()` only handled a handful of entities and missed the ones the Sai Inspires email actually uses. Only fixes rows imported from now on; existing rows in `thought_of_the_day` still have the raw entities baked in.
@@ -26,6 +27,7 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 - `staff_list_checkouts()` 400'd on every call since it was introduced in migration `0018` — it declared `checked_out_at` as `timestamptz` but the column is a plain `timestamp`, and Postgres's stricter type-checking for `RETURN QUERY` in PL/pgSQL functions rejected the mismatch outright. The Returns & Holds staff page could never load open checkouts as a result (migration `0021`). Its `patron_name` was also missing the space between first and last name (migration `0022`).
 
 ### Changed
+- Catalog sidebar filter placeholders ("e.g. Tolstoy, Karenina…" / "e.g. memory, love…") were leftover Figma placeholder text unrelated to this library's catalog — updated to "e.g. Sathya Sai, Kasturi…" and "e.g. love, service…".
 - Homepage "Thought for the Day" quote banner used a responsive font size that grew up to 32px on wide screens — fixed it to a constant 16px, matching the catalog book title size.
 - UI legibility pass: bumped several small header/nav/caption font sizes (nav labels, "Thought for the Day" page caption and date) that were hard to read up close, fixed the "Est. 1923" header tag to the correct year, renamed the "Daily Thought" nav link to "Thought for the Day" to match the page, and swapped the homepage quote banner's orange background for the dark brown used elsewhere (the light cream/peach text on orange had weak contrast).
 - Second legibility pass, still too small in places: catalog book cards, sidebar filters, the Staff hub tiles, and the book-title search picker (used on Manage Books) all had text in the 8-13px range — bumped those up across the board. On the "Thought for the Day" page, bumped the passage/intro/attribution text sizes and de-italicized the closing quote block (a full paragraph in italics at that size was hard to read) in favor of the display font with quote marks instead.

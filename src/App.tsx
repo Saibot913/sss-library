@@ -2062,8 +2062,6 @@ function CatalogPage({
   cartIds: string[]
   onAddToCart: (id: string) => void
 }) {
-  const [filtersOpen, setFiltersOpen] = useState(false)
-
   // Built from the catalog rather than hardcoded. The list was the Figma
   // placeholder ['All Categories', 'Fiction', 'Non-Fiction'], and the library
   // has neither Fiction nor Non-Fiction — so picking either filtered every
@@ -2159,8 +2157,8 @@ function CatalogPage({
 
         <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
           {[
-            { label: 'Title or Author', key: 'query' as const, placeholder: 'e.g. Tolstoy, Karenina…', type: 'text' },
-            { label: 'Keywords', key: 'keywords' as const, placeholder: 'e.g. memory, love…', type: 'text' },
+            { label: 'Title or Author', key: 'query' as const, placeholder: 'e.g. Sathya Sai, Kasturi…', type: 'text' },
+            { label: 'Keywords', key: 'keywords' as const, placeholder: 'e.g. love, service…', type: 'text' },
           ].map(f => (
             <div key={f.key}>
               <label style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{f.label}</label>
@@ -2206,52 +2204,17 @@ function CatalogPage({
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {/* Top search bar */}
         <div style={{ background: '#2C1810', padding: '18px 28px 16px', position: 'sticky', top: 60, zIndex: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: filtersOpen ? 14 : 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: '#FAF3E4', flexShrink: 0 }}>The Catalog</span>
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', background: '#FAF3E4', maxWidth: 480 }} onFocusCapture={e => (e.currentTarget.style.outline = '2px solid #C8521A')} onBlurCapture={e => (e.currentTarget.style.outline = 'none')}>
               <span style={{ padding: '0 12px', color: '#9B7B6A', fontSize: 16 }}>⌕</span>
               <input type="text" placeholder="Search title, author…" value={filters.query} onChange={e => setF('query', e.target.value)} style={{ flex: 1, padding: '10px 0', fontFamily: 'var(--font-body)', fontSize: 13, color: '#2C1810', background: 'transparent', border: 'none', outline: 'none' }} />
               {filters.query && <button onClick={() => setF('query', '')} style={{ padding: '0 10px', color: '#9B7B6A', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>}
             </div>
-            <button onClick={() => setFiltersOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, padding: '9px 14px', background: filtersOpen ? '#C8521A' : 'rgba(255,255,255,0.1)', color: '#FAF3E4', border: `1px solid ${filtersOpen ? '#C8521A' : 'rgba(255,255,255,0.15)'}`, cursor: 'pointer' }}>
-              Filters {activeFilterCount > 0 && <span style={{ background: '#C8521A', color: '#FAF3E4', fontSize: 9, fontWeight: 700, borderRadius: '50%', width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{activeFilterCount}</span>}
-            </button>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#9B7B6A', flexShrink: 0 }}>{results.length} results</span>
           </div>
 
-          {filtersOpen && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.1)', alignItems: 'flex-end' }}>
-              {[
-                { label: 'Category', key: 'category' as const, opts: categories, type: 'select' },
-              ].map(f => (
-                <div key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase' }}>{f.label}</span>
-                  <select value={filters[f.key] as string} onChange={e => setF(f.key, e.target.value)} style={{ padding: '7px 10px', fontFamily: 'var(--font-body)', fontSize: 12, color: '#2C1810', background: '#FAF3E4', border: 'none', outline: 'none', cursor: 'pointer' }}>
-                    {f.opts.map(o => <option key={o}>{o}</option>)}
-                  </select>
-                </div>
-              ))}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Availability</span>
-                <select value={filters.availability} onChange={e => setF('availability', e.target.value as Filters['availability'])} style={{ padding: '7px 10px', fontFamily: 'var(--font-body)', fontSize: 12, color: '#2C1810', background: '#FAF3E4', border: 'none', outline: 'none', cursor: 'pointer' }}>
-                  <option value="all">All</option>
-                  <option value="available">Available</option>
-                  <option value="checkedout">On Loan</option>
-                </select>
-              </div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {(['yearFrom', 'yearTo'] as const).map((key, i) => (
-                  <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase' }}>{i === 0 ? 'Year from' : 'Year to'}</span>
-                    <input type="number" placeholder={i === 0 ? 'e.g. 1900' : 'e.g. 2024'} value={filters[key]} onChange={e => setF(key, e.target.value)} style={{ padding: '7px 10px', fontFamily: 'var(--font-body)', fontSize: 12, color: '#2C1810', background: '#FAF3E4', border: 'none', outline: 'none', width: 88 }} />
-                  </div>
-                ))}
-              </div>
-              {activeFilterCount > 0 && <button onClick={() => setFilters(EMPTY_FILTERS)} style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', background: 'none', border: '1px solid rgba(255,255,255,0.15)', padding: '7px 12px', cursor: 'pointer', alignSelf: 'flex-end' }}>Clear all</button>}
-            </div>
-          )}
-
-          {!filtersOpen && activeFilterCount > 0 && (
+          {activeFilterCount > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
               {filters.query && <FilterTag label={`"${filters.query}"`} onRemove={() => setF('query', '')} />}
               {filters.keywords && <FilterTag label={`keywords: ${filters.keywords}`} onRemove={() => setF('keywords', '')} />}
