@@ -1,7 +1,8 @@
 # Handoff / TODO — as of 2026-09-17
 
-Untracked/local like the rest of `ME/`. Replaces the previous version of this file, which
-described the checkout bug as unresolved and book covers as blocked — both are done now.
+Tracked in git, like the rest of `planning_docs/` — visible to anyone who clones the repo,
+not just local scratch notes. Replaces the previous version of this file, which described
+the checkout bug as unresolved and book covers as blocked — both are done now.
 
 ## What's actually done and live in production (through today)
 
