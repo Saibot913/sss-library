@@ -1,49 +1,59 @@
-# Handoff / TODO — as of 2026-09-16
+# Handoff / TODO — as of 2026-09-17
 
-Session picked up staff pages + a production drift crisis + a reviews feature.
-This file is the "pick up where we left off" doc. Untracked/local like the rest of `ME/`.
+Untracked/local like the rest of `ME/`. Replaces the previous version of this file, which
+described the checkout bug as unresolved and book covers as blocked — both are done now.
 
-## 🔴 Open bug — checkout still reportedly broken
+## What's actually done and live in production (through today)
 
-**Status: NOT resolved, needs fresh investigation.** User reported "Check Out" does nothing
-when clicking it in the cart drawer. One real bug was found and fixed (PR #23, not yet
-merged): `submitHoldRequests()` in `src/App.tsx` showed `ProfilePage` or `LoginModal` when
-the patron's profile was incomplete / not signed in, but never closed the cart drawer first
-— the cart is a full-screen `position: fixed` overlay (`zIndex: 200`) that stayed on top,
-so the form rendered invisible behind it. Fix: `setShowCart(false)` added to both branches
-in `submitHoldRequests()`.
+Everything below is merged to `main` and its migrations pushed to Supabase (through
+migration `0025`):
 
-**After that fix was hot-reloaded live, the user said it still doesn't seem to work.**
-Not yet diagnosed further. Next session should:
-1. Get the browser console open and actually reproduce it — get the real error message or
-   confirm nothing errors at all (silent no-op vs. thrown exception are different bugs).
-2. Confirm whether the reporter's patron account actually *has* a complete profile — if
-   `hasProfile` is already `true`, the fix in #23 wouldn't touch their case at all, and the
-   real bug is somewhere in the `checkoutBook()` loop itself (lines ~3130–3145 in `App.tsx`),
-   not the profile-form-visibility issue.
-3. Check `checkoutBook()` in `src/lib/checkouts.ts` and the `checkout_book` RPC
-   (`0001_checkouts_and_reservations.sql`) actually still work end-to-end — confirmed to
-   exist live earlier this session, but existing ≠ working correctly.
-4. Rule out stale state: the dev server survived many file edits + branch switches this
-   session; a hard refresh (Cmd+Shift+R) should be step zero before assuming a real bug.
-
-**Git state left mid-investigation:** the local working directory is currently checked out
-on branch `surya-fix-checkout-hidden-profile-form` (PR #23), NOT `main` — this was
-deliberate, to keep the fix live on the running dev server for testing. Next session:
-check `git branch --show-current` before doing anything branch-related. PR #23 itself is
-open, checks untested/unconfirmed, not merged.
+- **Checkout**, fully working end-to-end. Two separate bugs were found and fixed: the cart
+  drawer wasn't closing before showing the profile/login form (PR #23), and the
+  incomplete-profile prompt itself rendered in normal document flow instead of as an
+  overlay, so it could land off-screen depending on scroll position — now a dismissible
+  fixed-overlay modal (patrons can close it and keep browsing; checkout just stays blocked
+  until the profile is complete).
+- **Returns**, fully working. `staff_return_book()` had a real SQL bug (`42702` ambiguous
+  column — `RETURNS TABLE` implicitly declares `full_label` as a PL/pgSQL variable, colliding
+  with the table column of the same name in the function's own `WHERE` clauses) that made
+  every "Mark Returned" click fail silently since the function was introduced. Fixed in
+  migration `0025`.
+- **Book cover art**, live catalog-wide (not just the detail page) — Google Books API first,
+  Open Library as a free/keyless fallback for titles Google doesn't have, gated by
+  `IntersectionObserver` so a 100+ book grid doesn't fire every request at once, deduped
+  against React StrictMode double-mounting, and careful to not permanently cache a transient
+  `429`/`5xx` failure as "confirmed no cover" (that bug caused "some books stopped loading"
+  after a scroll burst — fixed). Neither source indexes most of this catalog's niche
+  religious-publication titles, so the 📖 placeholder is still the common case — that's a
+  data-availability limit, not a bug.
+- **Waitlist** — "Join Waitlist" on a book's detail page once every copy is checked out,
+  reusing the signed-in patron's existing profile rather than a new form.
+- **Book title editing** — `update_book()` originally excluded `title` on purpose; that
+  turned out to be annoying in practice, so it's editable from Manage Books now (migration
+  `0023`).
+- Staff `Returns & Holds` page actually loads (`staff_list_checkouts()` had its own
+  structurally different bug — a `timestamp`/`timestamptz` type mismatch causing every call
+  to 400 since it was introduced — fixed in migration `0021`; patron name concatenation was
+  also missing a space, migration `0022`).
+- Cart hold duration back down to 5 minutes (was bumped to 30, turned out too long).
+- Multiple UI/legibility passes: nav active-tab highlighting, a "Staff" top-nav tab, catalog
+  grid sizing and divider rendering, several rounds of font-size floors, Thought for the Day
+  unicode entity decoding, and more — see `CHANGELOG.md` under `[Unreleased]` for the full,
+  precise list; this file only summarizes.
+- BMAD Method tooling trimmed and tracked in git — only the 4 skills the repo's own review
+  instructions actually call (`bmad-code-review`, `bmad-testarch-test-review`,
+  `bmad-testarch-nfr`, `bmad-help`), not the full ~40-skill install, so those instructions
+  actually work wherever the review runs instead of only on one machine.
 
 ## Blocked items (need something from you before I can proceed)
 
-- **Book cover art**: code path is ready to build (`src/lib/bookCovers.ts`), but blocked on
-  a free Google Cloud API key with the Books API enabled — confirmed earlier this session
-  that Google fully blocks keyless requests (`429`, `quota_limit_value: 0`), not a bug in
-  our code. Once you have a key, drop it in `.env` and say so.
-- **Reviews & Volunteer Google Forms**: `REVIEW_FORM_URL` (`src/lib/reviews.ts`) and
-  `VOLUNTEER_FORM_URL` (`src/lib/volunteers.ts`) are both still empty strings — the actual
-  forms were never created. Setup instructions are written out as comments in both files
-  (reviews.ts's now includes the Category-dropdown-with-conditional-title-field design from
-  this session). Needs your org's Google account.
+- **Reviews & Volunteer Google Forms** (PR #30, `surya-community-forms`, intentionally left
+  open): `REVIEW_FORM_URL` (`src/lib/reviews.ts`) and `VOLUNTEER_FORM_URL`
+  (`src/lib/volunteers.ts`) are both still empty strings — the actual Google Forms were never
+  created. The input-box UI itself is built; it just isn't wired to a real submission
+  destination yet. Needs your org's Google account to create the forms, then drop the URLs
+  in and merge.
 
 ## Deploy readiness — still not launch-ready even though features are close to MVP
 
@@ -54,32 +64,14 @@ open, checks untested/unconfirmed, not merged.
 - Confirm (admin-side, not code): category data cleanup done, `staff` table has the right
   people (currently: `saisurya.sreedhar@gmail.com`, `premad809@gmail.com`).
 
-## What's actually done and live in production (through today)
+## Open, not urgent
 
-Everything below is merged to `main` and its migrations pushed to Supabase (through
-migration `0019`):
-- Staff schema drift reconciled (`staff` table is email-keyed, `is_staff()` matches)
-- Dropped genuinely-dead `staff_dashboard()`/`staff_inventory()`/old `page_views` attempt,
-  then **had to restore `page_views`** after discovering it wasn't actually dead — a
-  separate, undocumented `staff_analytics()`/`record_page_view()` system depended on it.
-  See migration `0018` and the "two overlapping analytics systems" note below.
-- `add_book`/`add_copy`/`update_book`/`update_copy` RPCs + a combined "Manage Books" staff
-  page (Add + Edit on one page, per your explicit request)
-- Returns & Holds staff page
-- Staff Dashboard page (`staff_dashboard_stats` + `staff_dashboard_extra`)
-- Self-service "Manage Staff" page — any staff can add/remove other staff (your explicit
-  tradeoff request), with guardrails against self-removal and removing the last staff member
-- Staff nav consolidated into one "Staff" hub page (`/staff`) with a box per staff page,
-  each page linking back via a shared back-link — replaces the old one-button-per-page menu
-- Per-book and library reviews (`reviews` table, nullable `book_code`), staff-curated via
-  `/staff/reviews`, manual entry from the Google Sheet (no Sheets API integration — decided
-  against to avoid new external credentials)
-- CORS fix for `auth-email`/`delete-account` Edge Functions so local dev / Conductor
-  workspaces on arbitrary ports aren't blocked
-- Swami quotes expanded to 15, rotating hourly
-
-## One open decision, not urgent, not forgotten
-
-`staff_analytics()`/`record_page_view()` (dormant, no UI) and `staff_dashboard_stats()`/
-`staff_dashboard_extra()` (live, has UI) are two separate, overlapping analytics systems.
-Worth reconciling into one eventually — real product call, not a bug, no rush.
+- `staff_analytics()`/`record_page_view()` (dormant, no UI) and `staff_dashboard_stats()`/
+  `staff_dashboard_extra()` (live, has UI) are two separate, overlapping analytics systems.
+  Worth reconciling into one eventually — real product call, not a bug, no rush.
+- A staff member force-releasing a patron's cart hold from the Returns & Holds page doesn't
+  update that patron's own browser — their cart is pure client-side in-memory state with no
+  server-sync mechanism, so it only catches up if they try to check out (which then correctly
+  fails) or reload. Fixable with a Supabase Realtime subscription on `copies` (free tier
+  covers this easily — 200 concurrent connections, 2M messages/month, nowhere near what this
+  app would use) — not yet built, low priority since checkout still fails safely.
