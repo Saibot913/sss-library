@@ -29,6 +29,7 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 - Staff nav restructured into a hub: the account menu's separate Manage Books / Returns & Holds / Dashboard / Manage Staff buttons are now one "Staff" entry leading to `/staff`, a page showing every staff page as a clickable box. Each staff page now has a "← Staff Menu" link back to that hub, distinct from the site's real Home link — done to stop the account menu from growing one item per staff page as more get added.
 - Added a "Staff" tab to the top nav itself (next to Community/Dashboard), staff-only, alongside the existing account-menu entry.
 - Cart hold duration shortened from 30 minutes back down to 5 (migration `0020`) — 30 (`0012`) was longer than patrons need.
+- Book titles are now editable from the staff Manage Books page — `title` was originally excluded from `update_book()` as a deliberate choice, but that turned out to be annoying in practice (migration `0023`).
 - Tracked a trimmed-down BMAD Method install (`_bmad/`, `.claude/skills/bmad-*`) in git instead of leaving it entirely gitignored — the repo's PR review instructions call `bmad-code-review`, `bmad-testarch-test-review`, and `bmad-testarch-nfr` (plus `bmad-help`), but those only existed as a local, untracked install, so any review running outside that one machine silently couldn't use them. Kept just those 4 skills and the shared config/scripts they read (~2.6MB), dropped the other ~34 installed skills and stale installer manifests; personal-scope config (`*.user.toml`) stays untracked.
 
 ### Added

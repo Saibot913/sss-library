@@ -1273,6 +1273,7 @@ function ManageBooksPage({ books, onBooksChanged }: { books: Book[]; onBooksChan
   // ── Edit an existing book ──
   const [editSearch, setEditSearch] = useState('')
   const [editBook, setEditBook] = useState<Book | null>(null)
+  const [editTitle, setEditTitle] = useState('')
   const [editAuthor, setEditAuthor] = useState('')
   const [editYear, setEditYear] = useState('')
   const [editPublisher, setEditPublisher] = useState('')
@@ -1287,6 +1288,7 @@ function ManageBooksPage({ books, onBooksChanged }: { books: Book[]; onBooksChan
   function pickEditBook(book: Book) {
     setEditBook(book)
     setEditSearch(book.title)
+    setEditTitle(book.title)
     setEditAuthor(book.author)
     setEditYear(book.year)
     setEditPublisher(book.publisher)
@@ -1303,11 +1305,16 @@ function ManageBooksPage({ books, onBooksChanged }: { books: Book[]; onBooksChan
   async function handleEditBook(e: React.FormEvent) {
     e.preventDefault()
     if (!editBook) return
+    if (!editTitle.trim()) {
+      setEditMessage('Title cannot be empty.')
+      return
+    }
     try {
       setEditBusy(true)
       setEditMessage('')
       await updateBook({
         bookCode: editBook.id,
+        title: editTitle.trim(),
         author: editAuthor.trim(),
         yearPublished: editYear.trim(),
         publishedBy: editPublisher.trim(),
@@ -1452,8 +1459,12 @@ function ManageBooksPage({ books, onBooksChanged }: { books: Book[]; onBooksChan
           <>
             <form onSubmit={handleEditBook} style={{ display: 'grid', gap: 12, marginBottom: 20 }}>
               <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#2C1810' }}>
-                <strong>{editBook.title}</strong> <span style={{ color: '#9B7B6A', fontSize: 12 }}>({editBook.id}) — title can't be changed here</span>
+                <span style={{ color: '#9B7B6A', fontSize: 12 }}>{editBook.id}</span>
               </p>
+              <div>
+                <label style={manageBooksLabelStyle}>Title</label>
+                <input value={editTitle} onChange={e => setEditTitle(e.target.value)} style={manageBooksInputStyle} />
+              </div>
               <div>
                 <label style={manageBooksLabelStyle}>Author</label>
                 <input value={editAuthor} onChange={e => setEditAuthor(e.target.value)} style={manageBooksInputStyle} />
