@@ -86,12 +86,13 @@ const EMPTY_FILTERS: Filters = {
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
-const EVENTS = [
-  { date: 'Jul 22', title: 'Summer Reading Circle', time: '6:00 PM', room: 'Reading Room B' },
-  { date: 'Jul 25', title: "Children's Story Hour", time: '10:30 AM', room: "Children's Wing" },
-  { date: 'Aug 03', title: 'Local Author Talk: Mira Salden', time: '7:00 PM', room: 'Main Hall' },
-  { date: 'Aug 10', title: 'Genealogy Research Workshop', time: '2:00 PM', room: 'Archive Room' },
-]
+// Events scope isn't decided yet (see project-instructions/README.md's
+// "Events scope" open decision) -- this used to be made-up Figma
+// placeholder events (Summer Reading Circle, Children's Story Hour, etc.)
+// that looked real but weren't. Empty for now, same as BOOK_CLUBS below,
+// until the actual events source/format is settled.
+type SiteEvent = { date: string; title: string; time: string; room: string }
+const EVENTS: SiteEvent[] = []
 
 // Quotes from Sathya Sai Baba's discourses, specifically on the practice of reading —
 // distinct from the separately-imported "Thought for the Day" feature (see lib/thoughtForTheDay.ts).
@@ -2490,6 +2491,11 @@ function HomePage({ books, onSearch, onViewBook, cartIds, onAddToCart }: {
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase' }}>§ 02</span>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 600, color: '#2C1810' }}>Upcoming Events</h2>
         </div>
+        {EVENTS.length === 0 && (
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#5C3D2E', lineHeight: 1.7, maxWidth: 580 }}>
+            No events are scheduled just yet. Check back later, or ask at the center.
+          </p>
+        )}
         {EVENTS.map((ev, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 28, padding: '18px 14px', borderBottom: '1px solid #D4B896', cursor: 'pointer', transition: 'background 0.15s' }} onMouseEnter={e => (e.currentTarget.style.background = '#FAF3E4')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
             <span style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: '#C8521A', minWidth: 56 }}>{ev.date}</span>
