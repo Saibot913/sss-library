@@ -140,6 +140,13 @@ function decodeEntities(text) {
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
     .replace(/&quot;/gi, '"')
+    .replace(/&ldquo;/gi, '\u201c')
+    .replace(/&rdquo;/gi, '\u201d')
+    .replace(/&lsquo;/gi, '\u2018')
+    .replace(/&rsquo;/gi, '\u2019')
+    .replace(/&mdash;/gi, '\u2014')
+    .replace(/&ndash;/gi, '\u2013')
+    .replace(/&hellip;/gi, '\u2026')
     .replace(/&#(\d+);/g, function (_, code) { return String.fromCharCode(Number(code)) })
     .replace(/&#x([0-9a-fA-F]+);/g, function (_, code) { return String.fromCharCode(parseInt(code, 16)) })
     .replace(/&amp;/gi, '&') // must be last, or earlier entities double-decode
