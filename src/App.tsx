@@ -32,6 +32,7 @@ import {
 } from './lib/checkouts'
 import { fetchStaffList, addStaff, removeStaff } from './lib/staff'
 import { joinWaitlist, leaveWaitlist, checkIsOnWaitlist } from './lib/waitlist'
+import { useHoldReleaseSubscription } from './lib/holdReleaseNotifications'
 import { SITE_NAME, SITE_ADDRESS, MEETING_ROOM } from './lib/siteInfo'
 import { invalidateBooksCache } from './lib/books'
 
@@ -2919,6 +2920,24 @@ export default function App() {
   const [authReady, setAuthReady] = useState(false)
   const [authLoading, setAuthLoading] = useState<{type: 'login' | 'logout'; message: string} | null>(null)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
+
+  // Drop a book from cart the moment staff force-release the hold on it
+  // (Returns & Holds page) -- without this the patron's own cart keeps
+  // showing it until they try to check out (which then correctly fails)
+  // or reload the page.
+  useHoldReleaseSubscription(currentPatron?.id ?? null, releasedFullLabel => {
+    setCart(previous => {
+      let changed = false
+      const next = new Map(previous)
+      for (const [bookId, fullLabel] of previous) {
+        if (fullLabel === releasedFullLabel) {
+          next.delete(bookId)
+          changed = true
+        }
+      }
+      return changed ? next : previous
+    })
+  })
 
   const navigate = useNavigate()
   const location = useLocation()
