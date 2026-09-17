@@ -306,7 +306,7 @@ function TopNav({
           </button>
         )}
 
-        {/* Holds and cart */}
+        {/* My Books and cart */}
         {loggedIn && (
           <button
             onClick={onHolds}
@@ -314,7 +314,7 @@ function TopNav({
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.14)'; e.currentTarget.style.borderColor = '#C8521A' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)' }}
           >
-            Holds
+            My Books
           </button>
         )}
         <button
