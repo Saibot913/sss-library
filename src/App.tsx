@@ -3219,6 +3219,7 @@ export default function App() {
         }}
         onProfile={() => {
           setShowUserMenu(false)
+          setViewingBook(null)
           navigate(AUTH_REDIRECT_PATH)
         }}
         onLogout={async () => {
@@ -3238,7 +3239,7 @@ export default function App() {
         }}
         onToggleUserMenu={() => setShowUserMenu(v => !v)}
         onCloseUserMenu={() => setShowUserMenu(false)}
-        onHolds={() => { setShowUserMenu(false); navigate('/account') }}
+        onHolds={() => { setShowUserMenu(false); setViewingBook(null); navigate('/account') }}
         isStaff={Boolean(currentPatron) && isStaff}
         loggedIn={loggedIn}
         userName={userName}
