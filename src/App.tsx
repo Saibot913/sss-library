@@ -2234,41 +2234,41 @@ function CatalogPage({
               <button onClick={() => setFilters(EMPTY_FILTERS)} style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '10px 22px', background: '#C8521A', color: '#FAF3E4', border: 'none', cursor: 'pointer' }}>Clear All Filters</button>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 1, background: '#D4B896' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 1, background: '#D4B896' }}>
               {results.map(book => {
                 const avail = book.copiesAvailable
                 const inCart = cartIds.includes(book.id)
                 return (
-                  <div key={book.id} style={{ background: '#FAF3E4', padding: 20, display: 'flex', flexDirection: 'column', gap: 0 }}>
+                  <div key={book.id} style={{ background: '#FAF3E4', padding: 26, display: 'flex', flexDirection: 'column', gap: 0 }}>
                     <div
                       onClick={() => onViewBook(book)}
                       style={{ cursor: 'pointer', flex: 1 }}
                     >
-                      <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
-                        <div style={{ width: 52, height: 66, overflow: 'hidden', flexShrink: 0, background: '#D4B896' }}>
+                      <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+                        <div style={{ width: 68, height: 86, overflow: 'hidden', flexShrink: 0, background: '#D4B896' }}>
                           <BookCover book={book} />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 600, color: '#2C1810', lineHeight: 1.3, marginBottom: 3 }}>{book.title}</h3>
-                          <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#5C3D2E' }}>{book.author} · {book.year}</p>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 5 }}>
-                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: avail > 0 ? '#4CAF50' : '#C8521A' }} />
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: avail > 0 ? '#4CAF50' : '#C8521A' }}>{avail > 0 ? `${avail}/${book.copiesTotal} available` : 'All on loan'}</span>
+                          <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600, color: '#2C1810', lineHeight: 1.3, marginBottom: 4 }}>{book.title}</h3>
+                          <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: '#5C3D2E' }}>{book.author} · {book.year}</p>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                            <div style={{ width: 7, height: 7, borderRadius: '50%', background: avail > 0 ? '#4CAF50' : '#C8521A' }} />
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: avail > 0 ? '#4CAF50' : '#C8521A' }}>{avail > 0 ? `${avail}/${book.copiesTotal} available` : 'All on loan'}</span>
                           </div>
                         </div>
                       </div>
-                      <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#9B7B6A', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: 12 }}>
+                      <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#9B7B6A', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: 14 }}>
                         {book.summary}
                       </p>
                     </div>
-                    <div style={{ borderTop: '1px solid #D4B896', paddingTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#9B7B6A' }}>{book.category}</span>
+                    <div style={{ borderTop: '1px solid #D4B896', paddingTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#9B7B6A' }}>{book.category}</span>
                       {avail === 0 ? (
-                        <button disabled style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', padding: '5px 12px', background: '#E9DCC3', color: '#9B7B6A', border: '1px solid #D4B896', cursor: 'not-allowed' }}>
+                        <button disabled style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.06em', padding: '6px 14px', background: '#E9DCC3', color: '#9B7B6A', border: '1px solid #D4B896', cursor: 'not-allowed' }}>
                           Not available
                         </button>
                       ) : (
-                        <button onClick={() => onAddToCart(book.id)} style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', padding: '5px 12px', background: inCart ? '#2C1810' : '#C8521A', color: '#FAF3E4', border: 'none', cursor: 'pointer', transition: 'background 0.15s' }}>
+                        <button onClick={() => onAddToCart(book.id)} style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.06em', padding: '6px 14px', background: inCart ? '#2C1810' : '#C8521A', color: '#FAF3E4', border: 'none', cursor: 'pointer', transition: 'background 0.15s' }}>
                           {inCart ? '✓ Added' : '+ Cart'}
                         </button>
                       )}
