@@ -1,4 +1,4 @@
--- Staff "Add a Book" / "Edit a Book" support. Per ME/spec.md §1a/§1b
+-- Staff "Add a Book" / "Edit a Book" support. Per planning_docs/spec.md §1a/§1b
 -- (local project notes, not committed - see conversation history for the
 -- full design rationale): staff need to add new books, add copies of
 -- existing books, and edit book/copy details, without touching the
@@ -81,7 +81,7 @@ $$;
 grant execute on function public.add_copy(text, text, text) to authenticated;
 
 -- Edits every book-level field except `title` - locking title is
--- deliberate (see ME/spec.md §1b): a title typo can only be fixed via
+-- deliberate (see planning_docs/spec.md §1b): a title typo can only be fixed via
 -- the Table Editor for now.
 create or replace function public.update_book(
   p_book_code text,
@@ -120,7 +120,7 @@ $$;
 grant execute on function public.update_book(text, text, text, text, text, text, text) to authenticated;
 
 -- Edits a copy's location and/or status. Two edge cases handled on
--- purpose (see ME/spec.md §1a "Edge cases for update_copy"):
+-- purpose (see planning_docs/spec.md §1a "Edge cases for update_copy"):
 --
 -- 1. Can't change status away from `checked_out` here. That transition
 --    has to go through the Returns page (staff_return_book), which is

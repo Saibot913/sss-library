@@ -7,7 +7,7 @@
 --      locking themselves out with no one else around to re-add them.
 --   2. The last remaining staff row can't be removed — avoids the whole
 --      table going empty, which is unrecoverable through the app (see
---      ME/first-findings.md: an empty `staff` table means is_staff()
+--      planning_docs/first-findings.md: an empty `staff` table means is_staff()
 --      returns false for everyone, and only direct Supabase dashboard
 --      access can fix it).
 --

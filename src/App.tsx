@@ -1096,7 +1096,7 @@ function StaffManagePage({ currentEmail }: { currentEmail: string }) {
   )
 }
 
-// Live convention (confirmed against real data, see ME/spec.md §1a): a
+// Live convention (confirmed against real data, see planning_docs/spec.md §1a): a
 // single copy's label is just the book_code (e.g. `BO01`); a second or
 // later copy is `book_code.NN`, zero-padded, but NOT necessarily
 // gapless (BV02 skips straight from .03 to .05 in the real catalog —

@@ -40,7 +40,7 @@ All four pages sit behind a hidden nav item / section, gated on `is_staff()`, in
 - `book_code` uniqueness: check live against existing values as staff types; if taken, auto-suggest alternatives (append `-2`, `-3`, ...).
 
 **Architecture decision (2026-09-14): use `security definer` RPC functions, not raw RLS insert/update policies.**
-Every existing sensitive write in this codebase (`checkout_book`, `reserve_copy`, `return_book`/`staff_return_book`) goes through a `security definer` Postgres function that checks a permission and does the write atomically — none of `books`/`copies`/`checkouts` has a raw client-facing `insert`/`update` RLS policy anywhere today (see `ME/first-findings.md` §3). Adding a raw `insert`/`update` RLS policy on `books`/`copies` for this feature, as originally sketched, would be the *first* departure from that pattern in the whole project, and it's more invasive: it opens `books`/`copies` to direct client writes (shaped only by whatever the policy's `USING`/`WITH CHECK` clause manages to express), instead of a narrow function that does exactly one thing. The least-invasive move is to follow the existing convention:
+Every existing sensitive write in this codebase (`checkout_book`, `reserve_copy`, `return_book`/`staff_return_book`) goes through a `security definer` Postgres function that checks a permission and does the write atomically — none of `books`/`copies`/`checkouts` has a raw client-facing `insert`/`update` RLS policy anywhere today (see `planning_docs/first-findings.md` §3). Adding a raw `insert`/`update` RLS policy on `books`/`copies` for this feature, as originally sketched, would be the *first* departure from that pattern in the whole project, and it's more invasive: it opens `books`/`copies` to direct client writes (shaped only by whatever the policy's `USING`/`WITH CHECK` clause manages to express), instead of a narrow function that does exactly one thing. The least-invasive move is to follow the existing convention:
 - `add_book(...)` — checks `is_staff()`, inserts into `books` + first `copies` row atomically (one or the other alone would leave a book with no copies, or a copy pointing at nothing).
 - `add_copy(p_book_code, p_full_label, p_location)` — checks `is_staff()` and that `book_code` exists, inserts one `copies` row.
 - `update_book(p_book_code, ...)` — checks `is_staff()`, updates every column except `title`.
@@ -84,7 +84,7 @@ This also resolves the "3rd out 4th keep nice" and "change anything else you'd l
 **Donations — removed from V1 entirely.**
 - `src/lib/donations.ts` deleted.
 - The § Book Donations section removed from `AboutPage` (`App.tsx`) — form, appeal copy, all of it.
-- Original code + removed JSX preserved verbatim in [`ME/future-features.md`](future-features.md) so it's a copy-paste to bring back, not a rebuild.
+- Original code + removed JSX preserved verbatim in [`planning_docs/future-features.md`](future-features.md) so it's a copy-paste to bring back, not a rebuild.
 - `project-instructions/README.md` and `CHANGELOG.md` updated to reflect the removal for the team.
 
 **Volunteer — simplified, moved off Supabase entirely.**
