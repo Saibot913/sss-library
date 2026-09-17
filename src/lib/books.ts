@@ -289,6 +289,7 @@ export async function addCopy(bookCode: string, fullLabel: string, location: str
 
 export type BookEditInput = {
   bookCode: string
+  title: string
   author: string
   yearPublished: string
   publishedBy: string
@@ -297,10 +298,10 @@ export type BookEditInput = {
   summary: string
 }
 
-/** Edits every book-level field except title — title is intentionally not editable here, see ME/spec.md §1b. */
 export async function updateBook(input: BookEditInput): Promise<void> {
   const { error } = await supabase.rpc('update_book', {
     p_book_code: input.bookCode,
+    p_title: input.title,
     p_author: input.author,
     p_year_published: input.yearPublished,
     p_published_by: input.publishedBy,
