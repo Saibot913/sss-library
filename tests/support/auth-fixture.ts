@@ -75,8 +75,19 @@ const supabaseAuthProvider: AuthProvider = {
   // fixture, via extractToken below).
   manageAuthToken: async (_request, options) => {
     const statePath = getStorageStatePath(options)
+    // A cached file is only valid if it was written for the *same* origin
+    // this run is actually testing against. Without this check, a
+    // storage-state.json left over from a run against a different port
+    // (a previous local run, a different Conductor workspace's assigned
+    // port, etc.) gets silently reused -- the token itself isn't expired,
+    // but the browser navigates to today's baseURL while the cached
+    // localStorage entry is scoped to yesterday's, so it never applies and
+    // every test using this account loads signed-out with no visible error
+    // pointing at why. Cost this a real debugging session once; don't
+    // repeat it.
     const cached = loadStorageState(statePath) as Record<string, unknown> | null
-    if (cached && !supabaseAuthProvider.isTokenExpired!(supabaseAuthProvider.extractToken(cached) ?? '')) {
+    const cachedOrigin = cached ? getOrigins(cached)[0]?.origin : undefined
+    if (cached && cachedOrigin === getBaseUrl() && !supabaseAuthProvider.isTokenExpired!(supabaseAuthProvider.extractToken(cached) ?? '')) {
       return cached
     }
 
