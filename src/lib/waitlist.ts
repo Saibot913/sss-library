@@ -1,6 +1,6 @@
 import { supabase } from './supabaseClient'
 
-// Wraps the RPCs in supabase/migrations/0023_waitlist.sql. join_waitlist
+// Wraps the RPCs in supabase/migrations/0024_waitlist.sql. join_waitlist
 // reads the patron's name/email/phone from their own `profiles` row
 // server-side, so nothing needs to be passed from the client here.
 
