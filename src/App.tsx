@@ -864,6 +864,7 @@ function StaffReturnsPage() {
       setMessage(`Marked "${bookTitle ?? fullLabel}" (${fullLabel}) as returned.`)
       await loadCheckouts()
     } catch (err) {
+      console.error(`staffReturnBook failed for "${fullLabel}":`, err)
       setMessage(err instanceof Error ? err.message : `Could not mark ${fullLabel} as returned.`)
     } finally {
       setBusyLabel(null)
