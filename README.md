@@ -111,6 +111,8 @@ The two credentials someone gave you in step 0 go here.
 
 `.env` never gets uploaded to GitHub (it's in `.gitignore` on purpose) — every teammate keeps their own local copy.
 
+There's a third, optional variable in `.env.example`: `VITE_GOOGLE_BOOKS_API_KEY`. It enables real book cover art (fetched client-side from the Google Books API, with Open Library as a free fallback); without it, every book just shows the 📖 placeholder icon, which is a fine state to run in. Ask Surya for a key if you want covers locally — same rule as the Supabase credentials, never post it anywhere public.
+
 ## 9. Run it
 
 ```bash

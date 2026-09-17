@@ -87,6 +87,8 @@ can scaffold this.)
 ## Knowledge base
 
 The scaffolding follows patterns from BMAD's `tea` module knowledge base
-(installed at `.claude/skills/bmad-testarch-framework/resources/knowledge/`
-in this repo, gitignored) — see `playwright-utils-mandate.md`,
-`auth-session.md`, `playwright-config.md`, `data-factories.md`.
+(tracked in this repo at `.claude/skills/bmad-testarch-test-review/resources/knowledge/`
+and `.claude/skills/bmad-testarch-nfr/resources/knowledge/` — only the skills
+this project's review tooling actually calls are kept, `bmad-testarch-framework`
+isn't one of them) — see `playwright-utils-mandate.md`, `auth-session.md`,
+`playwright-config.md`, `data-factories.md`.
