@@ -21,6 +21,7 @@ import {
   fetchStaffReservations,
   staffReturnBook,
   staffForceReleaseReservation,
+  fetchTopCheckedOutBooks,
   type ActiveReservation,
   type ActiveCheckout,
   type CheckoutHistoryRow,
@@ -33,7 +34,7 @@ import {
 import { fetchStaffList, addStaff, removeStaff } from './lib/staff'
 import { joinWaitlist, leaveWaitlist, checkIsOnWaitlist } from './lib/waitlist'
 import { useHoldReleaseSubscription } from './lib/holdReleaseNotifications'
-import { SITE_NAME, SITE_ADDRESS, MEETING_ROOM } from './lib/siteInfo'
+import { SITE_NAME, SITE_ADDRESS, MEETING_ROOM, WEEKLY_TIMINGS } from './lib/siteInfo'
 import { invalidateBooksCache } from './lib/books'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -678,7 +679,7 @@ function StaffVolunteersPage() {
       <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#9B7B6A', marginBottom: 12 }}>
         Volunteer interest is collected via an external Google Form — see submissions in the linked spreadsheet and follow up directly.
       </p>
-      <a href={VOLUNTEER_RESPONSES_SHEET_URL} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: '#C8521A', marginBottom: 24 }}>
+      <a href={VOLUNTEER_RESPONSES_SHEET_URL} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', padding: '12px 20px', background: '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'none', border: 'none', cursor: 'pointer', marginBottom: 24 }}>
         View Submissions ↗
       </a>
       <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#9B7B6A', fontStyle: 'italic' }}>
@@ -1641,7 +1642,7 @@ function StaffReviewsPage({ books }: { books: Book[] }) {
       <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#9B7B6A', marginBottom: 12 }}>
         Read submissions in the Reviews &amp; Feedback spreadsheet, then publish the ones worth featuring here. A book review shows up on that book's page; a library review shows up in the Community tab.
       </p>
-      <a href={REVIEW_RESPONSES_SHEET_URL} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: '#C8521A', marginBottom: 24 }}>
+      <a href={REVIEW_RESPONSES_SHEET_URL} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', padding: '12px 20px', background: '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'none', border: 'none', cursor: 'pointer', marginBottom: 24 }}>
         View Submissions ↗
       </a>
 
@@ -2366,16 +2367,35 @@ function HomePage({ books, onSearch, onViewBook, cartIds, onAddToCart }: {
 }) {
   const [heroQuery, setHeroQuery] = useState('')
 
-  // Quote changes every hour on the hour — hours-since-epoch picks the index into
-  // SWAMI_QUOTES, and a timer re-renders right as each new hour begins so the
-  // page doesn't need a manual refresh to pick it up.
-  const [hoursSinceEpoch, setHoursSinceEpoch] = useState(() => Math.floor(Date.now() / 3600000))
+  // Quote changes every 15 minutes on the quarter-hour (:00/:15/:30/:45) --
+  // quarter-hours-since-epoch picks the index into SWAMI_QUOTES, and a timer
+  // re-renders right as each new quarter-hour begins so the page doesn't
+  // need a manual refresh to pick it up.
+  const QUOTE_INTERVAL_MS = 900000
+  const [quarterHoursSinceEpoch, setQuarterHoursSinceEpoch] = useState(() => Math.floor(Date.now() / QUOTE_INTERVAL_MS))
   useEffect(() => {
-    const msUntilNextHour = 3600000 - (Date.now() % 3600000)
-    const timeout = setTimeout(() => setHoursSinceEpoch(Math.floor(Date.now() / 3600000)), msUntilNextHour + 50)
+    const msUntilNextInterval = QUOTE_INTERVAL_MS - (Date.now() % QUOTE_INTERVAL_MS)
+    const timeout = setTimeout(() => setQuarterHoursSinceEpoch(Math.floor(Date.now() / QUOTE_INTERVAL_MS)), msUntilNextInterval + 50)
     return () => clearTimeout(timeout)
-  }, [hoursSinceEpoch])
-  const swamiQuote = useMemo(() => SWAMI_QUOTES[hoursSinceEpoch % SWAMI_QUOTES.length], [hoursSinceEpoch])
+  }, [quarterHoursSinceEpoch])
+  const swamiQuote = useMemo(() => SWAMI_QUOTES[quarterHoursSinceEpoch % SWAMI_QUOTES.length], [quarterHoursSinceEpoch])
+
+  // Most checked-out books this week, not a static/curated list -- see
+  // home_top_checked_out_books() (0027/0028). Book codes only; matched
+  // against the already-loaded `books` prop rather than fetching full rows
+  // again.
+  const [topBookCodes, setTopBookCodes] = useState<string[]>([])
+  useEffect(() => {
+    let cancelled = false
+    fetchTopCheckedOutBooks(3)
+      .then(rows => { if (!cancelled) setTopBookCodes(rows.map(r => r.bookCode)) })
+      .catch(() => { if (!cancelled) setTopBookCodes([]) })
+    return () => { cancelled = true }
+  }, [])
+  const recommendedBooks = useMemo(
+    () => topBookCodes.map(code => books.find(b => b.id === code)).filter((b): b is Book => Boolean(b)),
+    [topBookCodes, books]
+  )
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -2389,7 +2409,6 @@ function HomePage({ books, onSearch, onViewBook, cartIds, onAddToCart }: {
         <img src="https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=1400&h=580&fit=crop&auto=format" alt="Library reading room" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, rgba(44,24,16,0.88) 50%, rgba(44,24,16,0.4) 100%)' }} />
         <div style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '0 64px 56px' }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, letterSpacing: '0.2em', color: '#C8521A', textTransform: 'uppercase', marginBottom: 12, display: 'block' }}>Sai Library</span>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(40px,6vw,72px)', fontWeight: 700, color: '#FAF3E4', lineHeight: 1.1, maxWidth: 520 }}>Sai Library</h1>
           <p style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', color: '#D4B896', fontSize: 15, maxWidth: 500, marginTop: 14, lineHeight: 1.7 }}>
             "Resolve to act, to mix only in good company, to read only elevating books, to form the habit of remembering the Lord's name and, then ignorance will vanish automatically."
@@ -2407,13 +2426,13 @@ function HomePage({ books, onSearch, onViewBook, cartIds, onAddToCart }: {
         </div>
       </section>
 
-      {/* Hours */}
-      <div style={{ background: '#2C1810', padding: '14px 64px', display: 'flex', gap: 48 }}>
-        {[{ day: 'Mon – Thu', hours: '9:00 AM – 8:00 PM' }, { day: 'Fri – Sat', hours: '9:00 AM – 6:00 PM' }, { day: 'Sunday', hours: '12:00 PM – 5:00 PM' }].map(h => (
-          <div key={h.day} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, letterSpacing: '0.1em', color: '#C8521A', textTransform: 'uppercase' }}>{h.day}</span>
+      {/* Weekly timings */}
+      <div style={{ background: '#2C1810', padding: '14px 64px', display: 'flex', flexWrap: 'wrap', gap: 24 }}>
+        {WEEKLY_TIMINGS.map(t => (
+          <div key={t.day + t.activity} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, letterSpacing: '0.1em', color: '#C8521A', textTransform: 'uppercase' }}>{t.day} — {t.activity}</span>
             <span style={{ color: '#9B7B6A', fontSize: 14 }}>—</span>
-            <span style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#D4B896' }}>{h.hours}</span>
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#D4B896' }}>{t.time}</span>
           </div>
         ))}
       </div>
@@ -2425,10 +2444,9 @@ function HomePage({ books, onSearch, onViewBook, cartIds, onAddToCart }: {
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase' }}>§ 01</span>
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 600, color: '#2C1810' }}>Recommended Books</h2>
           </div>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#9B7B6A', letterSpacing: '0.1em' }}>July 2026</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
-          {books.slice(0, 3).map(book => {
+          {recommendedBooks.map(book => {
             const avail = book.copiesAvailable
             const inCart = cartIds.includes(book.id)
             return (
@@ -2522,28 +2540,10 @@ const BOOK_CLUBS: BookClubEntry[] = []
 
 const VOLUNTEER_ROLES = [
   {
-    title: 'Shelving & Collection Care',
-    commitment: '3 hrs / week',
-    description: 'Help keep our shelves organised, spine labels intact, and damaged books flagged for repair. Perfect for those who love spending quiet time among books.',
+    title: 'General Maintenance',
+    commitment: 'As needed',
+    description: 'Help keep our shelves organised, spine labels intact, and damaged books flagged for repair, plus set up and pack down for library events, minor repairs, furniture moving, and general upkeep of the building and grounds.',
     skills: ['Attention to detail', 'Physical mobility', 'Reliability'],
-  },
-  {
-    title: 'Children\'s Programme Assistant',
-    commitment: '2 hrs / week',
-    description: 'Support our Children\'s Librarian during Story Hour and after-school reading sessions. Help children find books they\'ll love and assist with craft activities.',
-    skills: ['Patience', 'Enthusiasm', 'Works well with children'],
-  },
-  {
-    title: 'Digital Catalogue Project',
-    commitment: 'Flexible',
-    description: 'We are digitising our pre-1990 card catalogue and archival photographs. Volunteers help with data entry, scanning, and tagging. Can be done in short sessions.',
-    skills: ['Computer literacy', 'Accuracy', 'Patience'],
-  },
-  {
-    title: 'Community Outreach',
-    commitment: '4 hrs / month',
-    description: 'Represent Sai Library at local fairs, schools, and community events. Help spread awareness of our programmes and assist with flyer distribution and social media.',
-    skills: ['Communication', 'Friendly demeanour', 'Organised'],
   },
   {
     title: 'Book Club Facilitator',
@@ -2552,10 +2552,10 @@ const VOLUNTEER_ROLES = [
     skills: ['Love of reading', 'Public speaking', 'Preparation'],
   },
   {
-    title: 'General Maintenance & Events',
-    commitment: 'As needed',
-    description: 'Help set up and pack down for library events, assist with minor repairs, furniture moving, and general upkeep of the building and grounds.',
-    skills: ['Practical skills', 'Teamwork', 'Availability on weekends'],
+    title: 'More Roles Coming Soon',
+    commitment: '',
+    description: 'We\'re still defining more ways to get involved. Use the form to tell us what interests you, and we\'ll follow up as new roles open up.',
+    skills: [],
   },
 ]
 
@@ -2817,7 +2817,9 @@ function AboutPage() {
             <div key={role.title} style={{ background: '#FAF3E4', border: '1px solid #D4B896', padding: '20px 22px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                 <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 600, color: '#2C1810', lineHeight: 1.3 }}>{role.title}</h3>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#C8521A', background: 'rgba(200,82,26,0.1)', padding: '3px 8px', letterSpacing: '0.08em', flexShrink: 0, marginLeft: 8, whiteSpace: 'nowrap' }}>{role.commitment}</span>
+                {role.commitment && (
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#C8521A', background: 'rgba(200,82,26,0.1)', padding: '3px 8px', letterSpacing: '0.08em', flexShrink: 0, marginLeft: 8, whiteSpace: 'nowrap' }}>{role.commitment}</span>
+                )}
               </div>
               <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#5C3D2E', lineHeight: 1.65, marginBottom: 12 }}>{role.description}</p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
