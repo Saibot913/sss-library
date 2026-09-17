@@ -2496,7 +2496,7 @@ function HomePage({ books, onSearch, onViewBook, cartIds, onAddToCart }: {
       </section>
 
       <section style={{ background: '#E1A37F', padding: '44px 64px' }}>
-        <blockquote style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px,3vw,32px)', fontWeight: 500, color: '#2C1810', lineHeight: 1.4 }}>
+        <blockquote style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 500, color: '#2C1810', lineHeight: 1.4 }}>
           <span style={{ color: '#C8521A' }}>&ldquo;</span>{swamiQuote.quote}<span style={{ color: '#C8521A' }}>&rdquo;</span>
         </blockquote>
         <cite style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#5C3D2E', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginTop: 14 }}>— {swamiQuote.attribution}</cite>
