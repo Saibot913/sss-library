@@ -55,6 +55,18 @@ migration `0025`):
   created. The input-box UI itself is built; it just isn't wired to a real submission
   destination yet. Needs your org's Google account to create the forms, then drop the URLs
   in and merge.
+- **7 books still missing `author`, `tags`, and/or `published_by`** (data entry, not code) —
+  `GV01.01-E` (Gita Vahini, no author), `GSK01` (Glory of Sri Krishna, no author), `PH01`
+  (Purifying the Heart, no author, no publisher), `TH01` (Transformation of the Heart, no
+  tags), `TMF01` (To My Father, no tags), `US01` (Uniqueness of Swami and His Teachings, no
+  author, no tags, no publisher), `TS01` (Teachings of Sri Satya Sai Baba, no publisher).
+  Doesn't break anything — these fields just render as blank/missing on the book detail page
+  and don't feed the Similar Titles heuristic for these specific books (see `spec.md`) — but
+  worth filling in when there's time. `GV01.01-E`'s book_code also still has the leftover
+  `.NN-E`-style suffix from the same data-entry pattern that caused the Dharma/Upanishad
+  Vahini duplicate-book bug (fixed 2026-09-17) — cosmetic only here since there's no
+  duplicate sibling to merge, but worth renaming to `GV01` for consistency if anyone's
+  touching this book's data anyway.
 
 ## Deploy readiness — still not launch-ready even though features are close to MVP
 
