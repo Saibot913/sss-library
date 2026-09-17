@@ -160,19 +160,20 @@ const SWAMI_QUOTES = [
 // Google Books API (see lib/bookCovers.ts) and cached. Falls back to a plain
 // placeholder box when no cover is found.
 
-function BookCover({ book, style, fallback, fetchCover = false }: { book: Book; style?: React.CSSProperties; fallback?: React.ReactNode; fetchCover?: boolean }) {
-  const cover = useBookCover(book.title, book.author, fetchCover)
-  if (cover) {
-    return <img src={cover} alt={book.title} style={{ objectFit: 'cover', display: 'block', width: '100%', height: '100%', ...style }} />
-  }
+function BookCover({ book, style, fallback, fetchCover = true }: { book: Book; style?: React.CSSProperties; fallback?: React.ReactNode; fetchCover?: boolean }) {
+  const [cover, setRef] = useBookCover(book.title, book.author, fetchCover)
   return (
-    <>
-      {fallback ?? (
-        <div style={{ width: '100%', height: '100%', background: '#D4B896', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, opacity: 0.35, ...style }}>
-          📖
-        </div>
+    <div ref={setRef} style={{ width: '100%', height: '100%' }}>
+      {cover ? (
+        <img src={cover} alt={book.title} style={{ objectFit: 'cover', display: 'block', width: '100%', height: '100%', ...style }} />
+      ) : (
+        fallback ?? (
+          <div style={{ width: '100%', height: '100%', background: '#D4B896', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, opacity: 0.35, ...style }}>
+            📖
+          </div>
+        )
       )}
-    </>
+    </div>
   )
 }
 

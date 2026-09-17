@@ -1,27 +1,50 @@
 import { useEffect, useState } from 'react'
 
-// Cover art isn't stored in Supabase, so it's resolved client-side via the
-// Google Books API and cached (in-memory + localStorage) so the same book
-// is never re-fetched.
+// Cover art isn't stored in Supabase, so it's resolved client-side and
+// cached (in-memory + localStorage) so the same book is never re-fetched.
 //
-// The anonymous (keyless) API is NOT viable: Google now returns
-// `429 RESOURCE_EXHAUSTED` with `quota_limit_value: "0"` for any unauthenticated
-// request — this isn't rate limiting from volume, anonymous access is flatly
-// disabled. Confirmed with curl against the real endpoint; CORS is not the
-// issue (the response includes `access-control-allow-origin` echoing the
-// request Origin). A valid API key fixes it (invalid keys get a different,
-// key-specific 400 error, not the quota 429), so no server-side proxy is
-// needed — set VITE_GOOGLE_BOOKS_API_KEY in .env, restricted to the Books API
-// and your app's HTTP referrer(s) in Google Cloud Console. Without a key set,
-// this hook degrades to always returning null (existing 📖 placeholder).
+// Two sources, tried in order:
+// 1. Google Books API. The anonymous (keyless) API is NOT viable: Google
+//    returns `429 RESOURCE_EXHAUSTED` with `quota_limit_value: "0"` for any
+//    unauthenticated request — this isn't rate limiting from volume,
+//    anonymous access is flatly disabled. A valid API key fixes it (invalid
+//    keys get a different, key-specific 400 error, not the quota 429), so
+//    no server-side proxy is needed — set VITE_GOOGLE_BOOKS_API_KEY in
+//    .env, restricted to the Books API and your app's HTTP referrer(s) in
+//    Google Cloud Console.
+// 2. Open Library (Internet Archive), free and keyless. Covers a different,
+//    partially-overlapping set of titles than Google — worth trying when
+//    Google has nothing, but plenty of books in a niche catalog like this
+//    one won't be indexed by either, and correctly fall back to the 📖
+//    placeholder.
+//
+// Enabled across the whole catalog grid, not just single-book views — the
+// `useInView` gate below means covers only fetch for cards actually
+// scrolled into view, so a 100+ book grid doesn't fire every request at
+// once and burn through the API quota in one page load.
 const CACHE_PREFIX = 'bookCover:'
 const memoryCache = new Map<string, string | null>()
+
+// Dedupes concurrent requests for the same book — without this, StrictMode's
+// mount→cleanup→mount in dev (or the same book rendered in two places at
+// once, e.g. cart + catalog grid) each see an empty memoryCache before
+// either request resolves, and both fire a real network call.
+const inFlight = new Map<string, Promise<string | null>>()
+
+function fetchCoverUrlDeduped(key: string, title: string, author: string): Promise<string | null> {
+  const existing = inFlight.get(key)
+  if (existing) return existing
+
+  const promise = fetchCoverUrl(title, author).finally(() => { inFlight.delete(key) })
+  inFlight.set(key, promise)
+  return promise
+}
 
 function cacheKey(title: string, author: string): string {
   return `${CACHE_PREFIX}${title}::${author}`
 }
 
-async function fetchCoverUrl(title: string, author: string): Promise<string | null> {
+async function fetchFromGoogleBooks(title: string, author: string): Promise<string | null> {
   const apiKey = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY
   if (!apiKey) return null
 
@@ -40,11 +63,49 @@ async function fetchCoverUrl(title: string, author: string): Promise<string | nu
   return thumbnail.replace(/^http:\/\//, 'https://')
 }
 
-// Only call this for a single book at a time (e.g. a detail page) — the
-// anonymous-free-tier-equivalent quota on a real API key is still limited,
-// and firing it across a whole catalog grid will exhaust it quickly.
-export function useBookCover(title: string, author: string, enabled: boolean = true): string | null {
+async function fetchFromOpenLibrary(title: string, author: string): Promise<string | null> {
+  const query = encodeURIComponent(`title:${title} author:${author}`)
+  const url = `https://openlibrary.org/search.json?q=${query}&fields=cover_i&limit=1`
+
+  const response = await fetch(url)
+  if (!response.ok) return null
+
+  const data = await response.json()
+  const coverId = data?.docs?.[0]?.cover_i
+  if (!coverId) return null
+
+  return `https://covers.openlibrary.org/b/id/${coverId}-M.jpg`
+}
+
+async function fetchCoverUrl(title: string, author: string): Promise<string | null> {
+  const fromGoogle = await fetchFromGoogleBooks(title, author)
+  if (fromGoogle) return fromGoogle
+  return fetchFromOpenLibrary(title, author)
+}
+
+// Fetches only fire once the element is actually scrolled into view (plus a
+// little lookahead margin), so mounting 100+ off-screen BookCover instances
+// in a catalog grid doesn't fire 100+ requests at once.
+function useInView<T extends HTMLElement>(): [(node: T | null) => void, boolean] {
+  const [node, setNode] = useState<T | null>(null)
+  const [inView, setInView] = useState(false)
+
+  useEffect(() => {
+    if (!node || inView) return
+    const observer = new IntersectionObserver(
+      entries => { if (entries[0]?.isIntersecting) setInView(true) },
+      { rootMargin: '200px' }
+    )
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [node, inView])
+
+  return [setNode, inView]
+}
+
+export function useBookCover(title: string, author: string, enabled: boolean = true): [string | null, (node: HTMLElement | null) => void] {
   const key = cacheKey(title, author)
+  const [setRef, inView] = useInView()
   const [cover, setCover] = useState<string | null>(() => {
     if (memoryCache.has(key)) return memoryCache.get(key) ?? null
     const stored = localStorage.getItem(key)
@@ -52,7 +113,7 @@ export function useBookCover(title: string, author: string, enabled: boolean = t
   })
 
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled || !inView) return
     if (memoryCache.has(key)) {
       setCover(memoryCache.get(key) ?? null)
       return
@@ -66,7 +127,7 @@ export function useBookCover(title: string, author: string, enabled: boolean = t
     }
 
     let cancelled = false
-    fetchCoverUrl(title, author)
+    fetchCoverUrlDeduped(key, title, author)
       .then(url => {
         memoryCache.set(key, url)
         localStorage.setItem(key, JSON.stringify(url))
@@ -78,7 +139,7 @@ export function useBookCover(title: string, author: string, enabled: boolean = t
         if (!cancelled) setCover(null)
       })
     return () => { cancelled = true }
-  }, [key, title, author, enabled])
+  }, [key, title, author, enabled, inView])
 
-  return cover
+  return [cover, setRef]
 }
