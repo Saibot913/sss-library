@@ -16,6 +16,7 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 ## [Unreleased]
 
 ### Removed
+- The Community page's "Upcoming Events" list was 4 made-up Figma placeholder events (Summer Reading Circle, Children's Story Hour, etc.) that looked real but weren't — events scope was never actually decided (see `project-instructions/README.md`'s "Events scope" open decision). Emptied it out to the same honest "check back later" stub already used for Book Clubs, rather than keep showing fake events as if they were real.
 - The "top 4 categories" pill row under the homepage search box — cluttered and redundant with the catalog's own category filter.
 - The Catalog page's top-bar "Filters" toggle button (and the duplicate Category/Availability/Year row it expanded) — every filter it controlled already lives in the sidebar, so it was a second, redundant way to set the same filters.
 
