@@ -8,6 +8,10 @@ const __dirname = import.meta.dirname
 
 // Nothing else loads the app's .env into process.env for the test runner.
 dotenvConfig({ path: path.resolve(__dirname, '.env') })
+// Test-only vars (service-role key, seeded test account emails) - see
+// tests/.env.example. Loaded second so it can add to, not just override,
+// the app's own .env.
+dotenvConfig({ path: path.resolve(__dirname, 'tests/.env') })
 
 const PORT = process.env.PORT || '8443'
 const baseURL = getBaseUrl()
