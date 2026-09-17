@@ -3,9 +3,14 @@ import {
   type AuthFixtures,
   type AuthProvider,
   createAuthFixtures,
+  getStorageStatePath,
+  loadStorageState,
+  saveStorageState,
   setAuthProvider,
 } from '@seontechnologies/playwright-utils/auth-session'
 import { getBaseUrl } from './base-url'
+import { mintSessionForEmail } from './mint-session'
+import { testPatronEmail } from './supabase-admin'
 
 // Supabase's browser client persists the session under this localStorage key
 // (derived from the project ref in VITE_SUPABASE_URL). See src/lib/supabaseClient.ts.
@@ -31,7 +36,11 @@ function parseSupabaseSession(tokenData: Record<string, unknown>): SupabaseStore
 
 const supabaseAuthProvider: AuthProvider = {
   getEnvironment: options => options?.environment ?? 'local',
-  getUserIdentifier: options => options?.userIdentifier ?? 'default-user',
+  // userIdentifier doubles as the email to mint a session for - defaults to
+  // the seeded patron account (see tests/support/seed-test-accounts.ts).
+  // Tests needing the staff account opt in with
+  // `test.use({ authOptions: { userIdentifier: process.env.TEST_STAFF_EMAIL } })`.
+  getUserIdentifier: options => options?.userIdentifier ?? process.env.TEST_PATRON_EMAIL ?? 'default-user',
 
   extractToken: tokenData => parseSupabaseSession(tokenData)?.access_token ?? null,
 
@@ -44,26 +53,45 @@ const supabaseAuthProvider: AuthProvider = {
   extractStorage: tokenData => getOrigins(tokenData).map(o => ({ origin: o.origin, localStorage: o.localStorage ?? [] })),
 
   // rawToken here is whatever extractToken returned (the JWT string itself),
-  // which carries no expiry info we bother decoding. This path is never
-  // exercised today since manageAuthToken (below) is unimplemented.
+  // which carries no expiry info we bother decoding - a missing token is
+  // the only case treated as "expired" and worth re-minting. Supabase's
+  // client-side auto-refresh (using the refresh_token also written into
+  // localStorage) covers ordinary access-token expiry once the page loads.
   isTokenExpired: rawToken => !rawToken,
 
-  // TODO: this app signs patrons in via a Supabase magic-link email
-  // (src/lib/auth.ts requestSignInCode -> the auth-email Edge Function), which
-  // has no password/API grant a test runner can drive directly. Minting a
-  // session here needs one of:
-  //   - a Supabase service-role admin call (supabase.auth.admin.generateLink /
-  //     admin.createUser) run against a dedicated test account, OR
-  //   - a test-only Edge Function that exchanges a shared secret for a session.
-  // The service-role key must never live in this repo or a local .env (see
-  // README.md #10) - it belongs in a CI secret / local-only file this
-  // provider reads at runtime. Left unimplemented until that decision is
-  // made; reported as a deviation in the framework setup summary.
-  manageAuthToken: async () => {
-    throw new Error(
-      'supabaseAuthProvider.manageAuthToken is not implemented yet - this app uses magic-link auth with no ' +
-        'password grant. See the TODO above this function for what needs deciding first.',
-    )
+  // This app signs patrons in via a Supabase magic-link email (see
+  // src/lib/auth.ts requestSignInCode -> the auth-email Edge Function),
+  // which has no password/API grant a test runner can drive directly.
+  // Instead: mint a real session server-side via the service-role admin API
+  // (see tests/support/mint-session.ts).
+  //
+  // playwright-utils's context/page fixtures read storage state straight off
+  // disk (`getStorageStatePath(authOptions)`) rather than from whatever this
+  // function returns - the interface doc's "checking storage ... and saving
+  // tokens" is this provider's job, not the library's. So this reads/writes
+  // that exact cache file itself: reuse it if present, otherwise mint and
+  // persist a fresh one in Playwright's storage-state format before
+  // returning it (the return value only otherwise feeds the `authToken`
+  // fixture, via extractToken below).
+  manageAuthToken: async (_request, options) => {
+    const statePath = getStorageStatePath(options)
+    const cached = loadStorageState(statePath) as Record<string, unknown> | null
+    if (cached && !supabaseAuthProvider.isTokenExpired!(supabaseAuthProvider.extractToken(cached) ?? '')) {
+      return cached
+    }
+
+    const email = options?.userIdentifier ?? testPatronEmail()
+    const session = await mintSessionForEmail(email)
+    const tokenData = {
+      origins: [
+        {
+          origin: getBaseUrl(),
+          localStorage: [{ name: SUPABASE_STORAGE_KEY, value: JSON.stringify(session) }],
+        },
+      ],
+    }
+    saveStorageState(statePath, { cookies: [], origins: tokenData.origins })
+    return tokenData
   },
 
   // No local cache beyond what auth-session itself manages on disk.
@@ -88,12 +116,18 @@ const authFixturesBase = base.extend<AuthFixtures>(
   createAuthFixtures() as unknown as Parameters<typeof base.extend<AuthFixtures>>[0],
 )
 
-// createAuthFixtures() defaults authSessionEnabled to true, which makes
-// every test using `page`/`context` go through manageAuthToken - and that's
-// unimplemented (see the TODO above). Default it off project-wide until
-// manageAuthToken is built; a test that specifically needs auth can opt in
-// with `test.use({ authSessionEnabled: true })`.
+// createAuthFixtures() defaults authSessionEnabled to true, which would make
+// every test using `page`/`context` mint a session even when it doesn't need
+// one. Default it off project-wide; a test that specifically needs auth
+// opts in with `test.use({ authSessionEnabled: true })`.
+// createAuthFixtures() also defaults authOptions.userIdentifier to the
+// literal string 'default', not undefined - so the `options?.userIdentifier
+// ?? testPatronEmail()` fallback in manageAuthToken above never actually
+// triggers unless a spec overrides authOptions itself. Default it here to
+// the seeded patron account instead; staff-only specs override with
+// `test.use({ authOptions: { userIdentifier: process.env.TEST_STAFF_EMAIL } })`.
 export const test = authFixturesBase.extend<AuthFixtures>({
   authSessionEnabled: false,
+  authOptions: { userIdentifier: process.env.TEST_PATRON_EMAIL },
 })
 export { expect } from '@playwright/test'
