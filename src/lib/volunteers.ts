@@ -6,14 +6,10 @@
 // read submissions — all real gaps the Supabase version would've had for
 // a small volunteer team.
 //
-// TODO(owner): create the form under the org's Google account (the one
-// tied to saisevasadan.org, not a personal email — so access isn't lost
-// if one person leaves) with three fields:
-//   - Name (short answer, required)
-//   - Email or phone (short answer, required)
-//   - Area of interest (paragraph, optional) — prompt: "What kind of
-//     volunteering interests you?"
-// Then: Send → the link (🔗) icon → copy the shareable link → paste it
-// below. AboutPage links out to this rather than embedding it, so the
-// page doesn't need to change again if the form's fields ever do.
-export const VOLUNTEER_FORM_URL = ''
+// AboutPage links out to this rather than embedding it, so the page
+// doesn't need to change again if the form's fields ever do.
+export const VOLUNTEER_FORM_URL = 'https://forms.gle/9bFyySCSrYhaCKkH7'
+
+// Where staff read raw submissions to follow up with volunteers — linked
+// from the staff Volunteers page.
+export const VOLUNTEER_RESPONSES_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1NoimCd7k2TFL1B8nYxX-fleTqX-TEyYmbrBIF-tYPJM/edit?usp=sharing'

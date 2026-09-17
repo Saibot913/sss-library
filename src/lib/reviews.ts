@@ -5,20 +5,13 @@ import { supabase } from './supabaseClient'
 // is a staff-curated `reviews` table: staff reads the spreadsheet and, for
 // any submission worth publishing, types it in via the staff Reviews page.
 // No Sheets API, no "pending" queue — every row here is already published.
-//
-// TODO(owner): create the form under the org's Google account (same one
-// as the volunteer form — see src/lib/volunteers.ts) with:
-//   - Name (short answer, required)
-//   - Email or phone (short answer, required)
-//   - Category (dropdown, required) — options: "Book Review", "Library Review"
-//     — use Google Forms' "Go to section based on answer" branching so
-//     picking "Book Review" reveals a required "Book Title" short-answer
-//     field right before the review box, and "Library Review" skips
-//     straight to the review box (no title field shown at all).
-//   - Review (paragraph, required) — same field in both branches
-// Then: Send → the link (🔗) icon → copy the shareable link → paste it
-// below.
-export const REVIEW_FORM_URL = ''
+export const REVIEW_FORM_URL = 'https://forms.gle/YyXfu6YDue2NjkCD7'
+
+// Where staff read raw submissions before curating them onto the site —
+// linked from the staff Reviews page. Note the sheet has two separate
+// "Review"-labeled columns (one per Category branch in the form), since
+// Sheets doesn't allow two columns with the exact same header.
+export const REVIEW_RESPONSES_SHEET_URL = 'https://docs.google.com/spreadsheets/d/13CYKrOjQtpyk6_M3oNA7tVc36vOqBSEmw9Vrc8c6t98/edit?usp=sharing'
 
 export type Review = {
   id: string
