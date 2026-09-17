@@ -192,7 +192,6 @@ function TopNav({
   onCloseUserMenu,
   onHolds,
   isStaff,
-  onStaff,
 }: {
   active: Page | null
   onNav: (p: Page) => void
@@ -208,7 +207,6 @@ function TopNav({
   onCloseUserMenu: () => void
   onHolds: () => void
   isStaff: boolean
-  onStaff: () => void
 }) {
   const accountRef = useRef<HTMLDivElement>(null)
 
@@ -251,7 +249,7 @@ function TopNav({
           ['catalog', '02', 'Catalog'],
           ['thought', '03', 'Thought for the Day'],
           ['about', '04', 'Community'],
-          ...(isStaff ? [['staff', '05', 'Staff'] as const, ['dashboard', '06', 'Dashboard'] as const] : []),
+          ...(isStaff ? [['staff', '05', 'Staff'] as const] : []),
         ] as const).map(([id, num, label]) => (
           <button
             key={id}
@@ -276,9 +274,9 @@ function TopNav({
               title={userName ? `Settings for ${userName}` : 'Settings'}
               aria-haspopup="menu"
               aria-expanded={showUserMenu}
-              style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 16px', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, letterSpacing: '0.06em', color: '#FAF3E4', background: 'rgba(200,82,26,0.25)', border: '1px solid rgba(200,82,26,0.5)', cursor: 'pointer', transition: 'all 0.2s' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 16px', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, letterSpacing: '0.06em', color: '#FAF3E4', background: showUserMenu ? 'rgba(200,82,26,0.25)' : 'rgba(255,255,255,0.06)', border: `1px solid ${showUserMenu ? 'rgba(200,82,26,0.5)' : 'rgba(255,255,255,0.15)'}`, cursor: 'pointer', transition: 'all 0.2s' }}
               onMouseEnter={e => (e.currentTarget.style.borderColor = '#C8521A')}
-              onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(200,82,26,0.5)')}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = showUserMenu ? 'rgba(200,82,26,0.5)' : 'rgba(255,255,255,0.15)')}
             >
               <span style={{ fontSize: 14 }}>⚙</span>
               <span>Settings</span>
@@ -288,11 +286,6 @@ function TopNav({
                 <button onClick={onProfile} style={{ width: '100%', textAlign: 'left', padding: '12px 14px', background: 'transparent', border: 'none', borderBottom: '1px solid #E7D7B0', color: '#2C1810', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   Profile
                 </button>
-                {isStaff && (
-                  <button onClick={onStaff} style={{ width: '100%', textAlign: 'left', padding: '12px 14px', background: 'transparent', border: 'none', borderBottom: '1px solid #E7D7B0', color: '#2C1810', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                    Staff
-                  </button>
-                )}
                 <button onClick={onLogout} style={{ width: '100%', textAlign: 'left', padding: '12px 14px', background: 'transparent', border: 'none', color: '#2C1810', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   Log out
                 </button>
@@ -315,7 +308,9 @@ function TopNav({
         {loggedIn && (
           <button
             onClick={onHolds}
-            style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 12px', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: '#FAF3E4', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 12px', fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: '#FAF3E4', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer', transition: 'all 0.2s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.14)'; e.currentTarget.style.borderColor = '#C8521A' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)' }}
           >
             Holds
           </button>
@@ -645,24 +640,24 @@ function StaffHomePage() {
   const tiles: Array<{ page: Page; title: string; description: string }> = [
     { page: 'staffBooks', title: 'Manage Books', description: 'Add new books or copies, edit details, retire a copy.' },
     { page: 'staffReturns', title: 'Returns & Holds', description: 'Process returns and release stale holds.' },
-    { page: 'dashboard', title: 'Dashboard', description: 'Checkout traffic, popular books, and other stats.' },
+    { page: 'dashboard', title: 'Metrics', description: 'Checkout traffic, popular books, and other stats.' },
     { page: 'staffReviews', title: 'Reviews', description: 'Publish curated book and library reviews.' },
     { page: 'staffManage', title: 'Manage Staff', description: 'Add or remove staff access.' },
   ]
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '48px 24px' }}>
-      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: '#2C1810', marginBottom: 24 }}>Staff</h1>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
+      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, color: '#2C1810', marginBottom: 24 }}>Staff</h1>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
         {tiles.map(tile => (
           <button
             key={tile.page}
             onClick={() => navigate(PAGE_PATHS[tile.page])}
-            style={{ textAlign: 'left', padding: 20, background: '#FAF3E4', border: '1px solid #D4B896', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 8 }}
+            style={{ textAlign: 'left', padding: 22, background: '#FAF3E4', border: '1px solid #D4B896', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 10 }}
             onMouseEnter={e => (e.currentTarget.style.borderColor = '#C8521A')}
             onMouseLeave={e => (e.currentTarget.style.borderColor = '#D4B896')}
           >
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: '#2C1810' }}>{tile.title}</h2>
-            <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#9B7B6A', lineHeight: 1.5 }}>{tile.description}</p>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: '#2C1810' }}>{tile.title}</h2>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: '#9B7B6A', lineHeight: 1.5 }}>{tile.description}</p>
           </button>
         ))}
       </div>
@@ -755,7 +750,7 @@ function DashboardPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', borderBottom: '1px solid #D4B896', paddingBottom: 16, marginBottom: 24 }}>
         <div>
           <p style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Staff only</p>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, color: '#2C1810' }}>Dashboard</h1>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, color: '#2C1810' }}>Metrics</h1>
         </div>
         <button onClick={() => void loadStats()} disabled={loading} style={{ padding: '9px 14px', background: loading ? '#A56A44' : '#C8521A', color: '#FAF3E4', border: 0, cursor: loading ? 'not-allowed' : 'pointer' }}>{loading ? 'Loading…' : 'Refresh'}</button>
       </div>
@@ -1127,8 +1122,8 @@ function suggestBookCode(base: string, existingCodes: Set<string>): string {
   return `${base}-${n}`
 }
 
-const manageBooksInputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 13, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box' }
-const manageBooksLabelStyle: React.CSSProperties = { display: 'block', fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5 }
+const manageBooksInputStyle: React.CSSProperties = { width: '100%', padding: '12px 14px', fontFamily: 'var(--font-body)', fontSize: 15, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box' }
+const manageBooksLabelStyle: React.CSSProperties = { display: 'block', fontFamily: 'var(--font-mono)', fontSize: 11, color: '#9B7B6A', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }
 
 function BookSearchPicker({ books, query, setQuery, onPick, placeholder }: { books: Book[]; query: string; setQuery: (q: string) => void; onPick: (book: Book) => void; placeholder: string }) {
   const matches = useMemo(() => {
@@ -1146,9 +1141,9 @@ function BookSearchPicker({ books, query, setQuery, onPick, placeholder }: { boo
             <button
               key={b.id}
               onClick={() => onPick(b)}
-              style={{ textAlign: 'left', padding: '8px 10px', background: '#F4E9D0', border: '1px solid #D4B896', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 13, color: '#2C1810' }}
+              style={{ textAlign: 'left', padding: '10px 14px', background: '#F4E9D0', border: '1px solid #D4B896', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 15, color: '#2C1810' }}
             >
-              {b.title} <span style={{ color: '#9B7B6A', fontSize: 11 }}>({b.id})</span>
+              {b.title} <span style={{ color: '#9B7B6A', fontSize: 13 }}>({b.id})</span>
             </button>
           ))}
         </div>
@@ -2110,7 +2105,7 @@ function CatalogPage({
               <button onClick={() => setFilters(EMPTY_FILTERS)} style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', letterSpacing: '0.06em' }}>Clear ({activeFilterCount})</button>
             )}
           </div>
-          <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#9B7B6A' }}>{hasSearched ? `${results.length} result${results.length !== 1 ? 's' : ''}` : `${books.length} total items`}</p>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#9B7B6A' }}>{hasSearched ? `${results.length} result${results.length !== 1 ? 's' : ''}` : `${books.length} total items`}</p>
         </div>
 
         <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -2119,8 +2114,8 @@ function CatalogPage({
             { label: 'Keywords', key: 'keywords' as const, placeholder: 'e.g. memory, love…', type: 'text' },
           ].map(f => (
             <div key={f.key}>
-              <label style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{f.label}</label>
-              <input type={f.type} placeholder={f.placeholder} value={filters[f.key] as string} onChange={e => setF(f.key, e.target.value)} style={{ width: '100%', padding: '8px 10px', fontFamily: 'var(--font-body)', fontSize: 13, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box' }} onFocus={e => (e.target.style.borderColor = '#C8521A')} onBlur={e => (e.target.style.borderColor = '#D4B896')} />
+              <label style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{f.label}</label>
+              <input type={f.type} placeholder={f.placeholder} value={filters[f.key] as string} onChange={e => setF(f.key, e.target.value)} style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 15, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box' }} onFocus={e => (e.target.style.borderColor = '#C8521A')} onBlur={e => (e.target.style.borderColor = '#D4B896')} />
             </div>
           ))}
 
@@ -2128,30 +2123,30 @@ function CatalogPage({
             { label: 'Category', key: 'category' as const, opts: categories },
           ].map(f => (
             <div key={f.key}>
-              <label style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{f.label}</label>
-              <select value={filters[f.key] as string} onChange={e => setF(f.key, e.target.value)} style={{ width: '100%', padding: '8px 10px', fontFamily: 'var(--font-body)', fontSize: 13, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', appearance: 'none', cursor: 'pointer', boxSizing: 'border-box' }}>
+              <label style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{f.label}</label>
+              <select value={filters[f.key] as string} onChange={e => setF(f.key, e.target.value)} style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 15, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', appearance: 'none', cursor: 'pointer', boxSizing: 'border-box' }}>
                 {f.opts.map(o => <option key={o}>{o}</option>)}
               </select>
             </div>
           ))}
 
           <div>
-            <label style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Year Range</label>
+            <label style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Year Range</label>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <input type="number" placeholder="From" value={filters.yearFrom} onChange={e => setF('yearFrom', e.target.value)} style={{ width: '50%', padding: '8px 10px', fontFamily: 'var(--font-body)', fontSize: 13, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none' }} onFocus={e => (e.target.style.borderColor = '#C8521A')} onBlur={e => (e.target.style.borderColor = '#D4B896')} />
+              <input type="number" placeholder="From" value={filters.yearFrom} onChange={e => setF('yearFrom', e.target.value)} style={{ width: '50%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 15, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none' }} onFocus={e => (e.target.style.borderColor = '#C8521A')} onBlur={e => (e.target.style.borderColor = '#D4B896')} />
               <span style={{ color: '#9B7B6A' }}>—</span>
-              <input type="number" placeholder="To" value={filters.yearTo} onChange={e => setF('yearTo', e.target.value)} style={{ width: '50%', padding: '8px 10px', fontFamily: 'var(--font-body)', fontSize: 13, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none' }} onFocus={e => (e.target.style.borderColor = '#C8521A')} onBlur={e => (e.target.style.borderColor = '#D4B896')} />
+              <input type="number" placeholder="To" value={filters.yearTo} onChange={e => setF('yearTo', e.target.value)} style={{ width: '50%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 15, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none' }} onFocus={e => (e.target.style.borderColor = '#C8521A')} onBlur={e => (e.target.style.borderColor = '#D4B896')} />
             </div>
           </div>
 
           <div>
-            <label style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 10 }}>Availability</label>
+            <label style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 10 }}>Availability</label>
             {([['all', 'All items'], ['available', 'Available now'], ['checkedout', 'On loan']] as const).map(([val, label]) => (
               <label key={val} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 8 }}>
-                <div onClick={() => setF('availability', val)} style={{ width: 14, height: 14, border: `1.5px solid ${filters.availability === val ? '#C8521A' : '#D4B896'}`, background: filters.availability === val ? '#C8521A' : 'transparent', flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {filters.availability === val && <span style={{ color: '#FAF3E4', fontSize: 9 }}>✓</span>}
+                <div onClick={() => setF('availability', val)} style={{ width: 16, height: 16, border: `1.5px solid ${filters.availability === val ? '#C8521A' : '#D4B896'}`, background: filters.availability === val ? '#C8521A' : 'transparent', flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {filters.availability === val && <span style={{ color: '#FAF3E4', fontSize: 10 }}>✓</span>}
                 </div>
-                <span onClick={() => setF('availability', val)} style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#5C3D2E', cursor: 'pointer' }}>{label}</span>
+                <span onClick={() => setF('availability', val)} style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#5C3D2E', cursor: 'pointer' }}>{label}</span>
               </label>
             ))}
           </div>
@@ -2227,41 +2222,41 @@ function CatalogPage({
               <button onClick={() => setFilters(EMPTY_FILTERS)} style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '10px 22px', background: '#C8521A', color: '#FAF3E4', border: 'none', cursor: 'pointer' }}>Clear All Filters</button>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 1, background: '#D4B896' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 1, background: '#D4B896' }}>
               {results.map(book => {
                 const avail = book.copiesAvailable
                 const inCart = cartIds.includes(book.id)
                 return (
-                  <div key={book.id} style={{ background: '#FAF3E4', padding: 18, display: 'flex', flexDirection: 'column', gap: 0 }}>
+                  <div key={book.id} style={{ background: '#FAF3E4', padding: 20, display: 'flex', flexDirection: 'column', gap: 0 }}>
                     <div
                       onClick={() => onViewBook(book)}
                       style={{ cursor: 'pointer', flex: 1 }}
                     >
-                      <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-                        <div style={{ width: 44, height: 56, overflow: 'hidden', flexShrink: 0, background: '#D4B896' }}>
+                      <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+                        <div style={{ width: 52, height: 66, overflow: 'hidden', flexShrink: 0, background: '#D4B896' }}>
                           <BookCover book={book} />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 600, color: '#2C1810', lineHeight: 1.3, marginBottom: 2 }}>{book.title}</h3>
-                          <p style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: '#5C3D2E' }}>{book.author} · {book.year}</p>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
-                            <div style={{ width: 5, height: 5, borderRadius: '50%', background: avail > 0 ? '#4CAF50' : '#C8521A' }} />
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: avail > 0 ? '#4CAF50' : '#C8521A' }}>{avail > 0 ? `${avail}/${book.copiesTotal} available` : 'All on loan'}</span>
+                          <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 600, color: '#2C1810', lineHeight: 1.3, marginBottom: 3 }}>{book.title}</h3>
+                          <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#5C3D2E' }}>{book.author} · {book.year}</p>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 5 }}>
+                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: avail > 0 ? '#4CAF50' : '#C8521A' }} />
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: avail > 0 ? '#4CAF50' : '#C8521A' }}>{avail > 0 ? `${avail}/${book.copiesTotal} available` : 'All on loan'}</span>
                           </div>
                         </div>
                       </div>
-                      <p style={{ fontFamily: 'var(--font-body)', fontSize: 11, color: '#9B7B6A', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: 10 }}>
+                      <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#9B7B6A', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: 12 }}>
                         {book.summary}
                       </p>
                     </div>
-                    <div style={{ borderTop: '1px solid #D4B896', paddingTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontFamily: 'var(--font-body)', fontSize: 10, color: '#9B7B6A' }}>{book.category}</span>
+                    <div style={{ borderTop: '1px solid #D4B896', paddingTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#9B7B6A' }}>{book.category}</span>
                       {avail === 0 ? (
-                        <button disabled style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.06em', padding: '4px 10px', background: '#E9DCC3', color: '#9B7B6A', border: '1px solid #D4B896', cursor: 'not-allowed' }}>
+                        <button disabled style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', padding: '5px 12px', background: '#E9DCC3', color: '#9B7B6A', border: '1px solid #D4B896', cursor: 'not-allowed' }}>
                           Not available
                         </button>
                       ) : (
-                        <button onClick={() => onAddToCart(book.id)} style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.06em', padding: '4px 10px', background: inCart ? '#2C1810' : '#C8521A', color: '#FAF3E4', border: 'none', cursor: 'pointer', transition: 'background 0.15s' }}>
+                        <button onClick={() => onAddToCart(book.id)} style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em', padding: '5px 12px', background: inCart ? '#2C1810' : '#C8521A', color: '#FAF3E4', border: 'none', cursor: 'pointer', transition: 'background 0.15s' }}>
                           {inCart ? '✓ Added' : '+ Cart'}
                         </button>
                       )}
@@ -2286,28 +2281,28 @@ function CatalogPage({
                   const inCart = cartIds.includes(book.id)
                   const sharedKw = book.keywords.filter(k => unavailableResults.some(u => u.keywords.includes(k)))
                   return (
-                    <div key={book.id} style={{ background: '#F4E9D0', border: '1px solid #D4B896', padding: 14 }}>
+                    <div key={book.id} style={{ background: '#F4E9D0', border: '1px solid #D4B896', padding: 16 }}>
                       <div onClick={() => onViewBook(book)} style={{ cursor: 'pointer' }}>
                         <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
-                          <div style={{ width: 36, height: 48, overflow: 'hidden', flexShrink: 0, background: '#D4B896' }}>
+                          <div style={{ width: 44, height: 58, overflow: 'hidden', flexShrink: 0, background: '#D4B896' }}>
                             <BookCover book={book} />
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <h4 style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 600, color: '#2C1810', lineHeight: 1.3, marginBottom: 2 }}>{book.title}</h4>
-                            <p style={{ fontFamily: 'var(--font-body)', fontSize: 10, color: '#5C3D2E', marginBottom: 4 }}>{book.author}</p>
+                            <h4 style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 600, color: '#2C1810', lineHeight: 1.3, marginBottom: 3 }}>{book.title}</h4>
+                            <p style={{ fontFamily: 'var(--font-body)', fontSize: 12, color: '#5C3D2E', marginBottom: 4 }}>{book.author}</p>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                               <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#4CAF50' }} />
-                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: '#4CAF50' }}>{avail} available</span>
+                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#4CAF50' }}>{avail} available</span>
                             </div>
                           </div>
                         </div>
                         {sharedKw.length > 0 && (
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
-                            {sharedKw.slice(0, 3).map(k => <span key={k} style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: '#C8521A', background: 'rgba(200,82,26,0.1)', padding: '2px 5px', border: '1px solid rgba(200,82,26,0.2)' }}>{k}</span>)}
+                            {sharedKw.slice(0, 3).map(k => <span key={k} style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#C8521A', background: 'rgba(200,82,26,0.1)', padding: '2px 6px', border: '1px solid rgba(200,82,26,0.2)' }}>{k}</span>)}
                           </div>
                         )}
                       </div>
-                      <button onClick={() => onAddToCart(book.id)} style={{ marginTop: 6, width: '100%', padding: '5px', background: inCart ? '#2C1810' : '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.08em', border: 'none', cursor: 'pointer' }}>
+                      <button onClick={() => onAddToCart(book.id)} style={{ marginTop: 6, width: '100%', padding: '7px', background: inCart ? '#2C1810' : '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.08em', border: 'none', cursor: 'pointer' }}>
                         {inCart ? '✓ Added' : '+ Add to Cart'}
                       </button>
                     </div>
@@ -2451,11 +2446,11 @@ function HomePage({ books, onSearch, onViewBook, cartIds, onAddToCart }: {
         ))}
       </section>
 
-      <section style={{ background: '#2C1810', padding: '44px 64px' }}>
-        <blockquote style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px,3vw,32px)', fontStyle: 'italic', color: '#FAF3E4', lineHeight: 1.4, maxWidth: 680 }}>
-          "{swamiQuote.quote}"
+      <section style={{ background: '#E1A37F', padding: '44px 64px' }}>
+        <blockquote style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(20px,3vw,32px)', fontWeight: 500, color: '#2C1810', lineHeight: 1.4 }}>
+          <span style={{ color: '#C8521A' }}>&ldquo;</span>{swamiQuote.quote}<span style={{ color: '#C8521A' }}>&rdquo;</span>
         </blockquote>
-        <cite style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#E8A268', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginTop: 14 }}>— {swamiQuote.attribution}</cite>
+        <cite style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#5C3D2E', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginTop: 14 }}>— {swamiQuote.attribution}</cite>
       </section>
     </div>
   )
@@ -2581,18 +2576,18 @@ function ThoughtPage() {
 
       <section style={{ padding: '56px 64px 72px', maxWidth: 900, margin: '0 auto' }}>
         {loading ? (
-          <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#9B7B6A', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: '#9B7B6A', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
             Loading…
           </p>
         ) : error ? (
           <div>
-            <p style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600, color: '#C8521A', marginBottom: 6 }}>Couldn't load the thought</p>
-            <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#9B7B6A' }}>{error}</p>
+            <p style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600, color: '#C8521A', marginBottom: 6 }}>Couldn't load the thought</p>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: '#9B7B6A' }}>{error}</p>
           </div>
         ) : !thought ? (
           <div>
-            <p style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600, color: '#2C1810', marginBottom: 6 }}>Nothing here yet</p>
-            <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#5C3D2E' }}>
+            <p style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600, color: '#2C1810', marginBottom: 6 }}>Nothing here yet</p>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: '#5C3D2E' }}>
               Today's thought hasn't arrived. It's imported once a day — please check back later.
             </p>
           </div>
@@ -2600,7 +2595,7 @@ function ThoughtPage() {
           <>
             {/* Teaser above the discourse */}
             {thought.intro && (
-              <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, color: '#C8521A', lineHeight: 1.7, marginBottom: 24 }}>
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: 17, fontWeight: 600, color: '#C8521A', lineHeight: 1.7, marginBottom: 24 }}>
                 {thought.intro}
               </p>
             )}
@@ -2608,30 +2603,32 @@ function ThoughtPage() {
             {/* The discourse extract. Paragraph breaks are stored as blank
                 lines by the importer, so split rather than dumping one block. */}
             {thought.passage.split('\n\n').filter(Boolean).map((para, i) => (
-              <p key={i} style={{ fontFamily: 'var(--font-body)', fontSize: 16, color: '#2C1810', lineHeight: 1.85, marginBottom: 20, textAlign: 'justify' }}>
+              <p key={i} style={{ fontFamily: 'var(--font-body)', fontSize: 18, color: '#2C1810', lineHeight: 1.85, marginBottom: 20, textAlign: 'justify' }}>
                 {para}
               </p>
             ))}
 
             {thought.attribution && (
-              <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: '#5C3D2E', textAlign: 'right', marginTop: 28 }}>
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600, color: '#5C3D2E', textAlign: 'right', marginTop: 28 }}>
                 {thought.attribution}
               </p>
             )}
 
             {/* The short highlighted line, closing the page — same order the
                 email itself uses, where it sits in a band below the discourse
-                rather than above it. */}
+                rather than above it. Non-italic: a whole paragraph set in
+                italics at this size was hard to read, so the quote is set
+                off with the display font and rule marks instead of slanting. */}
             {thought.quote && (
-              <blockquote style={{ margin: '48px 0 0', background: '#2C1810', padding: '32px 36px' }}>
-                <p style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(18px,2.2vw,24px)', fontStyle: 'italic', fontWeight: 500, color: '#FAF3E4', lineHeight: 1.55, textAlign: 'center' }}>
-                  {thought.quote}
+              <blockquote style={{ margin: '48px 0 0', background: '#2C1810', padding: '36px 40px' }}>
+                <p style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(19px,2.4vw,26px)', fontWeight: 500, color: '#FAF3E4', lineHeight: 1.6, textAlign: 'center' }}>
+                  <span style={{ color: '#C8521A' }}>&ldquo;</span>{thought.quote}<span style={{ color: '#C8521A' }}>&rdquo;</span>
                 </p>
               </blockquote>
             )}
 
             <div style={{ marginTop: 48, paddingTop: 20, borderTop: '1px solid #D4B896' }}>
-              <p style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#9B7B6A', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+              <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#9B7B6A', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                 Source ·{' '}
                 <a href="https://www.sssmediacentre.org/sai-inspires/" target="_blank" rel="noreferrer" style={{ color: '#C8521A' }}>
                   Sai Inspires, Radio Sai
@@ -3192,7 +3189,6 @@ export default function App() {
         onCloseUserMenu={() => setShowUserMenu(false)}
         onHolds={() => { setShowUserMenu(false); navigate('/account') }}
         isStaff={Boolean(currentPatron) && isStaff}
-        onStaff={() => { setShowUserMenu(false); navigate(PAGE_PATHS.staff) }}
         loggedIn={loggedIn}
         userName={userName}
         showUserMenu={showUserMenu}
