@@ -336,3 +336,26 @@ function toCheckoutHistoryRow(row: RawCheckout & { returned_at: string }): Check
     returnedAt: row.returned_at,
   }
 }
+
+export type TopCheckedOutBook = {
+  bookCode: string
+  title: string
+  checkoutCount: number
+}
+
+/**
+ * Most checked-out books over a rolling 30-day window (not staff-only —
+ * this powers the home page's "Recommended Books" section, visible to
+ * every visitor). A rolling window rather than the strict calendar month
+ * it's displayed as, so the list doesn't go empty for the first few days
+ * of a new month before checkouts accumulate.
+ */
+export async function fetchTopCheckedOutBooks(limit = 3): Promise<TopCheckedOutBook[]> {
+  const { data, error } = await supabase.rpc('home_top_checked_out_books', { p_limit: limit })
+  if (error) throw error
+  return ((data ?? []) as Array<{ book_code: string; title: string; checkout_count: number }>).map(row => ({
+    bookCode: row.book_code,
+    title: row.title,
+    checkoutCount: row.checkout_count,
+  }))
+}
