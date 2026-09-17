@@ -1,4 +1,4 @@
--- update_book() intentionally excluded `title` (see ME/spec.md #1b): "a
+-- update_book() intentionally excluded `title` (see planning_docs/spec.md #1b): "a
 -- title typo can only be fixed via the Supabase Table Editor... revisit if
 -- that turns out to be annoying in practice." It has been — staff now edit
 -- titles directly from the Manage Books page. book_code is a fixed

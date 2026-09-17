@@ -1,6 +1,6 @@
 # Future features (not in V1 scope)
 
-Source of truth for anything decided *against* building right now, but worth keeping around instead of deleting outright. Each entry has the reasoning plus the actual code, so bringing it back later is a copy-paste, not a rebuild. This file is currently untracked/local-only (not pushed to the team repo) — nothing in the checklist below references it directly for that reason.
+Source of truth for anything decided *against* building right now, but worth keeping around instead of deleting outright. Each entry has the reasoning plus the actual code, so bringing it back later is a copy-paste, not a rebuild. Tracked in git along with the rest of `planning_docs/`.
 
 ---
 
@@ -8,7 +8,7 @@ Source of truth for anything decided *against* building right now, but worth kee
 
 **Status:** idea only — nothing built, not even a stub. Recorded here so it isn't lost, per the same "not now, not gone" treatment as everything else in this file.
 
-**The idea:** the Reviews & Feedback form (`src/lib/reviews.ts`) that exists today just collects raw submissions into a Google Sheet — nothing from it appears on the site. This future version closes that loop: a staff-only page (same access pattern as the "Add a Book" idea in `ME/spec.md` — gated via `is_staff()`/the `staff` table, hidden from regular patrons) where a staff member reads incoming reviews, and for any they want to feature, links it to a specific book. Once linked, it shows up on that book's page.
+**The idea:** the Reviews & Feedback form (`src/lib/reviews.ts`) that exists today just collects raw submissions into a Google Sheet — nothing from it appears on the site. This future version closes that loop: a staff-only page (same access pattern as the "Add a Book" idea in `planning_docs/spec.md` — gated via `is_staff()`/the `staff` table, hidden from regular patrons) where a staff member reads incoming reviews, and for any they want to feature, links it to a specific book. Once linked, it shows up on that book's page.
 
 **What that actually requires, when it's picked up:**
 - A real `reviews` table (`book_code` FK → `books`, review text, reviewer name, `approved_at`/similar) — the "one-to-many" relationship from the original brainstorm, this time for real.

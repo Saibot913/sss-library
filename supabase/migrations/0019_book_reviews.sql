@@ -1,4 +1,4 @@
--- Reviews, staff-curated, two kinds in one table. Per ME/future-features.md
+-- Reviews, staff-curated, two kinds in one table. Per planning_docs/future-features.md
 -- "Staff review curation" (decided 2026-09-16 to build, manual-entry path,
 -- then extended in conversation to also cover general library/site
 -- reviews, not just per-book ones): the external Reviews & Feedback
