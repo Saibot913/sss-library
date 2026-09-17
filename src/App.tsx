@@ -1786,23 +1786,23 @@ function ProfilePage({
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
-            <label style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Email Address</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 14, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box' }} />
+            <label htmlFor="profile-email" style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Email Address</label>
+            <input id="profile-email" type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 14, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box' }} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div>
-              <label style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>First Name</label>
-              <input value={firstName} onChange={e => setFirstName(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 14, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box' }} />
+              <label htmlFor="profile-first-name" style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>First Name</label>
+              <input id="profile-first-name" value={firstName} onChange={e => setFirstName(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 14, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box' }} />
             </div>
             <div>
-              <label style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Last Name</label>
-              <input value={lastName} onChange={e => setLastName(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 14, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box' }} />
+              <label htmlFor="profile-last-name" style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Last Name</label>
+              <input id="profile-last-name" value={lastName} onChange={e => setLastName(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 14, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box' }} />
             </div>
           </div>
 
           <div>
-            <label style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Phone Number</label>
-            <input value={phone} onChange={e => setPhone(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 14, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box' }} />
+            <label htmlFor="profile-phone" style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Phone Number</label>
+            <input id="profile-phone" value={phone} onChange={e => setPhone(e.target.value)} style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 14, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box' }} />
           </div>
 
           {error && <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#C8521A', margin: 0 }}>{error}</p>}
