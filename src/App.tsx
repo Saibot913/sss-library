@@ -239,18 +239,18 @@ function TopNav({
   }, [showUserMenu, onCloseUserMenu])
 
   return (
-    <header style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, background: '#2C1810', borderBottom: '1px solid rgba(200,82,26,0.35)', height: 60, display: 'flex', alignItems: 'center', padding: '0 40px', gap: 0 }}>
+    <header className="site-header" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100, background: '#2C1810', borderBottom: '1px solid rgba(200,82,26,0.35)', height: 60, display: 'flex', alignItems: 'center', padding: '0 40px', gap: 0 }}>
       {/* Logo */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginRight: 48, flexShrink: 0 }}>
+      <div className="site-brand" style={{ display: 'flex', alignItems: 'center', gap: 10, marginRight: 48, flexShrink: 0 }}>
         <div style={{ width: 32, height: 32, border: '1.5px solid #C8521A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <span style={{ fontFamily: 'var(--font-display)', color: '#C8521A', fontSize: 16, fontWeight: 700 }}>S</span>
         </div>
         <span style={{ fontFamily: 'var(--font-display)', color: '#FAF3E4', fontSize: 16, fontWeight: 700, letterSpacing: '0.02em' }}>Sai Library</span>
-        <span style={{ fontFamily: 'var(--font-mono)', color: '#9B7B6A', fontSize: 14, letterSpacing: '0.1em', marginLeft: 4 }}>Est. 2026</span>
+        <span className="site-brand-year" style={{ fontFamily: 'var(--font-mono)', color: '#9B7B6A', fontSize: 14, letterSpacing: '0.1em', marginLeft: 4 }}>Est. 2026</span>
       </div>
 
       {/* Page links */}
-      <nav style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1 }}>
+      <nav className="site-nav" aria-label="Main navigation" style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1 }}>
         {([
           ['home', '01', 'Home'],
           ['catalog', '02', 'Catalog'],
@@ -265,14 +265,14 @@ function TopNav({
             onMouseEnter={e => { if (active !== id) e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
             onMouseLeave={e => { if (active !== id) e.currentTarget.style.background = 'transparent' }}
           >
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: active === id ? '#C8521A' : '#9B7B6A', letterSpacing: '0.1em' }}>{num}</span>
+            <span className="site-nav-number" style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: active === id ? '#C8521A' : '#9B7B6A', letterSpacing: '0.1em' }}>{num}</span>
             <span style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: active === id ? 600 : 400, color: active === id ? '#FAF3E4' : '#9B7B6A', letterSpacing: '0.06em' }}>{label}</span>
           </button>
         ))}
       </nav>
 
       {/* Right controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+      <div className="site-actions" style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         {/* Login / user menu */}
         {loggedIn ? (
           <div ref={accountRef} style={{ position: 'relative' }}>
@@ -2097,7 +2097,7 @@ function BookDetailPage({
       </div>
 
       {/* Body */}
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '48px 40px 80px', display: 'grid', gridTemplateColumns: '1fr 340px', gap: 48 }}>
+      <div className="book-detail-body" style={{ maxWidth: 1100, margin: '0 auto', padding: '48px 40px 80px', display: 'grid', gridTemplateColumns: '1fr 340px', gap: 48 }}>
 
         {/* Left column */}
         <div>
@@ -2295,7 +2295,7 @@ function CatalogPage({
       const q = filters.query.toLowerCase().trim()
       const kw = filters.keywords.toLowerCase().trim()
       if (q && !b.title.toLowerCase().includes(q) && !b.author.toLowerCase().includes(q)) return false
-      if (kw && !b.keywords.some(k => k.includes(kw)) && !b.title.toLowerCase().includes(kw) && !b.summary.toLowerCase().includes(kw)) return false
+      if (kw && !b.keywords.some(k => k.toLowerCase().includes(kw)) && !b.title.toLowerCase().includes(kw) && !b.summary.toLowerCase().includes(kw)) return false
       if (filters.category !== 'All Categories' && b.category !== filters.category) return false
       if (filters.yearFrom && parseInt(b.year) < parseInt(filters.yearFrom)) return false
       if (filters.yearTo && parseInt(b.year) > parseInt(filters.yearTo)) return false
@@ -2339,9 +2339,9 @@ function CatalogPage({
   ].filter(Boolean).length
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <div className="catalog-layout" style={{ display: 'flex', minHeight: '100vh' }}>
       {/* Left filter sidebar */}
-      <aside style={{ width: 240, flexShrink: 0, background: '#FAF3E4', borderRight: '1px solid #D4B896', display: 'flex', flexDirection: 'column', position: 'sticky', top: 60, height: 'calc(100vh - 60px)', overflowY: 'auto' }}>
+      <aside className="catalog-sidebar" style={{ width: 240, flexShrink: 0, background: '#FAF3E4', borderRight: '1px solid #D4B896', display: 'flex', flexDirection: 'column', position: 'sticky', top: 60, height: 'calc(100vh - 60px)', overflowY: 'auto' }}>
         <div style={{ padding: '20px 20px 14px', borderBottom: '1px solid #D4B896' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Filters</span>
@@ -2358,8 +2358,8 @@ function CatalogPage({
             { label: 'Keywords', key: 'keywords' as const, placeholder: 'e.g. love, service…', type: 'text' },
           ].map(f => (
             <div key={f.key}>
-              <label style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{f.label}</label>
-              <input type={f.type} placeholder={f.placeholder} value={filters[f.key] as string} onChange={e => setF(f.key, e.target.value)} style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 15, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box' }} onFocus={e => (e.target.style.borderColor = '#C8521A')} onBlur={e => (e.target.style.borderColor = '#D4B896')} />
+              <label htmlFor={`catalog-${f.key}`} style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{f.label}</label>
+              <input id={`catalog-${f.key}`} type={f.type} placeholder={f.placeholder} value={filters[f.key] as string} onChange={e => setF(f.key, e.target.value)} style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 15, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box' }} onFocus={e => (e.target.style.borderColor = '#C8521A')} onBlur={e => (e.target.style.borderColor = '#D4B896')} />
             </div>
           ))}
 
@@ -2367,45 +2367,43 @@ function CatalogPage({
             { label: 'Category', key: 'category' as const, opts: categories },
           ].map(f => (
             <div key={f.key}>
-              <label style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{f.label}</label>
-              <select value={filters[f.key] as string} onChange={e => setF(f.key, e.target.value)} style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 15, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', appearance: 'none', cursor: 'pointer', boxSizing: 'border-box' }}>
+              <label htmlFor={`catalog-${f.key}`} style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{f.label}</label>
+              <select id={`catalog-${f.key}`} value={filters[f.key] as string} onChange={e => setF(f.key, e.target.value)} style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 15, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', appearance: 'none', cursor: 'pointer', boxSizing: 'border-box' }}>
                 {f.opts.map(o => <option key={o}>{o}</option>)}
               </select>
             </div>
           ))}
 
           <div>
-            <label style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Year Range</label>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Year Range</span>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <input type="number" placeholder="From" value={filters.yearFrom} onChange={e => setF('yearFrom', e.target.value)} style={{ width: '50%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 15, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none' }} onFocus={e => (e.target.style.borderColor = '#C8521A')} onBlur={e => (e.target.style.borderColor = '#D4B896')} />
+              <input type="number" aria-label="Year from" placeholder="From" value={filters.yearFrom} onChange={e => setF('yearFrom', e.target.value)} style={{ width: '50%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 15, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none' }} onFocus={e => (e.target.style.borderColor = '#C8521A')} onBlur={e => (e.target.style.borderColor = '#D4B896')} />
               <span style={{ color: '#9B7B6A' }}>—</span>
-              <input type="number" placeholder="To" value={filters.yearTo} onChange={e => setF('yearTo', e.target.value)} style={{ width: '50%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 15, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none' }} onFocus={e => (e.target.style.borderColor = '#C8521A')} onBlur={e => (e.target.style.borderColor = '#D4B896')} />
+              <input type="number" aria-label="Year to" placeholder="To" value={filters.yearTo} onChange={e => setF('yearTo', e.target.value)} style={{ width: '50%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 15, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none' }} onFocus={e => (e.target.style.borderColor = '#C8521A')} onBlur={e => (e.target.style.borderColor = '#D4B896')} />
             </div>
           </div>
 
-          <div>
-            <label style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 10 }}>Availability</label>
+          <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
+            <legend style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 10 }}>Availability</legend>
             {([['all', 'All items'], ['available', 'Available now'], ['checkedout', 'On loan']] as const).map(([val, label]) => (
               <label key={val} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 8 }}>
-                <div onClick={() => setF('availability', val)} style={{ width: 16, height: 16, border: `1.5px solid ${filters.availability === val ? '#C8521A' : '#D4B896'}`, background: filters.availability === val ? '#C8521A' : 'transparent', flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {filters.availability === val && <span style={{ color: '#FAF3E4', fontSize: 14 }}>✓</span>}
-                </div>
-                <span onClick={() => setF('availability', val)} style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#5C3D2E', cursor: 'pointer' }}>{label}</span>
+                <input type="radio" name="catalog-availability" value={val} checked={filters.availability === val} onChange={() => setF('availability', val)} style={{ width: 16, height: 16, margin: 0, accentColor: '#C8521A', cursor: 'pointer' }} />
+                <span style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#5C3D2E' }}>{label}</span>
               </label>
             ))}
-          </div>
+          </fieldset>
         </div>
       </aside>
 
       {/* Main results */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div className="catalog-results" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {/* Top search bar */}
-        <div style={{ background: '#2C1810', padding: '18px 28px 16px', position: 'sticky', top: 60, zIndex: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="catalog-search-bar" style={{ background: '#2C1810', padding: '18px 28px 16px', position: 'sticky', top: 60, zIndex: 10 }}>
+          <div className="catalog-search-row" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: '#FAF3E4', flexShrink: 0 }}>The Catalog</span>
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', background: '#FAF3E4', maxWidth: 480 }} onFocusCapture={e => (e.currentTarget.style.outline = '2px solid #C8521A')} onBlurCapture={e => (e.currentTarget.style.outline = 'none')}>
               <span style={{ padding: '0 12px', color: '#9B7B6A', fontSize: 16 }}>⌕</span>
-              <input type="text" placeholder="Search title, author…" value={filters.query} onChange={e => setF('query', e.target.value)} style={{ flex: 1, padding: '10px 0', fontFamily: 'var(--font-body)', fontSize: 14, color: '#2C1810', background: 'transparent', border: 'none', outline: 'none' }} />
+              <input type="text" aria-label="Search catalog by title or author" placeholder="Search title, author…" value={filters.query} onChange={e => setF('query', e.target.value)} style={{ flex: 1, padding: '10px 0', fontFamily: 'var(--font-body)', fontSize: 14, color: '#2C1810', background: 'transparent', border: 'none', outline: 'none' }} />
               {filters.query && <button onClick={() => setF('query', '')} style={{ padding: '0 10px', color: '#9B7B6A', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>}
             </div>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#9B7B6A', flexShrink: 0 }}>{results.length} results</span>
@@ -2431,7 +2429,7 @@ function CatalogPage({
               <button onClick={() => setFilters(EMPTY_FILTERS)} style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '10px 22px', background: '#C8521A', color: '#FAF3E4', border: 'none', cursor: 'pointer' }}>Clear All Filters</button>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))' }}>
+            <div className="catalog-book-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))' }}>
               {results.map(book => {
                 const avail = book.copiesAvailable
                 const inCart = cartIds.includes(book.id)
@@ -2578,7 +2576,7 @@ function HomePage({ books, onSearch, onViewBook, cartIds, onAddToCart }: {
       <section style={{ position: 'relative', height: 580, overflow: 'hidden' }}>
         <img src="https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=1400&h=580&fit=crop&auto=format" alt="Library reading room" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, rgba(44,24,16,0.88) 50%, rgba(44,24,16,0.4) 100%)' }} />
-        <div style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '0 64px 56px' }}>
+        <div className="home-hero-content" style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '0 64px 56px' }}>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(40px,6vw,72px)', fontWeight: 700, color: '#FAF3E4', lineHeight: 1.1, maxWidth: 520 }}>Sai Library</h1>
           <p style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', color: '#D4B896', fontSize: 15, maxWidth: 500, marginTop: 14, lineHeight: 1.7 }}>
             "Resolve to act, to mix only in good company, to read only elevating books, to form the habit of remembering the Lord's name and, then ignorance will vanish automatically."
@@ -2586,10 +2584,10 @@ function HomePage({ books, onSearch, onViewBook, cartIds, onAddToCart }: {
           <p style={{ fontFamily: 'var(--font-body)', color: '#C8521A', fontSize: 14, letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 8 }}>— Baba</p>
 
           {/* Search */}
-          <form onSubmit={handleSearch} style={{ marginTop: 28, display: 'flex', maxWidth: 520 }}>
+          <form className="home-hero-search" onSubmit={handleSearch} style={{ marginTop: 28, display: 'flex', maxWidth: 520 }}>
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', background: '#FAF3E4' }}>
               <span style={{ padding: '0 14px', color: '#9B7B6A', fontSize: 18 }}>⌕</span>
-              <input type="text" placeholder="Search by title, author, keyword…" value={heroQuery} onChange={e => setHeroQuery(e.target.value)} style={{ flex: 1, padding: '13px 0', fontFamily: 'var(--font-body)', fontSize: 14, color: '#2C1810', background: 'transparent', border: 'none', outline: 'none' }} />
+              <input type="search" aria-label="Search books by title, author, or keyword" placeholder="Search by title, author, keyword…" value={heroQuery} onChange={e => setHeroQuery(e.target.value)} style={{ flex: 1, padding: '13px 0', fontFamily: 'var(--font-body)', fontSize: 14, color: '#2C1810', background: 'transparent', border: 'none', outline: 'none' }} />
             </div>
             <button type="submit" style={{ padding: '13px 24px', background: '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', cursor: 'pointer' }}>Search</button>
           </form>
@@ -2615,7 +2613,7 @@ function HomePage({ books, onSearch, onViewBook, cartIds, onAddToCart }: {
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 600, color: '#2C1810' }}>Recommended Books</h2>
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
+        <div className="home-recommended-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
           {recommendedBooks.map(book => {
             const avail = book.copiesAvailable
             const inCart = cartIds.includes(book.id)
@@ -2868,7 +2866,7 @@ function AboutPage() {
   }, [])
 
   const sectionHead = (num: string, title: string) => (
-    <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 36, borderBottom: '1px solid #D4B896', paddingBottom: 12 }}>
+    <div className="community-section-heading" style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 36, borderBottom: '1px solid #D4B896', paddingBottom: 12 }}>
       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase' }}>{num}</span>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 600, color: '#2C1810' }}>{title}</h2>
     </div>
@@ -2880,7 +2878,7 @@ function AboutPage() {
       <section style={{ position: 'relative', height: 260, overflow: 'hidden' }}>
         <img src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=1400&h=260&fit=crop&auto=format" alt="Community gathering at the library" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(44,24,16,0.70)' }} />
-        <div style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '0 64px 36px' }}>
+        <div className="community-hero-content" style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '0 64px 36px' }}>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, letterSpacing: '0.2em', color: '#C8521A', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>Sai Library · Community</span>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(32px,5vw,48px)', fontWeight: 700, color: '#FAF3E4', lineHeight: 1.1 }}>Get Involved</h1>
           <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#D4B896', marginTop: 8 }}>Book clubs · Volunteering</p>
@@ -2888,7 +2886,7 @@ function AboutPage() {
       </section>
 
       {/* ── § 01 Book Clubs ── */}
-      <section style={{ padding: '56px 64px 48px' }}>
+      <section className="community-section" style={{ padding: '56px 64px 48px' }}>
         {sectionHead('§ 01', 'Upcoming Book Clubs')}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -2901,7 +2899,7 @@ function AboutPage() {
             const full = club.spotsLeft === 0
             const almost = club.spotsLeft <= 4 && !full
             return (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '140px 1fr auto', gap: 32, padding: '28px 0', borderBottom: '1px solid #D4B896', alignItems: 'start' }}>
+              <div className="community-book-club-row" key={i} style={{ display: 'grid', gridTemplateColumns: '140px 1fr auto', gap: 32, padding: '28px 0', borderBottom: '1px solid #D4B896', alignItems: 'start' }}>
                 {/* Date */}
                 <div style={{ flexShrink: 0 }}>
                   <p style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: '#C8521A', lineHeight: 1, marginBottom: 4 }}>{club.date.split(',')[0]}</p>
@@ -2946,10 +2944,10 @@ function AboutPage() {
       </section>
 
       {/* ── § 02 Volunteers ── */}
-      <section style={{ padding: '56px 64px 64px', borderTop: '1px solid #D4B896' }}>
+      <section className="community-section" style={{ padding: '56px 64px 64px', borderTop: '1px solid #D4B896' }}>
         {sectionHead('§ 02', 'Volunteer With Us')}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 56, marginBottom: 56 }}>
+        <div className="community-two-column" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 56, marginBottom: 56 }}>
           <div>
             <p style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontStyle: 'italic', color: '#2C1810', lineHeight: 1.5, marginBottom: 18 }}>
               "The library runs on the love of its community. We'd love yours."
@@ -2974,6 +2972,7 @@ function AboutPage() {
                 href={VOLUNTEER_FORM_URL}
                 target="_blank"
                 rel="noopener noreferrer"
+                className="community-form-link"
                 style={{ display: 'inline-block', padding: '12px 20px', background: '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'none', border: 'none', cursor: 'pointer' }}
               >
                 Open Volunteer Interest Form ↗
@@ -2987,7 +2986,7 @@ function AboutPage() {
         </div>
 
         {/* Roles grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+        <div className="community-roles-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
           {VOLUNTEER_ROLES.map(role => (
             <div key={role.title} style={{ background: '#FAF3E4', border: '1px solid #D4B896', padding: '20px 22px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
@@ -3008,10 +3007,10 @@ function AboutPage() {
       </section>
 
       {/* ── § 03 Reviews & Feedback ── */}
-      <section style={{ padding: '0 64px 64px' }}>
+      <section className="community-section" style={{ padding: '0 64px 64px' }}>
         {sectionHead('§ 03', 'Reviews & Feedback')}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 56 }}>
+        <div className="community-two-column" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 56 }}>
           <div>
             <p style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontStyle: 'italic', color: '#2C1810', lineHeight: 1.5, marginBottom: 18 }}>
               "Tell us what you think — of a book, or of the library itself."
@@ -3033,7 +3032,8 @@ function AboutPage() {
                 href={REVIEW_FORM_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ display: 'inline-block', padding: '12px 20px', background: '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'none', border: 'none', cursor: 'pointer' }}
+                className="community-form-link"
+                style={{ display: 'inline-block', padding: '12px 20px', background: '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'none', cursor: 'pointer' }}
               >
                 Open Review Form ↗
               </a>
@@ -3048,7 +3048,7 @@ function AboutPage() {
 
       {/* ── § 04 What People Are Saying — library/site reviews staff has published ── */}
       {libraryReviews.length > 0 && (
-        <section style={{ padding: '0 64px 64px' }}>
+        <section className="community-section" style={{ padding: '0 64px 64px' }}>
           {sectionHead('§ 04', 'What People Are Saying')}
           <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 8 }}>
             {libraryReviews.map(review => (
@@ -3062,7 +3062,7 @@ function AboutPage() {
       )}
 
       {/* Contact footer */}
-      <div style={{ background: '#2C1810', padding: '36px 64px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 32 }}>
+      <div className="community-footer" style={{ background: '#2C1810', padding: '36px 64px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 32 }}>
         {/* Real details from siteInfo.ts, replacing the Figma placeholders
             ('418 Elm Street', '(614) 555-0187', 'hello@sailibrary.org').
             No Phone or Email column: the center hasn't given a public number
@@ -3072,6 +3072,11 @@ function AboutPage() {
           <div key={c.label}>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>{c.label}</span>
             <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#D4B896', lineHeight: 1.6, whiteSpace: 'pre-line' }}>{c.value}</p>
+            {c.label === 'Center' && (
+              <a href="https://www.saisevasadan.org" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: 8, fontFamily: 'var(--font-body)', fontSize: 14, color: '#FAF3E4' }}>
+                Visit the center website ↗
+              </a>
+            )}
           </div>
         ))}
       </div>
@@ -3477,7 +3482,7 @@ export default function App() {
         showUserMenu={showUserMenu}
       />
 
-      <main style={{ paddingTop: 60 }}>
+      <main className="site-main" style={{ paddingTop: 60 }}>
         {booksLoading ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
             <p style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontStyle: 'italic', color: '#9B7B6A' }}>Loading the catalog…</p>

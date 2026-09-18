@@ -28,6 +28,9 @@ jobs:
       # which catches a dependency added without the lockfile being committed.
       - run: pnpm install --frozen-lockfile
 
+      - name: Audit high-severity dependencies
+        run: pnpm audit --audit-level high
+
       # Type errors don't fail `vite build` — Vite strips types without
       # checking them — so this has to be its own step. Without it, code that
       # doesn't typecheck merges green.

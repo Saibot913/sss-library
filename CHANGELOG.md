@@ -21,6 +21,11 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 - The Catalog page's top-bar "Filters" toggle button (and the duplicate Category/Availability/Year row it expanded) — every filter it controlled already lives in the sidebar, so it was a second, redundant way to set the same filters.
 
 ### Fixed
+- Make the navigation, catalog, book detail, Community page, and home search usable on narrow screens; catalog keyword matching is now case-insensitive and filter controls have accessible names.
+- Update Vite and vulnerable transitive development packages; CI now checks for high-severity dependency advisories.
+- Close an anonymous reservation denial-of-service path, direct checkout-row inserts, and an unused unrestricted page-view write endpoint; account deletion now handles waitlist and visit rows without foreign-key failures (migration pending application to the database).
+- Restore the Supabase CLI config's auth settings to `[auth]` instead of accidentally nesting them under the `auth-email` function.
+- Standalone builds now use the library's real page title and description instead of the Figma Make fallback; the home search field has an accessible name, and the Community contact section links to the center website.
 - The Profile/onboarding form's Email/First Name/Last Name/Phone Number fields had a `<label>` sitting next to its `<input>` with no `htmlFor`/`id` pairing between them — the inputs had no accessible name at all (screen readers can't tell what they're for, and this is exactly what surfaced the bug: an e2e test's `getByRole('textbox', { name: 'First Name' })` correctly found nothing). Added the missing `id`/`htmlFor` pairs.
 - Clicking "Settings" or "My Books" in the top nav while viewing a book's detail page did nothing — those buttons navigate to a real route, but the detail overlay only checks its own `viewingBook` state to decide what to render, so it kept covering the page underneath. Both handlers now clear `viewingBook` before navigating, matching what the main nav links (Home/Catalog/etc.) already did.
 - Top-right nav "My Books" button had less horizontal padding than the adjacent "Settings"/"Cart" buttons, making it visibly narrower — matched its padding to the other two.

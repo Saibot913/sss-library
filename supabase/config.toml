@@ -167,8 +167,6 @@ additional_redirect_urls = [
   "http://127.0.0.1:3000/profile"
 ]
 
-[functions.auth-email]
-verify_jwt = false
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
@@ -420,3 +418,6 @@ enabled = true
 # declarative_schema_path = "./database"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+
+[functions.auth-email]
+verify_jwt = false
