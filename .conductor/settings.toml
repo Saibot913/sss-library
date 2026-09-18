@@ -3,6 +3,9 @@
 [scripts]
 setup = """
 npx --yes pnpm@10.34.3 install
+# The publishable key below is the Supabase anon key -- meant to be public
+# (every browser sees it in every request; RLS policies are the actual
+# access control), so it's safe to commit here for onboarding convenience.
 cat > .env << 'EOF'
 VITE_SUPABASE_URL=https://gpekfosbyobdffavrumi.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_QSlyIMSQPW-5LJRdJ3FW8A_infUl-db
