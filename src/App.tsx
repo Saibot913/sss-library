@@ -6,7 +6,7 @@ import { useBookCover } from './lib/bookCovers'
 import { VOLUNTEER_FORM_URL, VOLUNTEER_RESPONSES_SHEET_URL } from './lib/volunteers'
 import { REVIEW_FORM_URL, REVIEW_RESPONSES_SHEET_URL, fetchReviewsForBook, fetchLibraryReviews, fetchAllReviewsForStaff, addReview, deleteReview, type Review } from './lib/reviews'
 import { SITE_PASSWORD, hasSiteAccess, grantSiteAccess } from './lib/siteAccess'
-import { AUTH_REDIRECT_PATH, deleteAccount, getCurrentPatron, onAuthChange, requestSignInCode, signOut, updatePatronProfile, type Patron } from './lib/auth'
+import { AUTH_REDIRECT_PATH, deleteAccount, getCurrentPatron, onAuthChange, requestSignInCode, signOut, updatePatronProfile, verifySignInCode, type Patron } from './lib/auth'
 import {
   checkoutBook,
   fetchMyActiveReservations,
@@ -32,10 +32,11 @@ import {
   type StaffReservation,
 } from './lib/checkouts'
 import { fetchStaffList, addStaff, removeStaff } from './lib/staff'
-import { joinWaitlist, leaveWaitlist, checkIsOnWaitlist } from './lib/waitlist'
+import { joinWaitlist, leaveWaitlist, checkIsOnWaitlist, fetchStaffReadyWaitlist, staffRemoveWaitlistEntry, type ReadyWaitlistEntry } from './lib/waitlist'
 import { useHoldReleaseSubscription } from './lib/holdReleaseNotifications'
 import { SITE_NAME, SITE_ADDRESS, MEETING_ROOM, WEEKLY_TIMINGS } from './lib/siteInfo'
 import { invalidateBooksCache } from './lib/books'
+import { useLibrarySyncSubscription } from './lib/librarySync'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -383,14 +384,27 @@ function SiteGate({ onUnlock }: { onUnlock: () => void }) {
 
 // ── Login modal ───────────────────────────────────────────────────────────────
 
-// No onLogin callback: with magic links the session appears when Supabase
-// redirects back, not when this form is submitted, so there's nothing for the
-// modal to hand back. onAuthChange() in App is what notices.
+// No onLogin callback: verifyOtp() sets the Supabase session directly, and
+// onAuthChange() in App is what notices — same as it always has, just
+// triggered by a typed code now instead of a clicked link. Codes (not links)
+// so this works on a shared device like the library's front-desk iPad, where
+// a patron reading the email on their own phone would otherwise open the
+// session there instead of on the iPad.
 function LoginModal({ onClose, mode, setMode }: { onClose: () => void; mode: 'login' | 'signup'; setMode: (mode: 'login' | 'signup') => void }) {
+  const navigate = useNavigate()
+  const [step, setStep] = useState<'email' | 'code'>('email')
   const [email, setEmail] = useState('')
+  const [code, setCode] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
+
+  function resetToEmailStep() {
+    setStep('email')
+    setCode('')
+    setError('')
+    setSuccessMessage('')
+  }
 
   async function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -405,16 +419,14 @@ function LoginModal({ onClose, mode, setMode }: { onClose: () => void; mode: 'lo
       setError('')
       setSuccessMessage('')
       await requestSignInCode(trimmed, mode)
-      setEmail('')
+      setStep('code')
       setSuccessMessage(
         mode === 'signup'
-          ? 'Account created. Check your email for the magic link to finish signing in.'
-          : 'Check your email for the magic link to sign in.'
+          ? 'Account created. Check your email for the code to finish signing in.'
+          : 'Check your email for the code to sign in.'
       )
-      // IMPORTANT: do not set the app as logged in here. The real session is created only
-      // after the magic-link redirect is completed in Supabase.
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'We could not send your sign-in link.'
+      const message = err instanceof Error ? err.message : 'We could not send your sign-in code.'
       if (mode === 'login' && /user not found|no user|not found/i.test(message)) {
         setError('There is no account with this email. Please sign up instead.')
       } else {
@@ -423,6 +435,74 @@ function LoginModal({ onClose, mode, setMode }: { onClose: () => void; mode: 'lo
     } finally {
       setLoading(false)
     }
+  }
+
+  async function handleCodeSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const trimmed = code.trim()
+    if (!trimmed) {
+      setError('Please enter the code from your email.')
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError('')
+      await verifySignInCode(email.trim(), trimmed, mode)
+      // Reuses the existing ?auth=login|signup handling (App's useEffect
+      // keyed on authReturnMode) that previously ran after a magic-link
+      // redirect, so onboarding/catalog routing stays identical either way.
+      navigate(`${AUTH_REDIRECT_PATH}?auth=${mode}`)
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'That code didn’t work. Please check it and try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (step === 'code') {
+    return (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(44,24,16,0.7)' }} onClick={onClose}>
+        <div style={{ background: '#FAF3E4', padding: '40px 44px', maxWidth: 430, width: '90%', boxShadow: '0 24px 64px rgba(44,24,16,0.35)' }} onClick={e => e.stopPropagation()}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <div>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Member Access</span>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, color: '#2C1810' }}>Enter Your Code</h2>
+            </div>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#9B7B6A', cursor: 'pointer', fontSize: 20, lineHeight: 1 }}>✕</button>
+          </div>
+
+          <form onSubmit={handleCodeSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <label style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#9B7B6A', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Code</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoFocus
+                placeholder="123456"
+                value={code}
+                onChange={e => setCode(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 20, letterSpacing: '0.3em', textAlign: 'center', color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box' }}
+                onFocus={e => (e.target.style.borderColor = '#C8521A')}
+                onBlur={e => (e.target.style.borderColor = '#D4B896')}
+              />
+            </div>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#5C3D2E', margin: 0 }}>
+              Sent to {email}. If it lands in spam, please check there.
+            </p>
+            {successMessage && <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#2C7A2C', margin: 0 }}>{successMessage}</p>}
+            {error && <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#C8521A', margin: 0 }}>{error}</p>}
+            <button type="submit" disabled={loading} style={{ marginTop: 8, padding: '12px', background: loading ? '#A56A44' : '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', cursor: loading ? 'not-allowed' : 'pointer' }}>
+              {loading ? 'Verifying…' : 'Verify & Continue'}
+            </button>
+            <button type="button" onClick={resetToEmailStep} style={{ background: 'none', border: 'none', color: '#9B7B6A', fontFamily: 'var(--font-body)', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>
+              Use a different email
+            </button>
+          </form>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -464,13 +544,13 @@ function LoginModal({ onClose, mode, setMode }: { onClose: () => void; mode: 'lo
           </div>
           <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#5C3D2E', margin: 0 }}>
             {mode === 'signup'
-              ? 'Create a library account with your email. We’ll send a magic link that takes you to your profile form.'
-              : 'We’ll send a magic link to your email. If it lands in spam, please check there.'}
+              ? 'Create a library account with your email. We’ll send a code to finish signing in.'
+              : 'We’ll send a code to your email. If it lands in spam, please check there.'}
           </p>
           {successMessage && <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#2C7A2C', margin: 0 }}>{successMessage}</p>}
           {error && <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#C8521A', margin: 0 }}>{error}</p>}
           <button type="submit" disabled={loading} style={{ marginTop: 8, padding: '12px', background: loading ? '#A56A44' : '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', cursor: loading ? 'not-allowed' : 'pointer' }}>
-            {loading ? 'Sending…' : mode === 'signup' ? 'Create Account' : 'Send Link'}
+            {loading ? 'Sending…' : mode === 'signup' ? 'Create Account' : 'Send Code'}
           </button>
         </form>
       </div>
@@ -846,12 +926,16 @@ function DashboardPage() {
 function StaffReturnsPage() {
   const [checkouts, setCheckouts] = useState<StaffCheckout[]>([])
   const [reservations, setReservations] = useState<StaffReservation[]>([])
+  const [readyWaitlist, setReadyWaitlist] = useState<ReadyWaitlistEntry[]>([])
   const [checkoutsLoading, setCheckoutsLoading] = useState(true)
   const [reservationsLoading, setReservationsLoading] = useState(true)
+  const [readyWaitlistLoading, setReadyWaitlistLoading] = useState(true)
   const [checkoutsError, setCheckoutsError] = useState('')
   const [reservationsError, setReservationsError] = useState('')
+  const [readyWaitlistError, setReadyWaitlistError] = useState('')
   const [message, setMessage] = useState('')
   const [busyLabel, setBusyLabel] = useState<string | null>(null)
+  const [busyWaitlistId, setBusyWaitlistId] = useState<string | null>(null)
 
   async function loadCheckouts() {
     try {
@@ -877,7 +961,42 @@ function StaffReturnsPage() {
     }
   }
 
-  useEffect(() => { void loadCheckouts(); void loadReservations() }, [])
+  async function loadReadyWaitlist() {
+    try {
+      setReadyWaitlistLoading(true)
+      setReadyWaitlistError('')
+      setReadyWaitlist(await fetchStaffReadyWaitlist())
+    } catch (err) {
+      setReadyWaitlistError(err instanceof Error ? err.message : 'Could not load the waitlist.')
+    } finally {
+      setReadyWaitlistLoading(false)
+    }
+  }
+
+  useEffect(() => { void loadCheckouts(); void loadReservations(); void loadReadyWaitlist() }, [])
+
+  // Another staff member (or a patron checking out/returning/holding a
+  // book) changes this page's data from outside it -- refresh all three
+  // lists whenever copies, checkouts, or the waitlist change anywhere.
+  useLibrarySyncSubscription(['copies', 'checkouts', 'waitlist'], () => {
+    void loadCheckouts()
+    void loadReservations()
+    void loadReadyWaitlist()
+  })
+
+  async function handleRemoveWaitlistEntry(waitlistId: string, patronName: string) {
+    try {
+      setBusyWaitlistId(waitlistId)
+      setMessage('')
+      await staffRemoveWaitlistEntry(waitlistId)
+      setMessage(`Removed ${patronName} from the waitlist.`)
+      await loadReadyWaitlist()
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Could not remove that waitlist entry.')
+    } finally {
+      setBusyWaitlistId(null)
+    }
+  }
 
   async function handleReturn(fullLabel: string, bookTitle: string | null) {
     try {
@@ -886,6 +1005,7 @@ function StaffReturnsPage() {
       await staffReturnBook(fullLabel)
       setMessage(`Marked "${bookTitle ?? fullLabel}" (${fullLabel}) as returned.`)
       await loadCheckouts()
+      await loadReadyWaitlist()
     } catch (err) {
       console.error(`staffReturnBook failed for "${fullLabel}":`, err)
       setMessage(err instanceof Error ? err.message : `Could not mark ${fullLabel} as returned.`)
@@ -951,6 +1071,51 @@ function StaffReturnsPage() {
                   <td style={tdStyle}>
                     <button onClick={() => handleReturn(item.fullLabel, item.bookTitle)} disabled={busyLabel === item.fullLabel} style={actionButtonStyle(busyLabel === item.fullLabel)}>
                       {busyLabel === item.fullLabel ? 'Working…' : 'Mark Returned'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      <section style={{ marginBottom: 32, background: '#FAF3E4', border: '1px solid #D4B896', padding: 20 }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 21, color: '#2C1810', marginBottom: 4 }}>Ready for Pickup</h2>
+        <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#9B7B6A', marginBottom: 14 }}>
+          These patrons are waitlisted for a book that's now available. Reach out with the contact info below, then remove them once they've been notified.
+        </p>
+        {readyWaitlistLoading ? (
+          <p style={{ color: '#9B7B6A', fontSize: 14 }}>Loading waitlist…</p>
+        ) : readyWaitlistError ? (
+          <p style={{ color: '#A52A2A', fontSize: 14 }}>{readyWaitlistError}</p>
+        ) : readyWaitlist.length === 0 ? (
+          <p style={{ color: '#9B7B6A', fontSize: 14 }}>No waitlisted patrons are waiting on an available book right now.</p>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Book</th>
+                <th style={thStyle}>Patron</th>
+                <th style={thStyle}>Contact</th>
+                <th style={thStyle}>Waiting Since</th>
+                <th style={thStyle}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {readyWaitlist.map(item => (
+                <tr key={item.waitlistId}>
+                  <td style={tdStyle}>{item.bookTitle ?? item.bookCode}</td>
+                  <td style={tdStyle}>{[item.firstName, item.lastName].filter(Boolean).join(' ')}</td>
+                  <td style={tdStyle}>{item.email}<br /><span style={{ fontSize: 14, color: '#9B7B6A' }}>{item.phone}</span></td>
+                  <td style={tdStyle}>{new Date(item.joinedAt).toLocaleDateString()}</td>
+                  <td style={tdStyle}>
+                    <button
+                      onClick={() => handleRemoveWaitlistEntry(item.waitlistId, [item.firstName, item.lastName].filter(Boolean).join(' ') || item.email)}
+                      disabled={busyWaitlistId === item.waitlistId}
+                      style={actionButtonStyle(busyWaitlistId === item.waitlistId)}
+                    >
+                      {busyWaitlistId === item.waitlistId ? 'Working…' : 'Mark Contacted'}
                     </button>
                   </td>
                 </tr>
@@ -2989,6 +3154,17 @@ export default function App() {
       .finally(() => { if (!cancelled) setBooksLoading(false) })
     return () => { cancelled = true }
   }, [])
+
+  // A checkout/return/hold from another browser or account changes copy
+  // availability under everyone else's feet -- refetch (bypassing the
+  // localStorage cache, which would otherwise still hand back stale data)
+  // whenever `copies` changes anywhere. Book detail pages derive from this
+  // same `books` state rather than fetching their own copy, so this alone
+  // keeps both the catalog and detail views live.
+  useLibrarySyncSubscription(['copies'], () => {
+    invalidateBooksCache()
+    fetchBooks().then(setBooks).catch(err => console.error('Realtime book refresh failed:', err))
+  })
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
