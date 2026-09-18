@@ -1,0 +1,5 @@
+# Auto-requests review on every PR. See project-instructions/GIT_WORKFLOW.md
+# for the branch/PR conventions this repo follows. Both owners listed --
+# branch protection requires a code-owner approval, and neither can approve
+# their own PR, so at least two owners must be listed or nothing merges.
+* @Saibot913 @heysaik
