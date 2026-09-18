@@ -4,6 +4,10 @@ on:
   pull_request:
     branches: [main]
 
+# Only reads the diff between branches -- never needs to write anything.
+permissions:
+  contents: read
+
 jobs:
   require-changelog:
     runs-on: ubuntu-latest

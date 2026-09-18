@@ -11,6 +11,11 @@ on:
   push:
     branches: [main]
 
+# Only checks out code, installs deps, and runs local build/typecheck --
+# never needs to write anything.
+permissions:
+  contents: read
+
 jobs:
   verify:
     runs-on: ubuntu-latest
