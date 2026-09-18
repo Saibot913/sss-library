@@ -2,6 +2,8 @@
 
 This is a website (React + Vite + Tailwind, backed by Supabase) for the Sri Sathya Sai Baba Center of Sacramento's library. This guide gets the project running on your computer from a completely blank start — it assumes nothing is installed yet. Follow it top to bottom, in order.
 
+This repo is public so the code is visible and reviewable, but it's not open source — all rights reserved, no license is granted to reuse, fork, or redistribute this code for another project.
+
 ## 0. What you'll need
 
 - A **GitHub account** — sign up free at [github.com](https://github.com) if you don't have one.
