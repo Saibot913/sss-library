@@ -85,8 +85,24 @@ export async function requestSignInCode(email: string, mode: 'login' | 'signup' 
   if (!response.ok) throw new Error(result.error ?? 'We could not send your sign-in email.')
 }
 
-export async function verifySignInCode(_email: string, _code: string): Promise<Patron> {
-  throw new Error('This app uses email magic links instead of one-time codes.')
+export async function verifySignInCode(email: string, code: string, mode: 'login' | 'signup'): Promise<Patron> {
+  const normalizedEmail = email.trim().toLowerCase()
+  const normalizedCode = code.trim()
+  if (!normalizedCode) throw new Error('Please enter the code from your email.')
+
+  // signup accounts are created via inviteUserByEmail (see auth-email/index.ts),
+  // whose OTP token verifies as type 'invite'; a returning patron's sign-in code
+  // comes from signInWithOtp and verifies as type 'email'.
+  const { data, error } = await supabase.auth.verifyOtp({
+    email: normalizedEmail,
+    token: normalizedCode,
+    type: mode === 'signup' ? 'invite' : 'email',
+  })
+  if (error) throw error
+  if (!data.user) throw new Error('Could not verify your code.')
+
+  const profile = await fetchProfileForUser(data.user.id, data.user.email)
+  return toPatron(data.user, profile)
 }
 
 export async function updatePatronProfile(input: { email: string; firstName: string; lastName: string; phone: string }): Promise<Patron> {

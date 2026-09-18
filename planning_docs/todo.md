@@ -7,7 +7,26 @@ the checkout bug as unresolved and book covers as blocked — both are done now.
 ## What's actually done and live in production (through today)
 
 Everything below is merged to `main` and its migrations pushed to Supabase (through
-migration `0025`):
+migration `0031`):
+
+- **Sign-in codes instead of magic links.** A clicked link opens the session on whatever
+  device opened the email, which breaks on the library's shared front-desk iPad if a patron
+  checks email on their own phone. `src/lib/auth.ts`'s `verifySignInCode` now verifies a
+  typed code via `supabase.auth.verifyOtp`; the Magic Link and Invite email templates were
+  edited in the Supabase Dashboard to show `{{ .Token }}` (the link still works too, as a
+  fallback for same-device use).
+- **Staff "Ready for Pickup" list** (Returns & Holds page) replaces an earlier
+  auto-email-on-return attempt that got stuck on Resend's sandbox-sender restriction
+  (can't email real patrons without a verified domain — a $10/yr registrar purchase, not
+  done yet). Staff now sees name/email/phone for anyone waitlisted on a book that's
+  currently available (`staff_list_ready_waitlist()`, migration `0030`) and manually
+  reaches out, then removes them from the list.
+- **Live sync.** Catalog, book detail, and the staff Returns & Holds page previously only
+  fetched once on mount — a checkout/return/hold from another browser or account was
+  invisible until reload. `src/lib/librarySync.ts`'s `useLibrarySyncSubscription` now
+  subscribes to Postgres changes on `copies`/`checkouts`/`waitlist` (migration
+  `0031_realtime_sync.sql`, which also adds staff-only SELECT policies on `checkouts` and
+  `waitlist` so Realtime can deliver those events to a staff client) and refetches.
 
 - **Checkout**, fully working end-to-end. Two separate bugs were found and fixed: the cart
   drawer wasn't closing before showing the profile/login form (PR #23), and the
@@ -82,9 +101,6 @@ migration `0025`):
 - `staff_analytics()`/`record_page_view()` (dormant, no UI) and `staff_dashboard_stats()`/
   `staff_dashboard_extra()` (live, has UI) are two separate, overlapping analytics systems.
   Worth reconciling into one eventually — real product call, not a bug, no rush.
-- A staff member force-releasing a patron's cart hold from the Returns & Holds page doesn't
-  update that patron's own browser — their cart is pure client-side in-memory state with no
-  server-sync mechanism, so it only catches up if they try to check out (which then correctly
-  fails) or reload. Fixable with a Supabase Realtime subscription on `copies` (free tier
-  covers this easily — 200 concurrent connections, 2M messages/month, nowhere near what this
-  app would use) — not yet built, low priority since checkout still fails safely.
+- ~~A staff member force-releasing a patron's cart hold doesn't update that patron's own
+  browser~~ — fixed via a private Realtime broadcast channel (migration
+  `0026_realtime_hold_release_notification.sql`, `src/lib/holdReleaseNotifications.ts`).

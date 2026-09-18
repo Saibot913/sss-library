@@ -276,6 +276,9 @@ export async function fetchStaffDashboardExtraStats(): Promise<DashboardExtraSta
   }
 }
 
+// staff_return_book() also returns book_code/book_title (added in
+// migration 0029 for the since-removed auto-notify flow) — unused here,
+// so only the fields this app actually needs are pulled off the row.
 export async function staffReturnBook(fullLabel: string): Promise<{ checkoutId: string; returnedAt: string }> {
   const { data, error } = await supabase.rpc('staff_return_book', { p_full_label: fullLabel })
   if (error) throw error
