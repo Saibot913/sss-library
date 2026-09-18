@@ -94,7 +94,7 @@ migration `0031`):
 - Auth emails still route through a personal Gmail SMTP relay — codes land in spam,
   unblocks dev but not real patrons.
 - Confirm (admin-side, not code): category data cleanup done, `staff` table has the right
-  people (currently: `[redacted]`, `[redacted]`).
+  people (check the live `staff` table in Supabase, not this file, for who's currently listed).
 
 ## Open, not urgent
 
