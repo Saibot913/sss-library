@@ -5,7 +5,7 @@ This is a website (React + Vite + Tailwind, backed by Supabase) for the Sri Sath
 ## 0. What you'll need
 
 - A **GitHub account** — sign up free at [github.com](https://github.com) if you don't have one.
-- Ask **Surya, (916) 805-0152**, to **add you as a collaborator** on this repo (GitHub → repo → Settings → Collaborators). You can't push code without this.
+- Contact staff to **add you as a collaborator** on this repo (GitHub → repo → Settings → Collaborators). You can't push code without this.
 - Ask them for the **two Supabase credentials** too (you'll need them in step 6) — send these privately (text/DM), never post them anywhere public.
 
 Everything else below you'll install yourself.
