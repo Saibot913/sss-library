@@ -4,7 +4,7 @@
 // anyone with the anon key regardless of this screen (see the public
 // read policies on books/copies). Decided this tradeoff is fine: see
 // project-instructions/README.md, "Open decisions".
-export const SITE_PASSWORD = 'loveallserveall'
+export const SITE_PASSWORD = 'helpeverhurtnever'
 
 const STORAGE_KEY = 'sss-library-site-access'
 
