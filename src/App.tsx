@@ -36,7 +36,7 @@ import { joinWaitlist, leaveWaitlist, checkIsOnWaitlist, fetchStaffReadyWaitlist
 import { useHoldReleaseSubscription } from './lib/holdReleaseNotifications'
 import { SITE_NAME, SITE_ADDRESS, MEETING_ROOM, WEEKLY_TIMINGS } from './lib/siteInfo'
 import { invalidateBooksCache } from './lib/books'
-import { useLibrarySyncSubscription } from './lib/librarySync'
+import { useLibrarySyncSubscription, useCopiesAvailabilitySubscription } from './lib/librarySync'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -978,8 +978,12 @@ function StaffReturnsPage() {
   // Another staff member (or a patron checking out/returning/holding a
   // book) changes this page's data from outside it -- refresh all three
   // lists whenever copies, checkouts, or the waitlist change anywhere.
-  useLibrarySyncSubscription(['copies', 'checkouts', 'waitlist'], () => {
+  useLibrarySyncSubscription(['checkouts', 'waitlist'], () => {
     void loadCheckouts()
+    void loadReservations()
+    void loadReadyWaitlist()
+  })
+  useCopiesAvailabilitySubscription(() => {
     void loadReservations()
     void loadReadyWaitlist()
   })
@@ -3158,10 +3162,10 @@ export default function App() {
   // A checkout/return/hold from another browser or account changes copy
   // availability under everyone else's feet -- refetch (bypassing the
   // localStorage cache, which would otherwise still hand back stale data)
-  // whenever `copies` changes anywhere. Book detail pages derive from this
-  // same `books` state rather than fetching their own copy, so this alone
-  // keeps both the catalog and detail views live.
-  useLibrarySyncSubscription(['copies'], () => {
+  // whenever availability changes anywhere. Book detail pages derive from
+  // this same `books` state rather than fetching their own copy, so this
+  // alone keeps both the catalog and detail views live.
+  useCopiesAvailabilitySubscription(() => {
     invalidateBooksCache()
     fetchBooks().then(setBooks).catch(err => console.error('Realtime book refresh failed:', err))
   })
