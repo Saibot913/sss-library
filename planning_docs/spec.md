@@ -107,7 +107,9 @@ Also links out to an external Google Form — `REVIEW_FORM_URL` in `src/lib/revi
 **Still open:**
 - Create the actual Google Form (org account, 4 fields above) and paste the link into `REVIEW_FORM_URL` — until then, the site shows "Review form coming soon."
 
-### 4. Site access — 3 layers — DONE (2026-08-08)
+### 4. Site access — 3 layers — DONE (2026-08-08); site gate REMOVED in v1 edits (2026-10-15)
+
+**v1 edits update:** the shared-password gate (layer 1 below) was removed. The site now opens straight to the catalog; on the first visit of a session a closable sign-in / sign-up modal appears (`src/lib/welcomePrompt.ts`, effect in `App.tsx`). Closing it = browse as a guest; continuing = normal email-code auth. `siteAccess.ts` and `SiteGate` no longer exist. The section below is kept as history.
 
 **Status: executed and verified in a real browser** (screenshots taken, no console errors, unlock persists across reload).
 

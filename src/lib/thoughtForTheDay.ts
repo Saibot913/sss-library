@@ -21,6 +21,28 @@ export type ThoughtForTheDay = {
 // All four are imported so backfilling history later doesn't mean digging
 // through old mail, not because the UI needs all of them.
 
+const NAMED_ENTITIES: Record<string, string> = {
+  ldquo: '\u201C', rdquo: '\u201D', lsquo: '\u2018', rsquo: '\u2019',
+  mdash: '\u2014', ndash: '\u2013', hellip: '\u2026', nbsp: ' ',
+  quot: '"', apos: "'", lt: '<', gt: '>',
+}
+
+// Rows imported before the importer decoded entities (or by an un-updated
+// copy of the script) still hold raw "&rsquo;" etc. Decode at read time so the
+// UI is correct whatever is in the table. Single pass, so "&amp;lt;" stays
+// "&lt;" rather than double-decoding.
+function decodeEntities(text: string | null): string | null {
+  if (text == null) return text
+  return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, body: string) => {
+    if (body[0] === '#') {
+      const code = body[1].toLowerCase() === 'x' ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10)
+      return Number.isFinite(code) ? String.fromCodePoint(code) : match
+    }
+    if (body.toLowerCase() === 'amp') return '&'
+    return NAMED_ENTITIES[body.toLowerCase()] ?? match
+  })
+}
+
 /**
  * The most recently dated thought, or null if the table is empty.
  *
@@ -50,5 +72,12 @@ export async function fetchThoughtForTheDay(): Promise<ThoughtForTheDay | null> 
     .maybeSingle()
 
   if (error) throw error
-  return data
+  if (!data) return null
+  return {
+    ...data,
+    intro: decodeEntities(data.intro),
+    passage: decodeEntities(data.passage) ?? '',
+    attribution: decodeEntities(data.attribution),
+    quote: decodeEntities(data.quote),
+  }
 }

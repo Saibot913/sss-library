@@ -5,7 +5,7 @@ import { fetchThoughtForTheDay, type ThoughtForTheDay } from './lib/thoughtForTh
 import { useBookCover } from './lib/bookCovers'
 import { VOLUNTEER_FORM_URL, VOLUNTEER_RESPONSES_SHEET_URL } from './lib/volunteers'
 import { REVIEW_FORM_URL, REVIEW_RESPONSES_SHEET_URL, fetchReviewsForBook, fetchLibraryReviews, fetchAllReviewsForStaff, addReview, deleteReview, type Review } from './lib/reviews'
-import { SITE_PASSWORD, hasSiteAccess, grantSiteAccess } from './lib/siteAccess'
+import { hasSeenWelcomePrompt, markWelcomePromptSeen } from './lib/welcomePrompt'
 import { AUTH_REDIRECT_PATH, deleteAccount, getCurrentPatron, onAuthChange, requestSignInCode, signOut, updatePatronProfile, verifySignInCode, type Patron } from './lib/auth'
 import {
   checkoutBook,
@@ -339,49 +339,6 @@ function TopNav({
   )
 }
 
-// ── Site gate ─────────────────────────────────────────────────────────────────
-// See src/lib/siteAccess.ts for what this is and isn't protecting.
-
-function SiteGate({ onUnlock }: { onUnlock: () => void }) {
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (password.trim().toLowerCase() === SITE_PASSWORD.toLowerCase()) {
-      onUnlock()
-    } else {
-      setError('That password is incorrect.')
-    }
-  }
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#2C1810' }}>
-      <div style={{ background: '#FAF3E4', padding: '44px 44px', maxWidth: 380, width: '90%', textAlign: 'center', boxShadow: '0 24px 64px rgba(0,0,0,0.35)' }}>
-        <p style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontStyle: 'italic', color: '#C8521A', marginBottom: 6 }}>Sairam</p>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: '#2C1810', marginBottom: 20 }}>Welcome to SSS-Library</h1>
-        <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#5C3D2E', marginBottom: 24 }}>Please enter password to access the site.</p>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={e => { setPassword(e.target.value); setError('') }}
-            autoFocus
-            style={{ width: '100%', padding: '10px 12px', fontFamily: 'var(--font-body)', fontSize: 14, color: '#2C1810', background: '#F4E9D0', border: '1px solid #D4B896', outline: 'none', boxSizing: 'border-box', textAlign: 'center' }}
-            onFocus={e => (e.target.style.borderColor = '#C8521A')}
-            onBlur={e => (e.target.style.borderColor = '#D4B896')}
-          />
-          {error && <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#C8521A' }}>{error}</p>}
-          <button type="submit" style={{ padding: '12px', background: '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', cursor: 'pointer' }}>
-            Enter
-          </button>
-        </form>
-      </div>
-    </div>
-  )
-}
-
 // ── Login modal ───────────────────────────────────────────────────────────────
 
 // No onLogin callback: verifyOtp() sets the Supabase session directly, and
@@ -427,7 +384,7 @@ function LoginModal({ onClose, mode, setMode }: { onClose: () => void; mode: 'lo
       )
     } catch (err) {
       const message = err instanceof Error ? err.message : 'We could not send your sign-in code.'
-      if (mode === 'login' && /user not found|no user|not found/i.test(message)) {
+      if (mode === 'login' && /user not found|no user|not found|signups not allowed/i.test(message)) {
         setError('There is no account with this email. Please sign up instead.')
       } else {
         setError(message)
@@ -3087,7 +3044,6 @@ function AboutPage() {
 // ── Root ───────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [siteUnlocked, setSiteUnlocked] = useState(() => hasSiteAccess())
   const [books, setBooks] = useState<Book[]>([])
   // Add/edit-book actions already invalidate the cache themselves (see
   // src/lib/books.ts); this is what actually gets the App-level `books`
@@ -3125,6 +3081,7 @@ export default function App() {
   const [authReady, setAuthReady] = useState(false)
   const [authLoading, setAuthLoading] = useState<{type: 'login' | 'logout'; message: string} | null>(null)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
+  const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null)
 
   // Drop a book from cart the moment staff force-release the hold on it
   // (Returns & Holds page) -- without this the patron's own cart keeps
@@ -3185,6 +3142,17 @@ export default function App() {
       return () => window.clearTimeout(timer)
     }
   }, [location.pathname])
+
+  // First visit of the session: offer sign in / sign up. It's a normal,
+  // closable modal, so closing it just leaves the patron browsing the site.
+  // Skipped on the auth return page, which has its own flow.
+  useEffect(() => {
+    if (!authReady || loggedIn || hasSeenWelcomePrompt()) return
+    markWelcomePromptSeen()
+    if (location.pathname === AUTH_REDIRECT_PATH) return
+    setLoginMode('login')
+    setShowLogin(true)
+  }, [authReady, loggedIn, location.pathname])
 
   useEffect(() => {
     let unsub = () => {}
@@ -3376,7 +3344,12 @@ export default function App() {
     // Availability has changed, so the cached catalog is now wrong.
     invalidateBooksCache()
     try {
-      setBooks(await fetchBooks())
+      const freshBooks = await fetchBooks()
+      setBooks(freshBooks)
+      // BookDetailPage gets a snapshot object, not an id, so without this it
+      // keeps showing the pre-checkout availability until the patron leaves
+      // and comes back.
+      setViewingBook(current => (current ? freshBooks.find(b => b.id === current.id) ?? current : current))
     } catch {
       // A stale catalog isn't worth failing a successful checkout over.
     }
@@ -3397,6 +3370,12 @@ export default function App() {
     }
 
     setShowCart(false)
+    setViewingBook(null)
+    setCheckoutNotice(
+      `You checked out ${succeeded.join(', ')}. Please collect ${succeeded.length === 1 ? 'it' : 'them'} from the center during opening times. No confirmation email is sent.`
+    )
+    window.setTimeout(() => setCheckoutNotice(null), 8000)
+    navigate('/account')
   }
 
   // Same gating as submitHoldRequests(): not-signed-in patrons go to
@@ -3435,10 +3414,6 @@ export default function App() {
       setCheckoutError(err instanceof Error ? err.message : 'We could not remove you from the waitlist.')
       return false
     }
-  }
-
-  if (!siteUnlocked) {
-    return <SiteGate onUnlock={() => { grantSiteAccess(); setSiteUnlocked(true) }} />
   }
 
   return (
@@ -3589,6 +3564,13 @@ export default function App() {
       {checkoutError && (
         <div style={{ position: 'fixed', left: 24, bottom: 24, zIndex: 250, background: '#2C1810', color: '#FAF3E4', padding: '12px 14px', boxShadow: '0 12px 30px rgba(0,0,0,0.25)', maxWidth: 420 }}>
           <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, margin: 0 }}>{checkoutError}</p>
+        </div>
+      )}
+
+      {checkoutNotice && (
+        <div role="status" style={{ position: 'fixed', left: 24, bottom: 24, zIndex: 250, background: '#2C1810', color: '#FAF3E4', padding: '12px 14px', boxShadow: '0 12px 30px rgba(0,0,0,0.25)', maxWidth: 420, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, margin: 0 }}>{checkoutNotice}</p>
+          <button onClick={() => setCheckoutNotice(null)} aria-label="Dismiss" style={{ background: 'none', border: 'none', color: '#9B7B6A', cursor: 'pointer', fontSize: 16 }}>✕</button>
         </div>
       )}
 

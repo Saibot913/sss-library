@@ -15,6 +15,19 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 
 ## [Unreleased]
 
+_v1 edits (2026-10-15)_
+
+### Added
+- Sign-in / sign-up popup on a patron's first visit of a session; closing it just leaves them browsing as a guest.
+- Checkout now shows a confirmation toast and takes the patron to their account page, where the book appears under "Currently checked out".
+
+### Removed
+- The shared site password screen — the site opens straight to the catalog. (The password also lives in git history; rotate it if it's reused anywhere.)
+
+### Fixed
+- Book detail page kept showing pre-checkout availability until the patron navigated away; it now refreshes after checkout.
+- Thought for the Day still showed raw entities like `&rsquo;` for existing rows; entities are now decoded when the thought is loaded, so it's correct whatever is in the table.
+
 ### Removed
 - The Community page's "Upcoming Events" list was 4 made-up Figma placeholder events (Summer Reading Circle, Children's Story Hour, etc.) that looked real but weren't — events scope was never actually decided (see `project-instructions/README.md`'s "Events scope" open decision). Emptied it out to the same honest "check back later" stub already used for Book Clubs, rather than keep showing fake events as if they were real.
 - The "top 4 categories" pill row under the homepage search box — cluttered and redundant with the catalog's own category filter.

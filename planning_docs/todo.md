@@ -4,6 +4,13 @@ Tracked in git, like the rest of `planning_docs/` — visible to anyone who clon
 not just local scratch notes. Replaces the previous version of this file, which described
 the checkout bug as unresolved and book covers as blocked — both are done now.
 
+## v1 edits (2026-10-15)
+
+- Site password gate removed; first-visit sign-in/sign-up popup instead (see `spec.md` §4).
+- Checkout shows a confirmation and lands on the account page; book detail refreshes after checkout.
+- Thought for the Day decodes HTML entities at read time. The live Apps Script importer still needs the fixed `decodeEntities()` pasted in by hand.
+- **Open:** patrons aren't told where to collect (category / shelf `location` / center address and hours); no confirmation email is sent (intentional so far).
+
 ## What's actually done and live in production (through today)
 
 Everything below is merged to `main` and its migrations pushed to Supabase (through

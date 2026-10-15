@@ -4,6 +4,24 @@ This is a website (React + Vite + Tailwind, backed by Supabase) for the Sri Sath
 
 This repo is public so the code is visible and reviewable, but it's not open source — all rights reserved, no license is granted to reuse, fork, or redistribute this code for another project.
 
+## Key links
+
+Quick reference — everything below lives in a different place than the code, so it's easy to lose track of.
+
+| What | Link |
+| --- | --- |
+| Live site | [sss-library.netlify.app](https://sss-library.netlify.app) |
+| GitHub repo | [github.com/Saibot913/sss-library](https://github.com/Saibot913/sss-library) |
+| Netlify dashboard (deploys, env vars, site settings) | [app.netlify.com/projects/sss-library](https://app.netlify.com/projects/sss-library/overview) |
+| Supabase dashboard (database, auth, edge functions) | [supabase.com/dashboard/project/gpekfosbyobdffavrumi](https://supabase.com/dashboard/project/gpekfosbyobdffavrumi) |
+| Main organization site | [saisevasadan.org](https://www.saisevasadan.org) |
+| Reviews & Feedback form (patron-facing) | [forms.gle/YyXfu6YDue2NjkCD7](https://forms.gle/YyXfu6YDue2NjkCD7) |
+| Reviews form responses (staff-only sheet) | [Google Sheet](https://docs.google.com/spreadsheets/d/13CYKrOjQtpyk6_M3oNA7tVc36vOqBSEmw9Vrc8c6t98/edit?usp=sharing) |
+| Volunteer interest form (patron-facing) | [forms.gle/9bFyySCSrYhaCKkH7](https://forms.gle/9bFyySCSrYhaCKkH7) |
+| Volunteer form responses (staff-only sheet) | [Google Sheet](https://docs.google.com/spreadsheets/d/1NoimCd7k2TFL1B8nYxX-fleTqX-TEyYmbrBIF-tYPJM/edit?usp=sharing) |
+
+The Netlify and Supabase dashboards need staff/collaborator access to open — ask Surya. Credentials (Supabase API keys, service-role secrets) are never written down here since this repo is public; see step 8 below and [step 10](#10-deploy-email-auth) for where those actually live.
+
 ## 0. What you'll need
 
 - A **GitHub account** — sign up free at [github.com](https://github.com) if you don't have one.
