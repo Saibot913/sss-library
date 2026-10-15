@@ -22,6 +22,7 @@ _v1 edits (2026-10-15)_
 - Checkout now shows a confirmation toast and takes the patron to their account page, where the book appears under "Currently checked out".
 
 ### Removed
+- Thought for the Day page and its nav link, switched off for now: `/thought` redirects home. The page component, importer and `thought_of_the_day` table are left in place so it can be turned back on.
 - The shared site password screen — the site opens straight to the catalog. (The password also lives in git history; rotate it if it's reused anywhere.)
 
 ### Fixed

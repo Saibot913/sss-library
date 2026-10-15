@@ -254,9 +254,8 @@ function TopNav({
         {([
           ['home', '01', 'Home'],
           ['catalog', '02', 'Catalog'],
-          ['thought', '03', 'Thought for the Day'],
-          ['about', '04', 'Community'],
-          ...(isStaff ? [['staff', '05', 'Staff'] as const] : []),
+          ['about', '03', 'Community'],
+          ...(isStaff ? [['staff', '04', 'Staff'] as const] : []),
         ] as const).map(([id, num, label]) => (
           <button
             key={id}
@@ -2708,7 +2707,8 @@ function formatThoughtDate(iso: string): string {
   })
 }
 
-function ThoughtPage() {
+// Currently unrouted — see the /thought route in App().
+export function ThoughtPage() {
   const [thought, setThought] = useState<ThoughtForTheDay | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -3484,7 +3484,12 @@ export default function App() {
           <Routes>
             <Route path={PAGE_PATHS.home} element={<HomePage books={books} onSearch={handleSearch} onViewBook={handleViewBook} cartIds={cartIds} onAddToCart={toggleCart} />} />
             <Route path={PAGE_PATHS.catalog} element={<CatalogPage books={books} filters={filters} setFilters={setFilters} onViewBook={handleViewBook} cartIds={cartIds} onAddToCart={toggleCart} />} />
-            <Route path={PAGE_PATHS.thought} element={<ThoughtPage />} />
+            {/* Thought for the Day is switched off for now (nav link removed). The
+                page component, lib/thoughtForTheDay.ts, the importer and the
+                table are all still in place; swap this back to
+                <ThoughtPage /> and re-add the nav entry to restore it. Old
+                bookmarks go home rather than 404. */}
+            <Route path={PAGE_PATHS.thought} element={<Navigate to={PAGE_PATHS.home} replace />} />
             <Route path={PAGE_PATHS.about} element={<AboutPage />} />
             <Route path="/account" element={currentPatron ? <AccountActivityPage /> : <Navigate to={PAGE_PATHS.home} replace />} />
             <Route path={PAGE_PATHS.staff} element={currentPatron && isStaff ? <StaffHomePage /> : <Navigate to={PAGE_PATHS.home} replace />} />
