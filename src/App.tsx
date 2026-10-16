@@ -3081,7 +3081,7 @@ export default function App() {
   const [authReady, setAuthReady] = useState(false)
   const [authLoading, setAuthLoading] = useState<{type: 'login' | 'logout'; message: string} | null>(null)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
-  const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null)
+  const [checkoutReceipt, setCheckoutReceipt] = useState<{ title: string; category: string; label: string }[] | null>(null)
 
   // Drop a book from cart the moment staff force-release the hold on it
   // (Returns & Holds page) -- without this the patron's own cart keeps
@@ -3322,6 +3322,7 @@ export default function App() {
 
     setCheckoutError(null)
     const succeeded: string[] = []
+    const receipt: { title: string; category: string; label: string }[] = []
     const failed: string[] = []
 
     // Convert each cart reservation into a checkout using the exact reserved
@@ -3331,10 +3332,12 @@ export default function App() {
     // Sequential rather than parallel: these contend for copies, so firing
     // them together just makes them race each other.
     for (const [bookId, reservedCopy] of cart.entries()) {
-      const title = books.find(book => book.id === bookId)?.title ?? bookId
+      const book = books.find(b => b.id === bookId)
+      const title = book?.title ?? bookId
       try {
         await checkoutBook(reservedCopy)
         succeeded.push(title)
+        receipt.push({ title, category: book?.category || 'Uncategorized', label: reservedCopy })
       } catch (err) {
         console.error(`checkout failed for "${title}" (${reservedCopy}):`, err)
         failed.push(title)
@@ -3360,6 +3363,8 @@ export default function App() {
     setCartIds(failedIds)
     setShowProfileForm(false)
 
+    if (receipt.length) setCheckoutReceipt(receipt)
+
     if (failed.length) {
       setCheckoutError(
         succeeded.length
@@ -3370,12 +3375,6 @@ export default function App() {
     }
 
     setShowCart(false)
-    setViewingBook(null)
-    setCheckoutNotice(
-      `You checked out ${succeeded.join(', ')}. Please collect ${succeeded.length === 1 ? 'it' : 'them'} from the center during opening times. No confirmation email is sent.`
-    )
-    window.setTimeout(() => setCheckoutNotice(null), 8000)
-    navigate('/account')
   }
 
   // Same gating as submitHoldRequests(): not-signed-in patrons go to
@@ -3572,10 +3571,29 @@ export default function App() {
         </div>
       )}
 
-      {checkoutNotice && (
-        <div role="status" style={{ position: 'fixed', left: 24, bottom: 24, zIndex: 250, background: '#2C1810', color: '#FAF3E4', padding: '12px 14px', boxShadow: '0 12px 30px rgba(0,0,0,0.25)', maxWidth: 420, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-          <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, margin: 0 }}>{checkoutNotice}</p>
-          <button onClick={() => setCheckoutNotice(null)} aria-label="Dismiss" style={{ background: 'none', border: 'none', color: '#9B7B6A', cursor: 'pointer', fontSize: 16 }}>✕</button>
+      {checkoutReceipt && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'rgba(44,24,16,0.7)' }} onClick={() => setCheckoutReceipt(null)}>
+          <div role="dialog" aria-label="Checkout complete" style={{ background: '#FAF3E4', padding: '36px 40px', maxWidth: 520, width: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(44,24,16,0.35)' }} onClick={e => e.stopPropagation()}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Checkout complete</span>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 700, color: '#2C1810', marginBottom: 6 }}>
+              {checkoutReceipt.length === 1 ? 'Your book is ready to collect' : `Your ${checkoutReceipt.length} books are ready to collect`}
+            </h2>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: '#5C3D2E', marginBottom: 20 }}>
+              Find {checkoutReceipt.length === 1 ? 'it' : 'each one'} by category, then by copy ID, and collect from the center during opening times. No confirmation email is sent, so take a note of this.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+              {checkoutReceipt.map(item => (
+                <div key={item.label} style={{ padding: '14px 16px', background: '#F4E9D0', border: '1px solid #D4B896' }}>
+                  <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600, color: '#2C1810', marginBottom: 8 }}>{item.title}</h3>
+                  <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: '#5C3D2E', margin: 0 }}>Category: <strong style={{ color: '#2C1810' }}>{item.category}</strong></p>
+                  <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: '#5C3D2E', margin: 0 }}>Copy ID: <strong style={{ color: '#C8521A', fontFamily: 'var(--font-mono)', fontSize: 17 }}>{item.label}</strong></p>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setCheckoutReceipt(null)} style={{ width: '100%', padding: '13px', background: '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', cursor: 'pointer' }}>
+              Got it
+            </button>
+          </div>
         </div>
       )}
 

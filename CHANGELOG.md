@@ -19,7 +19,7 @@ _v1 edits (2026-10-15)_
 
 ### Added
 - Sign-in / sign-up popup on a patron's first visit of a session; closing it just leaves them browsing as a guest.
-- Checkout now shows a confirmation toast and takes the patron to their account page, where the book appears under "Currently checked out".
+- Checkout now shows a large pickup dialog with each book's title, category and copy ID to collect it by; the patron stays where they were.
 
 ### Removed
 - Thought for the Day page and its nav link, switched off for now: `/thought` redirects home. The page component, importer and `thought_of_the_day` table are left in place so it can be turned back on.

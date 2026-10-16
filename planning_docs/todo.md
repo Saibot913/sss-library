@@ -7,7 +7,7 @@ the checkout bug as unresolved and book covers as blocked — both are done now.
 ## v1 edits (2026-10-15)
 
 - Site password gate removed; first-visit sign-in/sign-up popup instead (see `spec.md` §4).
-- Checkout shows a confirmation and lands on the account page; book detail refreshes after checkout.
+- Checkout shows a large pickup dialog (title, category, copy ID) and keeps the patron on the page; book detail refreshes after checkout.
 - Thought for the Day decodes HTML entities at read time. The live Apps Script importer still needs the fixed `decodeEntities()` pasted in by hand.
 - Thought for the Day page switched off (nav link removed, `/thought` redirects home). Code, importer and table left in place; re-enable by restoring the route element and nav entry in `App.tsx`.
 - **Open:** patrons aren't told where to collect (category / shelf `location` / center address and hours); no confirmation email is sent (intentional so far).

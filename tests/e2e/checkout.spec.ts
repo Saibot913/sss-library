@@ -32,7 +32,14 @@ test.describe('Checkout', () => {
     await page.getByRole('button', { name: /Check Out \d+ Books?/ }).click()
     await expect(page.getByRole('heading', { name: 'Your Cart' })).not.toBeVisible()
 
-    // Then: the book appears under "Currently checked out" on their account page.
+    // Then: a pickup dialog names the book, its category and the copy ID...
+    const receipt = page.getByRole('dialog', { name: 'Checkout complete' })
+    await expect(receipt.getByText(bookTitle)).toBeVisible()
+    await expect(receipt.getByText(/Category:/)).toBeVisible()
+    await expect(receipt.getByText(/Copy ID:/)).toBeVisible()
+    await receipt.getByRole('button', { name: 'Got it' }).click()
+
+    // ...and the book appears under "Currently checked out" on their account page.
     // .first() because the seeded patron account is reused across test runs,
     // so the same title can legitimately show up more than once here.
     await page.getByRole('button', { name: 'My Books' }).click()
