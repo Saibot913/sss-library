@@ -2715,9 +2715,16 @@ function HomePage({ books, onSearch, onViewBook, cartIds, onAddToCart }: {
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#C8521A', letterSpacing: '0.15em', textTransform: 'uppercase' }}>§ 02</span>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 600, color: '#2C1810' }}>Upcoming Events</h2>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 28, padding: '18px 14px', borderBottom: '1px solid #D4B896' }}>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 600, color: '#2C1810', marginBottom: 2 }}>{LADIES_WING_BOOK_CLUB.title}</p>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#9B7B6A' }}>Reading: {LADIES_WING_BOOK_CLUB.book}</p>
+          </div>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#5C3D2E' }}>{LADIES_WING_BOOK_CLUB.time}</span>
+        </div>
         {EVENTS.length === 0 && (
-          <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#5C3D2E', lineHeight: 1.7, maxWidth: 580 }}>
-            No events are scheduled just yet. Check back later, or ask at the center.
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#5C3D2E', lineHeight: 1.7, maxWidth: 580, marginTop: 14 }}>
+            No other events are scheduled just yet. Check back later, or ask at the center.
           </p>
         )}
         {EVENTS.map((ev, i) => (
@@ -2767,6 +2774,17 @@ type BookClubEntry = {
 // new tables and a capacity check, see the TODO in that file. The section
 // below renders an empty state until then.
 const BOOK_CLUBS: BookClubEntry[] = []
+
+// Static, not a BookClubEntry: no live capacity/RSVP backend exists yet (see
+// src/lib/bookClub.ts), so this is plain text with no "Reserve a Spot"
+// button and no spots-left count, unlike the BOOK_CLUBS rendering above.
+const LADIES_WING_BOOK_CLUB = {
+  title: 'Ladies Wing Book Club',
+  time: 'Sundays, 3:00 – 4:00 PM (same timing as the Adult Study Circle)',
+  book: 'Prema Vahini',
+  note: "Ladies Wing is reading Prema Vahini in parallel with the Adult Study Circle, and will share their learning for Ladies Day.",
+  whatsappUrl: 'https://chat.whatsapp.com/EDrJqVfT9vkD5GtvzyGBtZ',
+}
 
 const VOLUNTEER_ROLES = [
   {
@@ -3007,9 +3025,18 @@ function AboutPage() {
         {sectionHead('§ 01', 'Upcoming Book Clubs')}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+          <div style={{ padding: '0 0 28px', borderBottom: '1px solid #D4B896', marginBottom: 28 }}>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600, color: '#2C1810', marginBottom: 6 }}>{LADIES_WING_BOOK_CLUB.title}</h3>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#5C3D2E', marginBottom: 4 }}>{LADIES_WING_BOOK_CLUB.time}</p>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#C8521A', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>Reading: {LADIES_WING_BOOK_CLUB.book}</p>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#5C3D2E', lineHeight: 1.7, maxWidth: 580, marginBottom: 10 }}>{LADIES_WING_BOOK_CLUB.note}</p>
+            <a href={LADIES_WING_BOOK_CLUB.whatsappUrl} target="_blank" rel="noopener noreferrer" style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, color: '#C8521A' }}>
+              Join the Ladies Wing Book Club WhatsApp group →
+            </a>
+          </div>
           {BOOK_CLUBS.length === 0 && (
             <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#5C3D2E', lineHeight: 1.7, maxWidth: 580 }}>
-              No sessions are scheduled just yet. Book club dates will appear here once they're set — ask at the center in the meantime.
+              No other sessions are scheduled just yet. More book club dates will appear here once they're set — ask at the center in the meantime.
             </p>
           )}
           {BOOK_CLUBS.map((club, i) => {
