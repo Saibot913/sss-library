@@ -78,6 +78,13 @@ test.describe('Staff returns', () => {
     expect(checkOutStatus).toBe(204)
     expect(await copyStatus()).toBe('checked_out')
 
+    // Re-open the staff page through the app's own nav so it fetches fresh,
+    // rather than waiting on the live-update subscription (which may not have
+    // connected yet and made this step timing-dependent).
+    await page.getByRole('button', { name: /Staff Menu/ }).click()
+    await page.getByRole('button', { name: 'Returns & Holds' }).click()
+    await expect(page.getByRole('heading', { name: 'Open Checkouts' })).toBeVisible()
+
     // Return: checked out -> return shelf (NOT yet available)
     const openRow = page.locator('tr', { has: page.getByText(fullLabel) }).filter({ has: page.getByRole('button', { name: 'Mark Returned' }) })
     await expect(openRow).toBeVisible()
