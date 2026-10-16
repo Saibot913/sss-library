@@ -2780,7 +2780,7 @@ const BOOK_CLUBS: BookClubEntry[] = []
 // button and no spots-left count, unlike the BOOK_CLUBS rendering above.
 const LADIES_WING_BOOK_CLUB = {
   title: 'Ladies Wing Book Club',
-  time: 'Sundays, 3:00 – 4:00 PM (same timing as the Adult Study Circle)',
+  time: 'Meeting timings: TBD',
   book: 'Prema Vahini',
   note: "Ladies Wing is reading Prema Vahini in parallel with the Adult Study Circle, and will share their learning for Ladies Day.",
   whatsappUrl: 'https://chat.whatsapp.com/EDrJqVfT9vkD5GtvzyGBtZ',
@@ -3030,8 +3030,14 @@ function AboutPage() {
             <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#5C3D2E', marginBottom: 4 }}>{LADIES_WING_BOOK_CLUB.time}</p>
             <p style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: '#C8521A', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>Reading: {LADIES_WING_BOOK_CLUB.book}</p>
             <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#5C3D2E', lineHeight: 1.7, maxWidth: 580, marginBottom: 10 }}>{LADIES_WING_BOOK_CLUB.note}</p>
-            <a href={LADIES_WING_BOOK_CLUB.whatsappUrl} target="_blank" rel="noopener noreferrer" style={{ fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600, color: '#C8521A' }}>
-              Join the Ladies Wing Book Club WhatsApp group →
+            <a
+              href={LADIES_WING_BOOK_CLUB.whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="community-form-link"
+              style={{ display: 'inline-block', padding: '12px 20px', background: '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'none', cursor: 'pointer' }}
+            >
+              Join the WhatsApp Group ↗
             </a>
           </div>
           {BOOK_CLUBS.length === 0 && (

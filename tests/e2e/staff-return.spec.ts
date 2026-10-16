@@ -65,7 +65,7 @@ test.describe('Staff returns', () => {
 
     // The reservation shows for staff, who can only release it (the patron
     // is the one who checks out)
-    await expect(page.locator('tr', { has: page.getByText(fullLabel) }).getByRole('button', { name: 'Release' })).toBeVisible()
+    await expect(page.locator('tr', { has: page.getByText(fullLabel, { exact: true }) }).getByRole('button', { name: 'Release' })).toBeVisible()
 
     // Patron collects the book and checks it out: reserved -> checked out
     const { status: checkOutStatus } = await apiRequest({
@@ -86,14 +86,14 @@ test.describe('Staff returns', () => {
     await expect(page.getByRole('heading', { name: 'Open Checkouts' })).toBeVisible()
 
     // Return: checked out -> return shelf (NOT yet available)
-    const openRow = page.locator('tr', { has: page.getByText(fullLabel) }).filter({ has: page.getByRole('button', { name: 'Mark Returned' }) })
+    const openRow = page.locator('tr', { has: page.getByText(fullLabel, { exact: true }) }).filter({ has: page.getByRole('button', { name: 'Mark Returned' }) })
     await expect(openRow).toBeVisible()
     await openRow.getByRole('button', { name: 'Mark Returned' }).click()
     await expect(page.getByText(new RegExp(`Marked .* \\(${fullLabel}\\) as returned`))).toBeVisible()
     expect(await copyStatus()).toBe('returned')
 
     // Reshelve: return shelf -> available
-    const shelfRow = page.locator('tr', { has: page.getByText(fullLabel) }).filter({ has: page.getByRole('button', { name: 'Back on Shelf' }) })
+    const shelfRow = page.locator('tr', { has: page.getByText(fullLabel, { exact: true }) }).filter({ has: page.getByRole('button', { name: 'Back on Shelf' }) })
     await expect(shelfRow).toBeVisible()
     await shelfRow.getByRole('button', { name: 'Back on Shelf' }).click()
     await expect(page.getByText(new RegExp(`\\(${fullLabel}\\) is back on the shelf and available`))).toBeVisible()
