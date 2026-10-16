@@ -26,6 +26,7 @@ _v1 edits (2026-10-15 to 2026-10-16)_
 - Ladies Wing Book Club notice (reading Prema Vahini in parallel with the Adult Study Circle; meeting timings TBD) and WhatsApp join link, shown as static text on the Community page and home page Upcoming Events — not a real `BOOK_CLUBS`/`EVENTS` entry, since those still have no backend (see TODOs in `src/lib/bookClub.ts` and `src/lib/events.ts`).
 
 ### Changed
+- Removed the quotation marks around the Community page's Volunteer and Reviews intro lines (wording unchanged).
 - Staff Returns & Holds: "Active Holds" is now "Reserved: Awaiting Collection" (staff can Release). Staff **Mark Returned** now sends a book to the Return Shelf instead of straight back to available.
 - Patrons can no longer create a loan directly: `checkout_book` now just reserves, and the loan starts when the patron checks out their reservation.
 - Manage Books won't edit a copy that is reserved, checked out or on the return shelf (it used to flip such copies to available).

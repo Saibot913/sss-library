@@ -3100,7 +3100,7 @@ function AboutPage() {
         <div className="community-two-column" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 56, marginBottom: 56 }}>
           <div>
             <p style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontStyle: 'italic', color: '#2C1810', lineHeight: 1.5, marginBottom: 18 }}>
-              "The library runs on the love of its community. We'd love yours."
+              The library runs on the love of its community. We'd love yours.
             </p>
             <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#5C3D2E', lineHeight: 1.75, marginBottom: 14 }}>
               Sai Library relies on a team of dedicated volunteers to deliver programmes, maintain the collection, and serve our members. Whether you can spare a few hours a week or just a few hours a month, there is a role for you.
@@ -3163,7 +3163,7 @@ function AboutPage() {
         <div className="community-two-column" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 56 }}>
           <div>
             <p style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontStyle: 'italic', color: '#2C1810', lineHeight: 1.5, marginBottom: 18 }}>
-              "Tell us what you think — of a book, or of the library itself."
+              Tell us what you think — of a book, or of the library itself.
             </p>
             <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#5C3D2E', lineHeight: 1.75 }}>
               Loved something you borrowed? Have a thought on how the library or this site could serve you better? We read every submission.
