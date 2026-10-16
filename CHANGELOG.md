@@ -23,6 +23,7 @@ _v1 edits (2026-10-15 to 2026-10-16)_
 - Help tab (separate from Community) with a "How borrowing works" guide, a FAQ, and a "Report an Issue" button that shows "coming soon" until `ISSUE_FORM_URL` in `src/lib/help.ts` is set.
 - Sign-in / sign-up popup on a patron's first visit of a session; closing it just leaves them browsing as a guest.
 - Checkout shows a large dialog with each book's title, category and copy ID, and the patron stays on the page.
+- Ladies Wing Book Club notice (Sundays 3–4pm, reading Prema Vahini) and WhatsApp join link, shown as static text on the Community page and home page Upcoming Events — not a real `BOOK_CLUBS`/`EVENTS` entry, since those still have no backend (see TODOs in `src/lib/bookClub.ts` and `src/lib/events.ts`).
 
 ### Changed
 - Staff Returns & Holds: "Active Holds" is now "Reserved: Awaiting Collection" (staff can Release). Staff **Mark Returned** now sends a book to the Return Shelf instead of straight back to available.
