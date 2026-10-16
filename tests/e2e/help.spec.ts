@@ -14,7 +14,7 @@ test.describe('Help page', () => {
 
     const collectQuestion = page.locator('details', { hasText: 'Where do I collect my book from?' })
     await collectQuestion.getByText('Where do I collect my book from?').click()
-    await expect(collectQuestion.getByText('Answer coming soon.')).toBeVisible()
+    await expect(collectQuestion.getByText(/Old Placerville Road/)).toBeVisible()
 
     await expect(page.getByRole('heading', { name: 'Still need help?' })).toBeVisible()
   })
