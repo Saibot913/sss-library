@@ -22,6 +22,10 @@ _v1 edits (2026-10-15)_
 - Sign-in / sign-up popup on a patron's first visit of a session; closing it just leaves them browsing as a guest.
 - Checkout now shows a large pickup dialog with each book's title, category and copy ID to collect it by; the patron stays where they were.
 
+### Changed
+- Filled in the Help tab's FAQ with real answers (checkout hold time, honor-system no due dates, pickup/return location and hours, waitlist, sign-in code recovery, account update/delete), replacing the "Answer coming soon" placeholders. `ISSUE_FORM_URL` stays empty for now — "Report an Issue" still shows "coming soon".
+- Corrected the meeting room name to "Sai Dhyan Room" (was "Shradda Room").
+
 ### Removed
 - Thought for the Day page and its nav link, switched off for now: `/thought` redirects home. The page component, importer and `thought_of_the_day` table are left in place so it can be turned back on.
 - The shared site password screen — the site opens straight to the catalog. (The password also lives in git history; rotate it if it's reused anywhere.)
