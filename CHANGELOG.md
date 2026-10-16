@@ -28,6 +28,7 @@ _v1 edits (2026-10-15)_
 ### Fixed
 - Book detail page kept showing pre-checkout availability until the patron navigated away; it now refreshes after checkout.
 - Thought for the Day still showed raw entities like `&rsquo;` for existing rows; entities are now decoded when the thought is loaded, so it's correct whatever is in the table.
+- CI `verify` (dependency audit) was failing on newly published advisories, blocking every PR. All are in dev-only test tooling (`@seontechnologies/playwright-utils`), not shipped code. Pinned patched `brace-expansion` and `source-map-js` via `pnpm.overrides`. `braces` (GHSA-vfj7-8cjw-p6xm) has no patched version yet, so that one advisory is ignored in `pnpm.auditConfig.ignoreGhsas`; remove the ignore once a fix ships.
 
 ### Removed
 - The Community page's "Upcoming Events" list was 4 made-up Figma placeholder events (Summer Reading Circle, Children's Story Hour, etc.) that looked real but weren't — events scope was never actually decided (see `project-instructions/README.md`'s "Events scope" open decision). Emptied it out to the same honest "check back later" stub already used for Book Clubs, rather than keep showing fake events as if they were real.

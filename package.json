@@ -40,7 +40,15 @@
     "overrides": {
       "adm-zip": "0.6.1",
       "nanoid": "3.3.19",
-      "postcss": "8.5.28"
+      "postcss": "8.5.28",
+      "brace-expansion@<1.1.20": "1.1.21",
+      "brace-expansion@>=2.0.0 <2.1.6": "2.1.7",
+      "source-map-js": "1.2.2"
+    },
+    "auditConfig": {
+      "ignoreGhsas": [
+        "GHSA-vfj7-8cjw-p6xm"
+      ]
     }
   }
 }
