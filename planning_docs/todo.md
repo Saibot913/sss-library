@@ -10,6 +10,7 @@ the checkout bug as unresolved and book covers as blocked — both are done now.
 - Checkout shows a large pickup dialog (title, category, copy ID) and keeps the patron on the page; book detail refreshes after checkout.
 - Thought for the Day decodes HTML entities at read time. The live Apps Script importer still needs the fixed `decodeEntities()` pasted in by hand.
 - Thought for the Day page switched off (nav link removed, `/thought` redirects home). Code, importer and table left in place; re-enable by restoring the route element and nav entry in `App.tsx`.
+- Help tab added (`/help`): FAQ answers are stubs and `ISSUE_FORM_URL` is empty. Both in `src/lib/help.ts`; needs real answers and a Google Form.
 - **Open:** patrons aren't told where to collect (category / shelf `location` / center address and hours); no confirmation email is sent (intentional so far).
 
 ## What's actually done and live in production (through today)

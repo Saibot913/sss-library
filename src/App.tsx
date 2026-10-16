@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import { fetchBooks, addBook, addCopy, updateBook, updateCopy, type Book, type CopyStatus } from './lib/books'
 import { fetchThoughtForTheDay, type ThoughtForTheDay } from './lib/thoughtForTheDay'
 import { useBookCover } from './lib/bookCovers'
+import { FAQS, ISSUE_FORM_URL } from './lib/help'
 import { VOLUNTEER_FORM_URL, VOLUNTEER_RESPONSES_SHEET_URL } from './lib/volunteers'
 import { REVIEW_FORM_URL, REVIEW_RESPONSES_SHEET_URL, fetchReviewsForBook, fetchLibraryReviews, fetchAllReviewsForStaff, addReview, deleteReview, type Review } from './lib/reviews'
 import { hasSeenWelcomePrompt, markWelcomePromptSeen } from './lib/welcomePrompt'
@@ -40,7 +41,7 @@ import { useLibrarySyncSubscription, useCopiesAvailabilitySubscription } from '.
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Page = 'home' | 'catalog' | 'thought' | 'about' | 'staff' | 'dashboard' | 'staffReturns' | 'staffManage' | 'staffBooks' | 'staffReviews' | 'staffVolunteers'
+type Page = 'home' | 'catalog' | 'thought' | 'about' | 'help' | 'staff' | 'dashboard' | 'staffReturns' | 'staffManage' | 'staffBooks' | 'staffReviews' | 'staffVolunteers'
 
 // Each page has a real URL, so pages can be linked to, bookmarked, and
 // refreshed, and the back button moves between them instead of leaving the
@@ -54,6 +55,7 @@ const PAGE_PATHS: Record<Page, string> = {
   catalog: '/catalog',
   thought: '/thought',
   about: '/community',
+  help: '/help',
   dashboard: '/staff/dashboard',
   staffReturns: '/staff/returns',
   staffManage: '/staff/manage',
@@ -255,7 +257,8 @@ function TopNav({
           ['home', '01', 'Home'],
           ['catalog', '02', 'Catalog'],
           ['about', '03', 'Community'],
-          ...(isStaff ? [['staff', '04', 'Staff'] as const] : []),
+          ['help', '04', 'Help'],
+          ...(isStaff ? [['staff', '05', 'Staff'] as const] : []),
         ] as const).map(([id, num, label]) => (
           <button
             key={id}
@@ -2810,6 +2813,52 @@ export function ThoughtPage() {
   )
 }
 
+function HelpPage() {
+  return (
+    <div style={{ minHeight: '100vh' }}>
+      <section style={{ background: '#2C1810', padding: '48px 64px 40px' }}>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, letterSpacing: '0.2em', color: '#C8521A', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
+          Questions &amp; support
+        </span>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(30px,4.5vw,44px)', fontWeight: 700, color: '#FAF3E4', lineHeight: 1.1 }}>
+          Help
+        </h1>
+      </section>
+
+      <section style={{ maxWidth: 820, margin: '0 auto', padding: '40px 28px 64px' }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 600, color: '#2C1810', marginBottom: 18 }}>Frequently asked questions</h2>
+        <div style={{ borderTop: '1px solid #D4B896', marginBottom: 40 }}>
+          {FAQS.map(item => (
+            <details key={item.question} style={{ borderBottom: '1px solid #D4B896', padding: '16px 0' }}>
+              <summary style={{ fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 600, color: '#2C1810', cursor: 'pointer' }}>{item.question}</summary>
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: '#5C3D2E', lineHeight: 1.7, marginTop: 10 }}>{item.answer}</p>
+            </details>
+          ))}
+        </div>
+
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 600, color: '#2C1810', marginBottom: 10 }}>Still need help?</h2>
+        <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: '#5C3D2E', lineHeight: 1.7, marginBottom: 20 }}>
+          Can't find your answer, or something isn't working? Let us know and a volunteer will get back to you.
+        </p>
+        {ISSUE_FORM_URL ? (
+          <a
+            href={ISSUE_FORM_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: 'inline-block', padding: '12px 20px', background: '#C8521A', color: '#FAF3E4', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'none' }}
+          >
+            Report an Issue ↗
+          </a>
+        ) : (
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#9B7B6A', fontStyle: 'italic' }}>
+            Report-an-issue form coming soon — check back shortly.
+          </p>
+        )}
+      </section>
+    </div>
+  )
+}
+
 function AboutPage() {
   // Library/site reviews staff has chosen to publish (book_code is null) —
   // see the Staff Reviews page. Most-recent-first, up to 15; a plain
@@ -3490,6 +3539,7 @@ export default function App() {
                 bookmarks go home rather than 404. */}
             <Route path={PAGE_PATHS.thought} element={<Navigate to={PAGE_PATHS.home} replace />} />
             <Route path={PAGE_PATHS.about} element={<AboutPage />} />
+            <Route path={PAGE_PATHS.help} element={<HelpPage />} />
             <Route path="/account" element={currentPatron ? <AccountActivityPage /> : <Navigate to={PAGE_PATHS.home} replace />} />
             <Route path={PAGE_PATHS.staff} element={currentPatron && isStaff ? <StaffHomePage /> : <Navigate to={PAGE_PATHS.home} replace />} />
             <Route path={PAGE_PATHS.dashboard} element={currentPatron && isStaff ? <DashboardPage /> : <Navigate to={PAGE_PATHS.home} replace />} />
