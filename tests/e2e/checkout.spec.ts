@@ -47,5 +47,10 @@ test.describe('Checkout', () => {
     await expect(page).toHaveURL(/\/account$/)
     const reservedSection = page.locator('section', { has: page.getByRole('heading', { name: /Reserved, ready to collect/ }) })
     await expect(reservedSection.getByText(bookTitle).first()).toBeVisible()
+
+    // Once they've collected it, the patron checks it out themselves
+    await reservedSection.getByRole('button', { name: 'Check Out' }).first().click()
+    const checkedOutSection = page.locator('section', { has: page.getByRole('heading', { name: /Currently checked out/ }) })
+    await expect(checkedOutSection.getByText(bookTitle).first()).toBeVisible()
   })
 })

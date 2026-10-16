@@ -16,8 +16,8 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 ## [Unreleased]
 
 ### Changed
-- Loans are now a two-step process. "Check Out" in the cart **reserves** the book for 5 days; staff mark it **Picked Up** at the center, which is when it becomes checked out. Returning is also two steps: the patron taps **Return** on their account page (or staff mark it returned), the book goes to the **Return Shelf**, and staff mark it **Back on Shelf** to make it available again. Reservations not collected within 5 days go back on the shelf automatically. Needs migration `20261016000000_reserve_pickup_return_shelf.sql` applied before deploying.
-- Staff Returns & Holds page: "Active Holds" is now "Reserved: Awaiting Pickup" (Mark Picked Up / Release) and there's a new Return Shelf section.
+- Loans are now a two-step process. "Check Out" in the cart **reserves** the book for 5 days (unavailable to others); after collecting it the patron taps **Check Out** on My Books, which is when it becomes checked out. A reservation not checked out within 5 days is released back to the catalog. Returning is also two steps: the patron taps **Return** on their account page (or staff mark it returned), the book goes to the **Return Shelf**, and staff mark it **Back on Shelf** to make it available again. Reservations not collected within 5 days go back on the shelf automatically. Migrations `20261016000000`, `20261016000100` and `20261016000200`.
+- Staff Returns & Holds page: "Active Holds" is now "Reserved: Awaiting Pickup" (staff can Release) and there's a new Return Shelf section.
 - Checkout dialog says "reserved", with the 5-day collect window; patrons can no longer create a loan themselves (`checkout_book` now just reserves).
 
 _v1 edits (2026-10-15)_

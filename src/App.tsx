@@ -11,7 +11,7 @@ import { AUTH_REDIRECT_PATH, deleteAccount, getCurrentPatron, onAuthChange, requ
 import {
   reserveForPickup,
   returnMyBook,
-  staffMarkPickedUp,
+  checkOutReserved,
   staffReshelveBook,
   fetchStaffReturnShelf,
   type ReturnShelfItem,
@@ -598,7 +598,7 @@ function CartOverlay({
                 Check Out {cartBooks.length} Book{cartBooks.length !== 1 ? 's' : ''}
               </button>
               {/* Nothing sends a notification, so don't promise one. */}
-              <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#9B7B6A', textAlign: 'center', marginTop: 10 }}>Checking out reserves your books for 5 days. Collect them from the center during opening times and staff will check them out to you.</p>
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#9B7B6A', textAlign: 'center', marginTop: 10 }}>Checking out reserves your books for 5 days. Collect them from the center during opening times, then tap Check Out on My Books to borrow them.</p>
             </div>
           </>
         )}
@@ -614,6 +614,20 @@ function AccountActivityPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [returningLabel, setReturningLabel] = useState<string | null>(null)
+  const [checkingOutLabel, setCheckingOutLabel] = useState<string | null>(null)
+
+  async function handleCheckOut(item: ActiveReservation) {
+    try {
+      setCheckingOutLabel(item.fullLabel)
+      setError('')
+      await checkOutReserved(item.fullLabel)
+      await loadActivity()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Could not check out ${item.bookTitle ?? item.bookCode}.`)
+    } finally {
+      setCheckingOutLabel(null)
+    }
+  }
 
   async function handleReturn(item: ActiveCheckout) {
     const name = item.bookTitle ?? item.bookCode
@@ -667,7 +681,7 @@ function AccountActivityPage() {
         <button onClick={() => void loadActivity()} disabled={loading} style={{ padding: '9px 14px', background: loading ? '#A56A44' : '#C8521A', color: '#FAF3E4', border: 0, cursor: loading ? 'not-allowed' : 'pointer' }}>{loading ? 'Loading…' : 'Refresh'}</button>
       </div>
       {error && <p style={{ color: '#A52A2A', marginBottom: 18 }}>{error}</p>}
-      <ActivitySection title={`Reserved, ready to collect (${reservations.length})`} empty="Nothing reserved. Add a book to your cart and check out to reserve it." items={reservations.map(item => ({ key: item.fullLabel, title: item.bookTitle ?? item.bookCode, detail: `${item.fullLabel} · Collect from the center by ${new Date(item.reservedUntil).toLocaleDateString()}` }))} />
+      <ActivitySection title={`Reserved, ready to collect (${reservations.length})`} empty="Nothing reserved. Add a book to your cart and check out to reserve it." items={reservations.map(item => ({ key: item.fullLabel, title: item.bookTitle ?? item.bookCode, detail: `${item.fullLabel} · Collect from the center by ${new Date(item.reservedUntil).toLocaleDateString()}, then tap Check Out. Uncollected books go back to the catalog after that.`, action: { label: 'Check Out', busy: checkingOutLabel === item.fullLabel, onClick: () => void handleCheckOut(item) } }))} />
       <ActivitySection title={`Currently checked out (${checkouts.length})`} empty="You do not have any currently checked-out books." items={checkouts.map(item => ({ key: item.checkoutId, title: item.bookTitle ?? item.bookCode, detail: `${item.fullLabel} · Checked out ${new Date(item.checkedOutAt).toLocaleDateString()}`, action: { label: 'Return', busy: returningLabel === item.fullLabel, onClick: () => void handleReturn(item) } }))} />
       <ActivitySection title={`Checkout history (${history.length})`} empty="No checkout history yet." items={history.map(item => ({ key: item.checkoutId, title: item.bookTitle ?? item.bookCode, detail: `${item.fullLabel} · ${new Date(item.checkedOutAt).toLocaleDateString()}${item.returnedAt ? ` · Returned ${new Date(item.returnedAt).toLocaleDateString()}` : ' · Open'}` }))} />
     </div>
@@ -1011,21 +1025,6 @@ function StaffReturnsPage() {
     }
   }
 
-  async function handlePickedUp(fullLabel: string, bookTitle: string | null) {
-    try {
-      setBusyLabel(fullLabel)
-      setMessage('')
-      await staffMarkPickedUp(fullLabel)
-      setMessage(`Checked out "${bookTitle ?? fullLabel}" (${fullLabel}) to the patron.`)
-      await loadReservations()
-      await loadCheckouts()
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : `Could not mark ${fullLabel} as picked up.`)
-    } finally {
-      setBusyLabel(null)
-    }
-  }
-
   async function handleReshelve(fullLabel: string, bookTitle: string | null) {
     try {
       setBusyLabel(fullLabel)
@@ -1153,7 +1152,7 @@ function StaffReturnsPage() {
       </section>
 
       <section style={{ background: '#FAF3E4', border: '1px solid #D4B896', padding: 20 }}>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 21, color: '#2C1810', marginBottom: 14 }}>Reserved: Awaiting Pickup</h2>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 21, color: '#2C1810', marginBottom: 14 }}>Reserved: Awaiting Collection</h2>
         {reservationsLoading ? (
           <p style={{ color: '#9B7B6A', fontSize: 14 }}>Loading reservations…</p>
         ) : reservationsError ? (
@@ -1176,12 +1175,9 @@ function StaffReturnsPage() {
                   <td style={tdStyle}>{item.bookTitle ?? item.bookCode}<br /><span style={{ fontSize: 14, color: '#9B7B6A' }}>{item.fullLabel}</span></td>
                   <td style={tdStyle}>{item.reservedByName}<br /><span style={{ fontSize: 14, color: '#9B7B6A' }}>{item.reservedByEmail}</span></td>
                   <td style={tdStyle}>{new Date(item.reservedUntil).toLocaleString()}</td>
-                  <td style={{ ...tdStyle, display: 'flex', gap: 8 }}>
-                    <button onClick={() => handlePickedUp(item.fullLabel, item.bookTitle)} disabled={busyLabel === item.fullLabel} style={actionButtonStyle(busyLabel === item.fullLabel)}>
-                      {busyLabel === item.fullLabel ? 'Working…' : 'Mark Picked Up'}
-                    </button>
+                  <td style={tdStyle}>
                     <button onClick={() => handleRelease(item.fullLabel, item.bookTitle)} disabled={busyLabel === item.fullLabel} style={actionButtonStyle(busyLabel === item.fullLabel)}>
-                      Release
+                      {busyLabel === item.fullLabel ? 'Working…' : 'Release'}
                     </button>
                   </td>
                 </tr>
@@ -3731,7 +3727,7 @@ export default function App() {
               {checkoutReceipt.length === 1 ? 'Your book is reserved' : `Your ${checkoutReceipt.length} books are reserved`}
             </h2>
             <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: '#5C3D2E', marginBottom: 20 }}>
-              Collect {checkoutReceipt.length === 1 ? 'it' : 'them'} from the center within 5 days, during opening times. Find {checkoutReceipt.length === 1 ? 'it' : 'each one'} by category, then by copy ID. Staff will check {checkoutReceipt.length === 1 ? 'it' : 'them'} out to you when you collect. After 5 days an uncollected book goes back on the shelf. No confirmation email is sent, so take a note of this.
+              Collect {checkoutReceipt.length === 1 ? 'it' : 'them'} from the center within 5 days, during opening times. Find {checkoutReceipt.length === 1 ? 'it' : 'each one'} by category, then by copy ID. Once you have {checkoutReceipt.length === 1 ? 'it' : 'them'}, tap Check Out on My Books. After 5 days an uncollected book goes back to the catalog. No confirmation email is sent, so take a note of this.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
               {checkoutReceipt.map(item => (

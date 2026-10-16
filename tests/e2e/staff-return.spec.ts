@@ -6,14 +6,14 @@ import { testPatronEmail } from '../support/supabase-admin'
 const SUPABASE_URL = process.env.API_URL ?? 'https://gpekfosbyobdffavrumi.supabase.co'
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? ''
 
-// Full loan lifecycle on the staff page: reserved -> picked up -> returned ->
-// back on the shelf. (staff_return_book() once had a real SQL bug, 42702
+// Full loan lifecycle on the staff page: reserved -> checked out (by the
+// patron) -> returned -> back on the shelf. (staff_return_book() once had a real SQL bug, 42702
 // "ambiguous column", that broke every return silently - see
 // supabase/migrations/0025_fix_staff_return_book_ambiguous_column.sql.)
 test.describe('Staff returns', () => {
   test.use({ authSessionEnabled: true, authOptions: { userIdentifier: process.env.TEST_STAFF_EMAIL } })
 
-  test('[P0] a reserved book goes pickup -> checked out -> return shelf -> back on the shelf', async ({ page, apiRequest }) => {
+  test('[P0] a reserved book goes checked out -> return shelf -> back on the shelf', async ({ page, apiRequest }) => {
     // Given: a fresh reservation, created through the same RPC the cart's
     // "Check Out" button calls, using the seeded patron's own session.
     const patronSession = await mintSessionForEmail(testPatronEmail())
@@ -63,11 +63,19 @@ test.describe('Staff returns', () => {
     await page.getByRole('button', { name: 'Returns & Holds' }).click()
     await expect(page.getByRole('heading', { name: 'Open Checkouts' })).toBeVisible()
 
-    // Pickup: reserved -> checked out
-    const reservedRow = page.locator('tr', { has: page.getByText(fullLabel) })
-    await expect(reservedRow).toBeVisible()
-    await reservedRow.getByRole('button', { name: 'Mark Picked Up' }).click()
-    await expect(page.getByText(new RegExp(`Checked out .* \\(${fullLabel}\\) to the patron`))).toBeVisible()
+    // The reservation shows for staff, who can only release it (the patron
+    // is the one who checks out)
+    await expect(page.locator('tr', { has: page.getByText(fullLabel) }).getByRole('button', { name: 'Release' })).toBeVisible()
+
+    // Patron collects the book and checks it out: reserved -> checked out
+    const { status: checkOutStatus } = await apiRequest({
+      method: 'POST',
+      baseUrl: SUPABASE_URL,
+      path: '/rest/v1/rpc/check_out_reserved',
+      headers: patronHeaders,
+      body: { p_full_label: fullLabel },
+    })
+    expect(checkOutStatus).toBe(204)
     expect(await copyStatus()).toBe('checked_out')
 
     // Return: checked out -> return shelf (NOT yet available)

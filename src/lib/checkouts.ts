@@ -113,11 +113,17 @@ export async function releaseReservation(fullLabel: string): Promise<void> {
 /**
  * Turns a cart hold into a 5-day pickup reservation. The patron has not
  * borrowed the book yet: staff mark the pickup at the center, and that is
- * when it becomes a checkout (staffMarkPickedUp). Maps to reserve_for_pickup()
+ * when it becomes a checkout (checkOutReserved). Maps to reserve_for_pickup()
  * in 20261016000000_reserve_pickup_return_shelf.sql.
  */
 export async function reserveForPickup(fullLabel: string): Promise<void> {
   const { error } = await supabase.rpc('reserve_for_pickup', { p_full_label: fullLabel })
+  if (error) throw error
+}
+
+/** Patron collected a reserved book and taps Check Out: the loan starts now. */
+export async function checkOutReserved(fullLabel: string): Promise<void> {
+  const { error } = await supabase.rpc('check_out_reserved', { p_full_label: fullLabel })
   if (error) throw error
 }
 
@@ -315,12 +321,6 @@ export type ReturnShelfItem = {
   bookTitle: string | null
   returnedAt: string | null
   returnedByName: string
-}
-
-/** Staff: a patron picked up their reserved copy, so the loan starts now. */
-export async function staffMarkPickedUp(fullLabel: string): Promise<void> {
-  const { error } = await supabase.rpc('staff_mark_picked_up', { p_full_label: fullLabel })
-  if (error) throw error
 }
 
 /** Staff: copies handed back and waiting on the return shelf. */
