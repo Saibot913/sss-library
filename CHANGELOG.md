@@ -23,7 +23,7 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 _v1 edits (2026-10-15)_
 
 ### Added
-- Help tab (separate from Community) with a stubbed FAQ and a "Report an Issue" button. Questions live in `src/lib/help.ts` with placeholder answers; the button shows "coming soon" until `ISSUE_FORM_URL` is set to a Google Form link.
+- Help tab (separate from Community) with a step-by-step "How borrowing works" guide and a partly-stubbed FAQ and a "Report an Issue" button. Questions live in `src/lib/help.ts` with placeholder answers; the button shows "coming soon" until `ISSUE_FORM_URL` is set to a Google Form link.
 - Sign-in / sign-up popup on a patron's first visit of a session; closing it just leaves them browsing as a guest.
 - Checkout now shows a large pickup dialog with each book's title, category and copy ID to collect it by; the patron stays where they were.
 

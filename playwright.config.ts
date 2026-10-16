@@ -22,7 +22,10 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // One worker everywhere: the checkout and staff-return specs both reserve
+  // copies for the same seeded patron, so running them in parallel makes one
+  // click the other's reservation. CI was already serial; local now matches.
+  workers: 1,
   reporter: [
     ['html', { outputFolder: 'playwright-report', open: 'never' }],
     ['junit', { outputFile: 'test-results/results.xml' }],

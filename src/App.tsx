@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import { fetchBooks, addBook, addCopy, updateBook, updateCopy, type Book, type CopyStatus } from './lib/books'
 import { fetchThoughtForTheDay, type ThoughtForTheDay } from './lib/thoughtForTheDay'
 import { useBookCover } from './lib/bookCovers'
-import { FAQS, ISSUE_FORM_URL } from './lib/help'
+import { CHECKOUT_GUIDE, FAQS, ISSUE_FORM_URL } from './lib/help'
 import { VOLUNTEER_FORM_URL, VOLUNTEER_RESPONSES_SHEET_URL } from './lib/volunteers'
 import { REVIEW_FORM_URL, REVIEW_RESPONSES_SHEET_URL, fetchReviewsForBook, fetchLibraryReviews, fetchAllReviewsForStaff, addReview, deleteReview, type Review } from './lib/reviews'
 import { hasSeenWelcomePrompt, markWelcomePromptSeen } from './lib/welcomePrompt'
@@ -2924,6 +2924,19 @@ function HelpPage() {
       </section>
 
       <section style={{ maxWidth: 820, margin: '0 auto', padding: '40px 28px 64px' }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 600, color: '#2C1810', marginBottom: 18 }}>How borrowing works</h2>
+        <ol style={{ listStyle: 'none', padding: 0, margin: '0 0 40px', display: 'grid', gap: 12 }}>
+          {CHECKOUT_GUIDE.map((step, i) => (
+            <li key={step.title} style={{ display: 'flex', gap: 14, padding: '14px 16px', background: '#FAF3E4', border: '1px solid #D4B896' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 18, color: '#C8521A', flexShrink: 0 }}>{i + 1}</span>
+              <div>
+                <h3 style={{ fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 600, color: '#2C1810', marginBottom: 4 }}>{step.title}</h3>
+                <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: '#5C3D2E', lineHeight: 1.6, margin: 0 }}>{step.detail}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 600, color: '#2C1810', marginBottom: 18 }}>Frequently asked questions</h2>
         <div style={{ borderTop: '1px solid #D4B896', marginBottom: 40 }}>
           {FAQS.map(item => (
