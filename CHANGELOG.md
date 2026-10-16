@@ -15,21 +15,21 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 
 ## [Unreleased]
 
-### Changed
-- Loans are now a two-step process. "Check Out" in the cart **reserves** the book for 5 days (unavailable to others); after collecting it the patron taps **Check Out** on My Books, which is when it becomes checked out. A reservation not checked out within 5 days is released back to the catalog. Returning is also two steps: the patron taps **Return** on their account page (or staff mark it returned), the book goes to the **Return Shelf**, and staff mark it **Back on Shelf** to make it available again. Reservations not collected within 5 days go back on the shelf automatically. Migrations `20261016000000`, `20261016000100` and `20261016000200`.
-- Staff Returns & Holds page: "Active Holds" is now "Reserved: Awaiting Pickup" (staff can Release) and there's a new Return Shelf section.
-- Checkout dialog says "reserved", with the 5-day collect window; patrons can no longer create a loan themselves (`checkout_book` now just reserves).
-
-_v1 edits (2026-10-15)_
+_v1 edits (2026-10-15 to 2026-10-16)_
 
 ### Added
-- Help tab (separate from Community) with a step-by-step "How borrowing works" guide and a partly-stubbed FAQ and a "Report an Issue" button. Questions live in `src/lib/help.ts` with placeholder answers; the button shows "coming soon" until `ISSUE_FORM_URL` is set to a Google Form link.
+- Two-step loans. "Check Out" in the cart **reserves** a book for 5 days (unavailable to others); after collecting it the patron taps **Check Out** on My Books to borrow it. A reservation not checked out within 5 days is released back to the catalog. Migrations `20261016000000`, `20261016000100`, `20261016000200`.
+- Patrons can tap **Return** on My Books; the book goes to a new **Return Shelf** on the staff Returns & Holds page, and staff mark it **Back on Shelf** to make it available again.
+- Help tab (separate from Community) with a "How borrowing works" guide, a FAQ, and a "Report an Issue" button that shows "coming soon" until `ISSUE_FORM_URL` in `src/lib/help.ts` is set.
 - Sign-in / sign-up popup on a patron's first visit of a session; closing it just leaves them browsing as a guest.
-- Checkout now shows a large pickup dialog with each book's title, category and copy ID to collect it by; the patron stays where they were.
+- Checkout shows a large dialog with each book's title, category and copy ID, and the patron stays on the page.
 
 ### Changed
-- Filled in the Help tab's FAQ with real answers (checkout hold time, honor-system no due dates, pickup/return location and hours, waitlist, sign-in code recovery, account update/delete), replacing the "Answer coming soon" placeholders. `ISSUE_FORM_URL` stays empty for now — "Report an Issue" still shows "coming soon".
+- Staff Returns & Holds: "Active Holds" is now "Reserved: Awaiting Collection" (staff can Release). Staff **Mark Returned** now sends a book to the Return Shelf instead of straight back to available.
+- Patrons can no longer create a loan directly: `checkout_book` now just reserves, and the loan starts when the patron checks out their reservation.
+- Manage Books won't edit a copy that is reserved, checked out or on the return shelf (it used to flip such copies to available).
 - Corrected the meeting room name to "Sai Dhyan Room" (was "Shradda Room").
+- e2e tests run one at a time locally (CI already did); two specs share one test patron and raced each other.
 
 ### Removed
 - Thought for the Day page and its nav link, switched off for now: `/thought` redirects home. The page component, importer and `thought_of_the_day` table are left in place so it can be turned back on.

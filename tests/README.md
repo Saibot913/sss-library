@@ -126,3 +126,9 @@ and `.claude/skills/bmad-testarch-nfr/resources/knowledge/` — only the skills
 this project's review tooling actually calls are kept, `bmad-testarch-framework`
 isn't one of them) — see `playwright-utils-mandate.md`, `auth-session.md`,
 `playwright-config.md`, `data-factories.md`.
+
+## Notes added in v1 edits
+
+- **Serial runs.** `playwright.config.ts` uses one worker: the checkout and staff-return specs both reserve copies for the same seeded patron and would otherwise click each other's reservations.
+- **`grantSiteAccess` helper.** There is no site password any more. The helper (kept under its old name) now just marks the first-visit sign-in popup as already seen, so it doesn't cover the page under test.
+- **Loan lifecycle.** `staff-return.spec.ts` walks reserved -> checked out -> return shelf -> back on shelf; `checkout.spec.ts` covers the cart reservation dialog and the patron's Check Out. These run against the live Supabase project, so the lifecycle migrations (`20261016*`) must be applied first.

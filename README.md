@@ -165,7 +165,7 @@ service-role key in `.env` or frontend code.
 ## Repo layout, quick reference
 
 - **`src/App.tsx`** — the whole app's UI currently lives here.
-- **`src/lib/`** — the Supabase-facing code (fetching books, logging in, checking out, etc.).
+- **`src/lib/`** — the Supabase-facing code (fetching books, logging in, reserving/checking out/returning, etc.). `help.ts` is where the Help page's guide, FAQ and issue-form link live.
 - **`supabase/migrations/`** — SQL that sets up the database (tables, permissions, functions).
 - **`tests/`** — Playwright end-to-end tests (`pnpm test:e2e` to run them); see [tests/README.md](tests/README.md).
 - **`CHANGELOG.md`** — every PR adds a line here; see [project-instructions/GIT_WORKFLOW.md](project-instructions/GIT_WORKFLOW.md).

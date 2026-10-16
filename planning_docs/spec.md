@@ -57,7 +57,10 @@ This needs a new migration (RPC functions + `grant execute ... to authenticated`
 - Editable per copy (nested under the book): `location`, `status` (`available`/`checked_out`/`lost`/`damaged`/`withdrawn`).
 - **Still needs:** an `update` RLS policy on `books`/`copies` restricted to staff — doesn't exist yet, needs a new migration (can likely be the same migration as 1a's `insert` policy).
 
-**1c. Returns & Holds — backend already fully built, zero UI:**
+**1c. Returns & Holds — built; loan lifecycle reworked in v1 edits (2026-10-16):**
+
+> **v1 edits:** loans are now two-step. Cart "Check Out" -> `reserved` (5 days) -> the **patron** taps Check Out on My Books (`check_out_reserved()`) -> `checked_out` -> patron taps Return (`return_my_book()`) or staff Mark Returned (`staff_return_book()`, now sends the copy to `returned`) -> staff Back on Shelf (`staff_reshelve_book()`) -> `available`. Uncollected reservations are released after 5 days (`release_expired_reservations()`, lazy, no scheduler). The staff page has three lists: Open Checkouts, Reserved: Awaiting Collection (Release only), Return Shelf (Back on Shelf). Migrations `20261016000000`-`20261016000200`. The bullets below describe the original design.
+
 - `staffReturnBook(fullLabel)` (`src/lib/checkouts.ts`) → RPC `staff_return_book` (`0009_staff_dashboard_rpcs.sql`). Marks a checkout returned, puts the copy back on the shelf.
 - `fetchStaffCheckouts()` → returns every open checkout: book title, `full_label`, patron name, patron email, checked-out date, `daysOut`. **This is the return page's data source** — it's a table of what's currently out, with a "Mark Returned" button per row, not a single button or a typed input.
 - `fetchStaffReservations()` / `staffForceReleaseReservation(fullLabel)` → same idea for active holds (a patron reserved a copy but hasn't picked it up yet) — a table with a "Release Hold" button per row. Free to include since it's already built.

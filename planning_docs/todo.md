@@ -4,15 +4,16 @@ Tracked in git, like the rest of `planning_docs/` — visible to anyone who clon
 not just local scratch notes. Replaces the previous version of this file, which described
 the checkout bug as unresolved and book covers as blocked — both are done now.
 
-## v1 edits (2026-10-15)
+## v1 edits (2026-10-15 to 2026-10-16) — live on `main`
 
+- **Loan lifecycle** (migrations `20261016000000`, `...0100`, `...0200`, applied): available -> **reserved** (cart "Check Out", 5 days, unavailable to others) -> **checked_out** (patron taps Check Out on My Books after collecting) -> **returned** (patron taps Return, or staff Mark Returned; sits on the Return Shelf) -> **available** (staff mark Back on Shelf). An uncollected reservation is released after 5 days. Expiry is lazy (`release_expired_reservations()` runs on catalog load and before reserve/list calls); there is no scheduler. The waitlist is unchanged and still means "no copy available". Staff can Release a reservation; they do not mark pickups.
+- Checkout shows a large dialog (title, category, copy ID) and the patron stays on the page; book detail refreshes afterwards.
 - Site password gate removed; first-visit sign-in/sign-up popup instead (see `spec.md` §4).
-- Checkout shows a large pickup dialog (title, category, copy ID) and keeps the patron on the page; book detail refreshes after checkout.
-- Thought for the Day decodes HTML entities at read time. The live Apps Script importer still needs the fixed `decodeEntities()` pasted in by hand.
-- Thought for the Day page switched off (nav link removed, `/thought` redirects home). Code, importer and table left in place; re-enable by restoring the route element and nav entry in `App.tsx`.
-- Help tab added (`/help`): FAQ answers are stubs and `ISSUE_FORM_URL` is empty. Both in `src/lib/help.ts`; needs real answers and a Google Form.
-- Loan lifecycle reworked (migrations `20261016000000`-`20261016000200`, applied): available -> reserved (5 days) -> checked_out (patron taps Check Out on My Books after collecting) -> returned (return shelf; patron taps Return or staff mark it) -> available (staff mark Back on Shelf). Expiry is lazy (`release_expired_reservations()` runs on catalog load and before reserve/list calls); no scheduler. Waitlist is unchanged and still means "no copy available".
-- **Open:** patrons aren't told where to collect (category / shelf `location` / center address and hours); no confirmation email is sent (intentional so far).
+- Help tab (`/help`): "How borrowing works" guide and FAQ with real answers; the "Report an Issue" button is blank until a Google Form URL is set as `ISSUE_FORM_URL` in `src/lib/help.ts`.
+- Thought for the Day page switched off (nav link removed, `/thought` redirects home). Code, importer and table left in place; re-enable by restoring the route element and nav entry in `App.tsx`. Entities are also decoded at read time; the live Apps Script importer still needs the fixed `decodeEntities()` pasted in by hand.
+- CI audit fixed: `brace-expansion`/`source-map-js` overridden; `braces` advisory GHSA-vfj7-8cjw-p6xm ignored (dev-only, no patch). Remove the ignore in `package.json` once a fix ships.
+- e2e now runs with one worker (two specs share one test patron).
+- **Open:** shelf `location` isn't shown to patrons yet; no confirmation or expiry-reminder email (needs a verified sending domain); dashboard "held"/"checked out" counts don't include reserved or returned copies; a patron can tap Return/Check Out without being at the center (honor system); auth emails still go through a Gmail SMTP relay, planned to switch to `sacsailibrary@gmail.com` (or a domain mailer).
 
 ## What's actually done and live in production (through today)
 

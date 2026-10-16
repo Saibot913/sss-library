@@ -13,7 +13,8 @@ Not auto-started outside the Figma Make platform. Run `pnpm dev` to start it (se
 - `src/App.tsx` - Main application component (all pages/UI currently live in this one file)
 - `src/main.tsx` - React entry point
 - `src/index.css` - Global styles and Tailwind CSS import
-- `src/lib/` - Supabase data layer (catalog, auth, checkouts, etc.) — see [README.md](README.md) for what each file does
+- `src/lib/` - Supabase data layer (catalog, auth, checkouts, etc.) — see [README.md](README.md) for what each file does. `help.ts` holds the Help page guide, FAQ and issue-form URL; `welcomePrompt.ts` tracks the first-visit sign-in popup
+- Loan lifecycle: cart Check Out **reserves** (5 days) -> patron Check Out on My Books -> Return -> return shelf -> staff Back on Shelf. See `planning_docs/todo.md` (v1 edits) and `supabase/migrations/20261016*`
 - `package.json` - Dependencies and scripts
 - `vite.config.ts` - Vite configuration
 - `.mise.toml` - Toolchain versions (Node.js, pnpm)
