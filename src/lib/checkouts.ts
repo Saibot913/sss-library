@@ -326,7 +326,7 @@ export async function staffMarkPickedUp(fullLabel: string): Promise<void> {
 /** Staff: copies handed back and waiting on the return shelf. */
 export async function fetchStaffReturnShelf(): Promise<ReturnShelfItem[]> {
   const { data, error } = await supabase.rpc('staff_list_return_shelf')
-  if (error) throw error
+  if (error) throw new Error(`staff_list_return_shelf: ${error.message}`)
   return (data ?? []).map((row: Record<string, unknown>) => ({
     fullLabel: row.full_label as string,
     bookCode: row.book_code as string,
