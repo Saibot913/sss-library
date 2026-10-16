@@ -29,7 +29,7 @@ _v1 edits (2026-10-15 to 2026-10-16)_
 - Patrons can no longer create a loan directly: `checkout_book` now just reserves, and the loan starts when the patron checks out their reservation.
 - Manage Books won't edit a copy that is reserved, checked out or on the return shelf (it used to flip such copies to available).
 - Corrected the meeting room name to "Sai Dhyan Room" (was "Shradda Room").
-- e2e tests run one at a time locally (CI already did); two specs share one test patron and raced each other.
+- e2e tests run one at a time locally (CI already did); two specs share one test patron and raced each other. The staff lifecycle test also re-opens the staff page after its API check-out instead of waiting on live sync, which made it timing-dependent.
 
 ### Removed
 - Thought for the Day page and its nav link, switched off for now: `/thought` redirects home. The page component, importer and `thought_of_the_day` table are left in place so it can be turned back on.
