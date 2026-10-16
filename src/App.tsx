@@ -3746,6 +3746,8 @@ export default function App() {
               {checkoutReceipt.map(item => (
                 <div key={item.label} style={{ padding: '14px 16px', background: '#F4E9D0', border: '1px solid #D4B896' }}>
                   <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600, color: '#2C1810', marginBottom: 8 }}>{item.title}</h3>
+                  {/* TODO: show the copy's shelf location here too (copies.location, e.g. "3.1").
+                      Stubbed for now; see planning_docs/todo.md. */}
                   <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: '#5C3D2E', margin: 0 }}>Category: <strong style={{ color: '#2C1810' }}>{item.category}</strong></p>
                   <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: '#5C3D2E', margin: 0 }}>Copy ID: <strong style={{ color: '#C8521A', fontFamily: 'var(--font-mono)', fontSize: 17 }}>{item.label}</strong></p>
                 </div>
