@@ -12,7 +12,7 @@ Working doc. Raw notes go in first, then each feature gets fleshed out one at a 
 - "3rd out 4th keep nice"
 - Location (Kilgore)
 - Bigger text / readability
-- Location (Shradda room)
+- Location (Sai Dhyan Room; originally recorded as "Shradda room", corrected in v1 edits)
 - Timings (Thursday bhajans)
 - Public / protected site ("love all serve all") — 3 layers of vision
 - Reviews, comments — Amazon-style
@@ -131,11 +131,11 @@ Entering the password once is remembered per-browser (not per-visit) — confirm
 
 **Status: data decided, NOT wired into the UI** — per your instruction, this one's a task handoff to the frontend team, not something executed now like features 2–4 above.
 
-- Real data added to `src/lib/siteInfo.ts`: `MEETING_ROOM = 'Shradda Room'` (at the existing `SITE_ADDRESS`), and `WEEKLY_TIMINGS` — Thursday Bhajans 7:00–9:30 PM, Sunday Sai Center 2:00–5:00 PM.
+- Real data added to `src/lib/siteInfo.ts`: `MEETING_ROOM = 'Sai Dhyan Room'` (originally 'Shradda Room') (at the existing `SITE_ADDRESS`), and `WEEKLY_TIMINGS` — Thursday Bhajans 7:00–9:30 PM, Sunday Sai Center 2:00–5:00 PM.
 - Found the thing to actually replace: the home page has a fake "Hours" strip (`App.tsx` ~line 869-878) showing made-up Mon–Thu/Fri–Sat/Sunday library hours — Figma leftover, not real. That's what `WEEKLY_TIMINGS` replaces, not a new section.
 - Task added to `project-instructions/README.md`'s `siteInfo.ts` checklist item for the team to do the actual wiring (footer + Hours strip).
 
-**Resolved:** "Kilgore" was an old, no-longer-correct location — not a second address. Nothing to capture; the Old Placerville Road / Shradda Room address in `siteInfo.ts` is the only correct one. No open items left on this feature.
+**Resolved:** "Kilgore" was an old, no-longer-correct location — not a second address. Nothing to capture; the Old Placerville Road / Sai Dhyan Room address in `siteInfo.ts` is the only correct one. No open items left on this feature.
 
 ### 6. Bigger UI / readability — DONE (2026-08-08)
 

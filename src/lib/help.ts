@@ -1,12 +1,14 @@
+import { MEETING_ROOM, SITE_ADDRESS, SITE_NAME } from './siteInfo'
+
 // Help page content. Edit this file only; HelpPage in App.tsx renders
 // whatever is here.
 // Step-by-step "how borrowing works" shown at the top of the Help page.
 export const CHECKOUT_GUIDE: { title: string; detail: string }[] = [
   { title: 'Add books to your cart', detail: 'Browse the catalog, open a book and tap "Add to Cart". You need to be signed in.' },
   { title: 'Check Out to reserve', detail: 'Open your cart and tap "Check Out". The book is now reserved for you for 5 days and nobody else can take it. A pop-up shows its category and copy ID so you can find it.' },
-  { title: 'Collect it from the center', detail: 'Go to the center during opening hours and pick up your book using the category and copy ID.' },
+  { title: 'Collect it from the center', detail: `Go to the ${MEETING_ROOM} at the center during opening hours and find your book using its category and copy ID.` },
   { title: 'Tap Check Out on My Books', detail: 'Once you have the book, open My Books and tap "Check Out" next to it. It moves to "Currently checked out". If you don\'t do this within 5 days, the book goes back to the catalog.' },
-  { title: 'Return it', detail: 'When you are done, tap "Return" on My Books and leave the book on the return shelf at the center. Staff will put it back on its shelf.' },
+  { title: 'Return it', detail: `When you are done, tap "Return" on My Books and leave the book on the return shelf in the ${MEETING_ROOM}. Staff will put it back on its shelf.` },
 ]
 
 export const FAQS: { question: string; answer: string }[] = [
@@ -20,11 +22,11 @@ export const FAQS: { question: string; answer: string }[] = [
   },
   {
     question: 'Where do I collect my book from?',
-    answer: 'Pick up (and return) books in person at the Sri Sathya Sai Baba Center of Sacramento (Sai Seva Sadan, 10415 Old Placerville Road, Suite #225, Sacramento, CA 95827), during the library\'s open hours shown on the home page (daily Aarthi times, Thursday Bhajans 7:30 – 9:00 PM, Sunday Sai Center 1:00 – 6:00 PM). After you reserve, the confirmation screen shows each book\'s category and copy ID — use those to find it on the shelf.',
+    answer: `The library is in the ${MEETING_ROOM} at the ${SITE_NAME} (${SITE_ADDRESS}). Pick up and return books there in person, during the library's open hours shown on the home page (daily Aarthi times, Thursday Bhajans 7:30 – 9:00 PM, Sunday Sai Center 1:00 – 6:00 PM). After you reserve, the confirmation screen shows each book's category and copy ID — use those to find it on the shelf.`,
   },
   {
     question: 'How do I return a book?',
-    answer: 'Tap Return next to the book on My Books, then leave it on the return shelf at the center. Staff will put it back on its shelf and mark it available again.',
+    answer: `Tap Return next to the book on My Books, then leave it on the return shelf in the ${MEETING_ROOM}. Staff will put it back on its shelf and mark it available again.`,
   },
   {
     question: 'What if every copy of a book is checked out?',

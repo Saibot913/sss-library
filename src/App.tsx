@@ -598,7 +598,7 @@ function CartOverlay({
                 Check Out {cartBooks.length} Book{cartBooks.length !== 1 ? 's' : ''}
               </button>
               {/* Nothing sends a notification, so don't promise one. */}
-              <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#9B7B6A', textAlign: 'center', marginTop: 10 }}>Checking out reserves your books for 5 days. Collect them from the center during opening times, then tap Check Out on My Books to borrow them.</p>
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: '#9B7B6A', textAlign: 'center', marginTop: 10 }}>Checking out reserves your books for 5 days. Collect them from the {MEETING_ROOM} at the center during opening times, then tap Check Out on My Books to borrow them.</p>
             </div>
           </>
         )}
@@ -681,7 +681,7 @@ function AccountActivityPage() {
         <button onClick={() => void loadActivity()} disabled={loading} style={{ padding: '9px 14px', background: loading ? '#A56A44' : '#C8521A', color: '#FAF3E4', border: 0, cursor: loading ? 'not-allowed' : 'pointer' }}>{loading ? 'Loading…' : 'Refresh'}</button>
       </div>
       {error && <p style={{ color: '#A52A2A', marginBottom: 18 }}>{error}</p>}
-      <ActivitySection title={`Reserved, ready to collect (${reservations.length})`} empty="Nothing reserved. Add a book to your cart and check out to reserve it." items={reservations.map(item => ({ key: item.fullLabel, title: item.bookTitle ?? item.bookCode, detail: `${item.fullLabel} · Collect from the center by ${new Date(item.reservedUntil).toLocaleDateString()}, then tap Check Out. Uncollected books go back to the catalog after that.`, action: { label: 'Check Out', busy: checkingOutLabel === item.fullLabel, onClick: () => void handleCheckOut(item) } }))} />
+      <ActivitySection title={`Reserved, ready to collect (${reservations.length})`} empty="Nothing reserved. Add a book to your cart and check out to reserve it." items={reservations.map(item => ({ key: item.fullLabel, title: item.bookTitle ?? item.bookCode, detail: `${item.fullLabel} · Collect from the ${MEETING_ROOM} by ${new Date(item.reservedUntil).toLocaleDateString()}, then tap Check Out. Uncollected books go back to the catalog after that.`, action: { label: 'Check Out', busy: checkingOutLabel === item.fullLabel, onClick: () => void handleCheckOut(item) } }))} />
       <ActivitySection title={`Currently checked out (${checkouts.length})`} empty="You do not have any currently checked-out books." items={checkouts.map(item => ({ key: item.checkoutId, title: item.bookTitle ?? item.bookCode, detail: `${item.fullLabel} · Checked out ${new Date(item.checkedOutAt).toLocaleDateString()}`, action: { label: 'Return', busy: returningLabel === item.fullLabel, onClick: () => void handleReturn(item) } }))} />
       <ActivitySection title={`Checkout history (${history.length})`} empty="No checkout history yet." items={history.map(item => ({ key: item.checkoutId, title: item.bookTitle ?? item.bookCode, detail: `${item.fullLabel} · ${new Date(item.checkedOutAt).toLocaleDateString()}${item.returnedAt ? ` · Returned ${new Date(item.returnedAt).toLocaleDateString()}` : ' · Open'}` }))} />
     </div>
@@ -3740,7 +3740,7 @@ export default function App() {
               {checkoutReceipt.length === 1 ? 'Your book is reserved' : `Your ${checkoutReceipt.length} books are reserved`}
             </h2>
             <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: '#5C3D2E', marginBottom: 20 }}>
-              Collect {checkoutReceipt.length === 1 ? 'it' : 'them'} from the center within 5 days, during opening times. Find {checkoutReceipt.length === 1 ? 'it' : 'each one'} by category, then by copy ID. Once you have {checkoutReceipt.length === 1 ? 'it' : 'them'}, tap Check Out on My Books. After 5 days an uncollected book goes back to the catalog. No confirmation email is sent, so take a note of this.
+              Collect {checkoutReceipt.length === 1 ? 'it' : 'them'} from the {MEETING_ROOM} at the center within 5 days, during opening times. Find {checkoutReceipt.length === 1 ? 'it' : 'each one'} by category, then by copy ID. Once you have {checkoutReceipt.length === 1 ? 'it' : 'them'}, tap Check Out on My Books. After 5 days an uncollected book goes back to the catalog. No confirmation email is sent, so take a note of this.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
               {checkoutReceipt.map(item => (
