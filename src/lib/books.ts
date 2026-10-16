@@ -210,6 +210,10 @@ export async function fetchBooks(): Promise<Book[]> {
 async function fetchAllBooks(): Promise<Book[]> {
   const books: Book[] = []
 
+  // Uncollected 5-day reservations go back on the shelf here, since nothing
+  // else runs on a schedule. Best-effort: a failure only means counts may lag.
+  await supabase.rpc('release_expired_reservations')
+
   // Ordered by the primary key so pages can't overlap or skip rows —
   // without an explicit order the row order between requests is not
   // guaranteed, which silently corrupts a paged read.

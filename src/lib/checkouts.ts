@@ -110,9 +110,30 @@ export async function releaseReservation(fullLabel: string): Promise<void> {
   if (error) throw error
 }
 
-export async function checkoutBook(fullLabel: string): Promise<void> {
-  const { error } = await supabase.rpc('checkout_book', { p_full_label: fullLabel })
+/**
+ * Turns a cart hold into a 5-day pickup reservation. The patron has not
+ * borrowed the book yet: staff mark the pickup at the center, and that is
+ * when it becomes a checkout (staffMarkPickedUp). Maps to reserve_for_pickup()
+ * in 20261016000000_reserve_pickup_return_shelf.sql.
+ */
+export async function reserveForPickup(fullLabel: string): Promise<void> {
+  const { error } = await supabase.rpc('reserve_for_pickup', { p_full_label: fullLabel })
   if (error) throw error
+}
+
+/** Patron taps Return: closes their loan and puts the copy on the return shelf. */
+export async function returnMyBook(fullLabel: string): Promise<void> {
+  const { error } = await supabase.rpc('return_my_book', { p_full_label: fullLabel })
+  if (error) throw error
+}
+
+/**
+ * Frees reservations nobody collected within 5 days. There is no scheduler,
+ * so anything that reads availability calls this first. Failures are ignored
+ * on purpose: it only tidies up, and a stale catalog is better than an error.
+ */
+export async function releaseExpiredReservations(): Promise<void> {
+  await supabase.rpc('release_expired_reservations')
 }
 
 /**
@@ -150,7 +171,7 @@ export async function checkoutBookByCode(bookCode: string): Promise<string> {
   let lastError: unknown = null
   for (const copy of candidates) {
     try {
-      await checkoutBook(copy.full_label)
+      await reserveForPickup(copy.full_label)
       return copy.full_label
     } catch (err) {
       lastError = err
@@ -286,6 +307,39 @@ export async function staffReturnBook(fullLabel: string): Promise<{ checkoutId: 
   const row = Array.isArray(arr) ? arr[0] : null
   if (!row) throw new Error('Return failed: no row returned.')
   return { checkoutId: row.checkout_id, returnedAt: row.returned_at }
+}
+
+export type ReturnShelfItem = {
+  fullLabel: string
+  bookCode: string
+  bookTitle: string | null
+  returnedAt: string | null
+  returnedByName: string
+}
+
+/** Staff: a patron picked up their reserved copy, so the loan starts now. */
+export async function staffMarkPickedUp(fullLabel: string): Promise<void> {
+  const { error } = await supabase.rpc('staff_mark_picked_up', { p_full_label: fullLabel })
+  if (error) throw error
+}
+
+/** Staff: copies handed back and waiting on the return shelf. */
+export async function fetchStaffReturnShelf(): Promise<ReturnShelfItem[]> {
+  const { data, error } = await supabase.rpc('staff_list_return_shelf')
+  if (error) throw error
+  return (data ?? []).map((row: Record<string, unknown>) => ({
+    fullLabel: row.full_label as string,
+    bookCode: row.book_code as string,
+    bookTitle: (row.book_title as string | null) ?? null,
+    returnedAt: (row.returned_at as string | null) ?? null,
+    returnedByName: ((row.returned_by_name as string | null) ?? '').trim() || 'Unknown',
+  }))
+}
+
+/** Staff: the copy is physically back on its shelf, so it is available again. */
+export async function staffReshelveBook(fullLabel: string): Promise<void> {
+  const { error } = await supabase.rpc('staff_reshelve_book', { p_full_label: fullLabel })
+  if (error) throw error
 }
 
 export async function staffForceReleaseReservation(fullLabel: string): Promise<void> {

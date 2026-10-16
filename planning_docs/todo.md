@@ -11,6 +11,7 @@ the checkout bug as unresolved and book covers as blocked — both are done now.
 - Thought for the Day decodes HTML entities at read time. The live Apps Script importer still needs the fixed `decodeEntities()` pasted in by hand.
 - Thought for the Day page switched off (nav link removed, `/thought` redirects home). Code, importer and table left in place; re-enable by restoring the route element and nav entry in `App.tsx`.
 - Help tab added (`/help`): FAQ answers are stubs and `ISSUE_FORM_URL` is empty. Both in `src/lib/help.ts`; needs real answers and a Google Form.
+- Loan lifecycle reworked (needs migration `20261016000000_reserve_pickup_return_shelf.sql` applied to Supabase): available -> reserved (5 days) -> checked_out (staff mark pickup) -> returned (return shelf; patron taps Return or staff mark it) -> available (staff mark Back on Shelf). Expiry is lazy (`release_expired_reservations()` runs on catalog load and before reserve/list calls); no scheduler. Waitlist is unchanged and still means "no copy available".
 - **Open:** patrons aren't told where to collect (category / shelf `location` / center address and hours); no confirmation email is sent (intentional so far).
 
 ## What's actually done and live in production (through today)

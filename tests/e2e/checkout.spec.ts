@@ -1,8 +1,7 @@
 import { test, expect } from '../support/merged-fixtures'
 import { grantSiteAccess } from '../support/helpers/site-access'
 
-// This exact flow (add to cart -> check out -> show up under "Currently
-// checked out") was broken in production for an unknown period before being
+// This exact flow (add to cart -> check out -> show up on their account) was broken in production for an unknown period before being
 // fixed this week - see CHANGELOG.md's checkout/profile-modal "Fixed"
 // entries. The seeded patron (tests/support/seed-test-accounts.ts) already
 // has a complete profile, so this covers the checkout itself rather than
@@ -10,7 +9,7 @@ import { grantSiteAccess } from '../support/helpers/site-access'
 test.describe('Checkout', () => {
   test.use({ authSessionEnabled: true }) // defaults to the seeded patron identity
 
-  test('[P0] a signed-in patron checks out an available book and sees it under Currently checked out', async ({ page }) => {
+  test('[P0] a signed-in patron checks out an available book and it is reserved for pickup', async ({ page }) => {
     await grantSiteAccess(page)
     await page.goto('/catalog')
 
@@ -32,19 +31,21 @@ test.describe('Checkout', () => {
     await page.getByRole('button', { name: /Check Out \d+ Books?/ }).click()
     await expect(page.getByRole('heading', { name: 'Your Cart' })).not.toBeVisible()
 
-    // Then: a pickup dialog names the book, its category and the copy ID...
-    const receipt = page.getByRole('dialog', { name: 'Checkout complete' })
+    // Then: checking out only RESERVES the book (staff mark the pickup at the
+    // center, which is what makes it a real checkout). A dialog names the
+    // book, its category and the copy ID...
+    const receipt = page.getByRole('dialog', { name: 'Reservation confirmed' })
     await expect(receipt.getByText(bookTitle)).toBeVisible()
     await expect(receipt.getByText(/Category:/)).toBeVisible()
     await expect(receipt.getByText(/Copy ID:/)).toBeVisible()
     await receipt.getByRole('button', { name: 'Got it' }).click()
 
-    // ...and the book appears under "Currently checked out" on their account page.
+    // ...and the book appears under "Reserved" on their account page.
     // .first() because the seeded patron account is reused across test runs,
     // so the same title can legitimately show up more than once here.
     await page.getByRole('button', { name: 'My Books' }).click()
     await expect(page).toHaveURL(/\/account$/)
-    const checkedOutSection = page.locator('section', { has: page.getByRole('heading', { name: /Currently checked out/ }) })
-    await expect(checkedOutSection.getByText(bookTitle).first()).toBeVisible()
+    const reservedSection = page.locator('section', { has: page.getByRole('heading', { name: /Reserved, ready to collect/ }) })
+    await expect(reservedSection.getByText(bookTitle).first()).toBeVisible()
   })
 })
