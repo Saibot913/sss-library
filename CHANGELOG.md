@@ -24,6 +24,9 @@ _Section display and housekeeping (2026-11-24)_
 - Manage Books calls a copy's location field **Section** to match what patrons now see.
 - Docs: `AGENTS.md`, `tests/README.md` and a `global-setup.ts` comment no longer describe e2e session minting as unimplemented.
 
+### Fixed
+- Bumped vite 8.3.0 -> 8.3.3 (dev dependency) for high-severity advisory GHSA-587h-7wmj-h5pm, which was failing the CI dependency audit. Supersedes Dependabot PR #61.
+
 ### Removed
 - `pnpm.auditConfig` ignore for the `braces` advisory (GHSA-vfj7-8cjw-p6xm): it no longer matches anything in `pnpm audit`.
 
