@@ -20,9 +20,8 @@ set up per the root [README.md](../README.md).
 
 Any spec that signs in (`test.use({ authSessionEnabled: true })`) mints a
 real Supabase session server-side via the service-role admin API — see
-[`tests/support/mint-session.ts`](support/mint-session.ts) and the
-[`tests/support/auth-fixture.ts`](support/auth-fixture.ts) TODO this
-replaced. This needs `tests/.env` (gitignored, never commit real values —
+[`tests/support/mint-session.ts`](support/mint-session.ts) and
+[`tests/support/auth-fixture.ts`](support/auth-fixture.ts). This needs `tests/.env` (gitignored, never commit real values —
 copy from `tests/.env.example`) with:
 
 - `SUPABASE_SERVICE_ROLE_KEY` — from Supabase project settings > API.

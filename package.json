@@ -34,7 +34,7 @@
     "oxfmt": "^0.2.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.0",
-    "vite": "8.3.0"
+    "vite": "8.3.3"
   },
   "pnpm": {
     "overrides": {
@@ -44,11 +44,6 @@
       "brace-expansion@<1.1.20": "1.1.21",
       "brace-expansion@>=2.0.0 <2.1.6": "2.1.7",
       "source-map-js": "1.2.2"
-    },
-    "auditConfig": {
-      "ignoreGhsas": [
-        "GHSA-vfj7-8cjw-p6xm"
-      ]
     }
   }
 }

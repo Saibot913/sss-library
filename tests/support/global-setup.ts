@@ -9,10 +9,8 @@ async function globalSetup() {
   // that default rather than configuring a path that gets ignored.
   authStorageInit()
   configureAuthSession({})
-  // Not calling authGlobalInit() here: manageAuthToken isn't implemented yet
-  // (see the TODO in auth-fixture.ts), so eagerly fetching a token would just
-  // fail every run. Tests that need authToken will surface that error when
-  // they ask for it.
+  // Not calling authGlobalInit() here: sessions are minted on demand per spec
+  // (see mint-session.ts and auth-fixture.ts), not eagerly for every run.
 }
 
 export default globalSetup
