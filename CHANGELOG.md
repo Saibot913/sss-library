@@ -18,6 +18,7 @@ When a set of changes is ready to be called a release: bump `version` in `packag
 _v1 edits (2026-10-15 to 2026-10-16)_
 
 ### Added
+- Shelf location (e.g. `Shelf: 3.1`) now shows in the reservation dialog and on My Books, next to category and copy ID. Front-end only: read from `copies.location`, no migration.
 - Two-step loans. "Check Out" in the cart **reserves** a book for 5 days (unavailable to others); after collecting it the patron taps **Check Out** on My Books to borrow it. A reservation not checked out within 5 days is released back to the catalog. Migrations `20261016000000`, `20261016000100`, `20261016000200`.
 - Patrons can tap **Return** on My Books; the book goes to a new **Return Shelf** on the staff Returns & Holds page, and staff mark it **Back on Shelf** to make it available again.
 - Help tab (separate from Community) with a "How borrowing works" guide, a FAQ, and a "Report an Issue" button that shows "coming soon" until `ISSUE_FORM_URL` in `src/lib/help.ts` is set.
@@ -40,7 +41,7 @@ _v1 edits (2026-10-15 to 2026-10-16)_
 ### Fixed
 - Book detail page kept showing pre-checkout availability until the patron navigated away; it now refreshes after checkout.
 - Thought for the Day still showed raw entities like `&rsquo;` for existing rows; entities are now decoded when the thought is loaded, so it's correct whatever is in the table.
-- CI `verify` (dependency audit) was failing on newly published advisories, blocking every PR. All are in dev-only test tooling (`@seontechnologies/playwright-utils`), not shipped code. Pinned patched `brace-expansion` and `source-map-js` via `pnpm.overrides`. `braces` (GHSA-vfj7-8cjw-p6xm) has no patched version yet, so that one advisory is ignored in `pnpm.auditConfig.ignoreGhsas`; remove the ignore once a fix ships.
+- CI `verify` (dependency audit) was failing on newly published advisories, blocking every PR. All are in dev-only test tooling (`@seontechnologies/playwright-utils`), not shipped code. Pinned patched `brace-expansion` and `source-map-js` via `pnpm.overrides`. The `braces` advisory (GHSA-vfj7-8cjw-p6xm) was ignored for a while; the ignore has since been removed because it no longer matches anything in the audit.
 
 ### Removed
 - The Community page's "Upcoming Events" list was 4 made-up Figma placeholder events (Summer Reading Circle, Children's Story Hour, etc.) that looked real but weren't — events scope was never actually decided (see `project-instructions/README.md`'s "Events scope" open decision). Emptied it out to the same honest "check back later" stub already used for Book Clubs, rather than keep showing fake events as if they were real.

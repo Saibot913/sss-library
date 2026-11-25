@@ -615,6 +615,22 @@ function AccountActivityPage() {
   const [error, setError] = useState('')
   const [returningLabel, setReturningLabel] = useState<string | null>(null)
   const [checkingOutLabel, setCheckingOutLabel] = useState<string | null>(null)
+  // copy ID -> shelf code, from the (cached) catalog; the loan RPCs don't return it.
+  const [shelfByLabel, setShelfByLabel] = useState<Record<string, string>>({})
+  const shelfSuffix = (label: string) => (shelfByLabel[label] ? ` · Shelf ${shelfByLabel[label]}` : '')
+
+  useEffect(() => {
+    let cancelled = false
+    fetchBooks()
+      .then(books => {
+        if (cancelled) return
+        const map: Record<string, string> = {}
+        for (const b of books) for (const c of b.copies) if (c.location) map[c.fullLabel] = c.location
+        setShelfByLabel(map)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
 
   async function handleCheckOut(item: ActiveReservation) {
     try {
@@ -681,8 +697,8 @@ function AccountActivityPage() {
         <button onClick={() => void loadActivity()} disabled={loading} style={{ padding: '9px 14px', background: loading ? '#A56A44' : '#C8521A', color: '#FAF3E4', border: 0, cursor: loading ? 'not-allowed' : 'pointer' }}>{loading ? 'Loading…' : 'Refresh'}</button>
       </div>
       {error && <p style={{ color: '#A52A2A', marginBottom: 18 }}>{error}</p>}
-      <ActivitySection title={`Reserved, ready to collect (${reservations.length})`} empty="Nothing reserved. Add a book to your cart and check out to reserve it." items={reservations.map(item => ({ key: item.fullLabel, title: item.bookTitle ?? item.bookCode, detail: `${item.fullLabel} · Collect from the ${MEETING_ROOM} by ${new Date(item.reservedUntil).toLocaleDateString()}, then tap Check Out. Uncollected books go back to the catalog after that.`, action: { label: 'Check Out', busy: checkingOutLabel === item.fullLabel, onClick: () => void handleCheckOut(item) } }))} />
-      <ActivitySection title={`Currently checked out (${checkouts.length})`} empty="You do not have any currently checked-out books." items={checkouts.map(item => ({ key: item.checkoutId, title: item.bookTitle ?? item.bookCode, detail: `${item.fullLabel} · Checked out ${new Date(item.checkedOutAt).toLocaleDateString()}`, action: { label: 'Return', busy: returningLabel === item.fullLabel, onClick: () => void handleReturn(item) } }))} />
+      <ActivitySection title={`Reserved, ready to collect (${reservations.length})`} empty="Nothing reserved. Add a book to your cart and check out to reserve it." items={reservations.map(item => ({ key: item.fullLabel, title: item.bookTitle ?? item.bookCode, detail: `${item.fullLabel}${shelfSuffix(item.fullLabel)} · Collect from the ${MEETING_ROOM} by ${new Date(item.reservedUntil).toLocaleDateString()}, then tap Check Out. Uncollected books go back to the catalog after that.`, action: { label: 'Check Out', busy: checkingOutLabel === item.fullLabel, onClick: () => void handleCheckOut(item) } }))} />
+      <ActivitySection title={`Currently checked out (${checkouts.length})`} empty="You do not have any currently checked-out books." items={checkouts.map(item => ({ key: item.checkoutId, title: item.bookTitle ?? item.bookCode, detail: `${item.fullLabel}${shelfSuffix(item.fullLabel)} · Checked out ${new Date(item.checkedOutAt).toLocaleDateString()}`, action: { label: 'Return', busy: returningLabel === item.fullLabel, onClick: () => void handleReturn(item) } }))} />
       <ActivitySection title={`Checkout history (${history.length})`} empty="No checkout history yet." items={history.map(item => ({ key: item.checkoutId, title: item.bookTitle ?? item.bookCode, detail: `${item.fullLabel} · ${new Date(item.checkedOutAt).toLocaleDateString()}${item.returnedAt ? ` · Returned ${new Date(item.returnedAt).toLocaleDateString()}` : ' · Open'}` }))} />
     </div>
   )
@@ -3274,7 +3290,7 @@ export default function App() {
   const [authReady, setAuthReady] = useState(false)
   const [authLoading, setAuthLoading] = useState<{type: 'login' | 'logout'; message: string} | null>(null)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
-  const [checkoutReceipt, setCheckoutReceipt] = useState<{ title: string; category: string; label: string }[] | null>(null)
+  const [checkoutReceipt, setCheckoutReceipt] = useState<{ title: string; category: string; label: string; location: string | null }[] | null>(null)
 
   // Drop a book from cart the moment staff force-release the hold on it
   // (Returns & Holds page) -- without this the patron's own cart keeps
@@ -3515,7 +3531,7 @@ export default function App() {
 
     setCheckoutError(null)
     const succeeded: string[] = []
-    const receipt: { title: string; category: string; label: string }[] = []
+    const receipt: { title: string; category: string; label: string; location: string | null }[] = []
     const failed: string[] = []
 
     // Convert each cart reservation into a checkout using the exact reserved
@@ -3530,7 +3546,7 @@ export default function App() {
       try {
         await reserveForPickup(reservedCopy)
         succeeded.push(title)
-        receipt.push({ title, category: book?.category || 'Uncategorized', label: reservedCopy })
+        receipt.push({ title, category: book?.category || 'Uncategorized', label: reservedCopy, location: book?.copies.find(c => c.fullLabel === reservedCopy)?.location ?? null })
       } catch (err) {
         console.error(`reservation failed for "${title}" (${reservedCopy}):`, err)
         failed.push(title)
@@ -3779,9 +3795,8 @@ export default function App() {
               {checkoutReceipt.map(item => (
                 <div key={item.label} style={{ padding: '14px 16px', background: '#F4E9D0', border: '1px solid #D4B896' }}>
                   <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600, color: '#2C1810', marginBottom: 8 }}>{item.title}</h3>
-                  {/* TODO: show the copy's shelf location here too (copies.location, e.g. "3.1").
-                      Stubbed for now; see planning_docs/todo.md. */}
                   <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: '#5C3D2E', margin: 0 }}>Category: <strong style={{ color: '#2C1810' }}>{item.category}</strong></p>
+                  {item.location && <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: '#5C3D2E', margin: 0 }}>Shelf: <strong style={{ color: '#2C1810' }}>{item.location}</strong></p>}
                   <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: '#5C3D2E', margin: 0 }}>Copy ID: <strong style={{ color: '#C8521A', fontFamily: 'var(--font-mono)', fontSize: 17 }}>{item.label}</strong></p>
                 </div>
               ))}

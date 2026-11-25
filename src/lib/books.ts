@@ -14,12 +14,14 @@ export type Book = {
   copies: Array<{
     fullLabel: string
     status: string | null
+    location: string | null
   }>
 }
 
 type CopyRow = {
   full_label: string
   status: string | null
+  location: string | null
 }
 
 type BookRow = {
@@ -38,7 +40,7 @@ type BookRow = {
 // reserved_by/reserved_until from anon+authenticated, so `copies(*)` is
 // rejected with a 401 — the embedded select must name its columns.
 const SELECT =
-  'book_code,title,author,year_published,published_by,category,tags,summary,copies(full_label,status)'
+  'book_code,title,author,year_published,published_by,category,tags,summary,copies(full_label,status,location)'
 
 // PostgREST caps rows per response (1000 by default) and truncates
 // silently rather than erroring, so a single unpaged request would
@@ -91,6 +93,7 @@ function toBook(row: BookRow): Book {
   const copies = (row.copies ?? []).map(copy => ({
     fullLabel: copy.full_label,
     status: copy.status,
+    location: copy.location,
   }))
   const { total, available } = countCopies(row.copies ?? [])
   return {
@@ -125,7 +128,8 @@ function toBook(row: BookRow): Book {
 // no `copies` field, and readCache() only checks that `books` is an array — so
 // a v1 entry surviving into this build makes that call throw on undefined.
 // Bumping the key is what discards them.
-const CACHE_KEY = 'sss-library:books:v2'
+// v3: each copy gained `location` (shelf code) for the checkout dialog and My Books.
+const CACHE_KEY = 'sss-library:books:v3'
 
 // The one volatile part of a Book is copiesAvailable, so the TTL is really
 // "how long may availability be wrong for?" Five minutes matches the
