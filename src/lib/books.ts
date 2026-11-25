@@ -128,7 +128,7 @@ function toBook(row: BookRow): Book {
 // no `copies` field, and readCache() only checks that `books` is an array — so
 // a v1 entry surviving into this build makes that call throw on undefined.
 // Bumping the key is what discards them.
-// v3: each copy gained `location` (shelf code) for the checkout dialog and My Books.
+// v3: each copy gained `location` (section code) for the checkout dialog and My Books.
 const CACHE_KEY = 'sss-library:books:v3'
 
 // The one volatile part of a Book is copiesAvailable, so the TTL is really
